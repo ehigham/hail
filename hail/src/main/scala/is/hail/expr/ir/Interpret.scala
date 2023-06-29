@@ -965,13 +965,13 @@ object Interpret {
 
       case TableGetGlobals(child) =>
         OptionT.liftF {
-          for {inter <- child.analyzeAndExecute; tv <- inter.asTableValue}
+          for {tv <- child.analyzeAndExecute >>= (_.asTableValue)}
             yield tv.globals.safeJavaValue
         }
 
       case TableCollect(child) =>
         OptionT.liftF {
-          for {inter <- child.analyzeAndExecute; tv <- inter.asTableValue; ctx <- M.ask}
+          for {tv <- child.analyzeAndExecute >>= (_.asTableValue); ctx <- M.ask}
             yield Row(tv.rvd.collect(ctx).toFastIndexedSeq, tv.globals.safeJavaValue)
         }
 
