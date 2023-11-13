@@ -115,7 +115,7 @@ class RVDPartitioner(
   // Key manipulation
 
   def coarsenedRangeBounds(newKeyLen: Int): Array[Interval] =
-    rangeBounds.map(_.coarsen(newKeyLen))
+    rangeBounds.fmap(_.coarsen(newKeyLen))
 
   def coarsen(newKeyLen: Int): RVDPartitioner = {
     if (newKeyLen == kType.size)
@@ -170,7 +170,7 @@ class RVDPartitioner(
     val eord: ExtendedOrdering = kord.intervalEndpointOrdering
     val scalaEOrd: Ordering[IntervalEndpoint] =
       kord.intervalEndpointOrdering.toOrdering.asInstanceOf[Ordering[IntervalEndpoint]]
-    val sorted = cutPoints.map(_.coarsenRight(allowedOverlap + 1)).sorted(scalaEOrd)
+    val sorted = cutPoints.fmap(_.coarsenRight(allowedOverlap + 1)).sorted(scalaEOrd)
 
     var i = 0
     def firstPast(threshold: IntervalEndpoint, start: Int): Int = {
@@ -213,7 +213,7 @@ class RVDPartitioner(
     new RVDPartitioner(sm, kType, rangeBounds, allowedOverlap)
 
   def coalesceRangeBounds(newPartEnd: IndexedSeq[Int]): RVDPartitioner = {
-    val newRangeBounds = (-1 +: newPartEnd.init).zip(newPartEnd).map { case (s, e) =>
+    val newRangeBounds = (-1 +: newPartEnd.init).zip(newPartEnd).fmap { case (s, e) =>
       rangeBounds(s+1).hull(kord, rangeBounds(e))
     }
     copy(rangeBounds = newRangeBounds)
@@ -301,7 +301,8 @@ class RVDPartitioner(
 
   def partitionBoundsIRRepresentation: Literal = {
     Literal(TArray(RVDPartitioner.intervalIRRepresentation(kType)),
-      rangeBounds.map(i => RVDPartitioner.intervalToIRRepresentation(i, kType.size)).toFastSeq)
+      rangeBounds.fmap(i => RVDPartitioner.intervalToIRRepresentation(i, kType.size)).toFastSeq
+    )
   }
 }
 
@@ -337,7 +338,7 @@ object RVDPartitioner {
     })
 
     val allowedOverlap = math.max(partitionKey.length - 1, 0)
-    union(sm, kType, intervals, allowedOverlap).subdivide(intervals.map(_.right), allowedOverlap)
+    union(sm, kType, intervals, allowedOverlap).subdivide(intervals.fmap(_.right), allowedOverlap)
   }
 
   def union(
@@ -390,7 +391,7 @@ object RVDPartitioner {
     val kOrd = PartitionBoundOrdering(ctx.stateManager, typ.kType.virtualType).toOrdering
     val sortedKeys = keys.sorted(kOrd)
     val step = (sortedKeys.length - 1).toDouble / nPartitions
-    val partitionEdges = Array.tabulate(nPartitions - 1) { i =>
+    val partitionEdges = FastSeq.tabulate(nPartitions - 1) { i =>
       IntervalEndpoint(sortedKeys(((i + 1) * step).toInt), 1)
     }.toFastSeq
 
@@ -426,7 +427,7 @@ object RVDPartitioner {
   def intervalToIRRepresentation(interval: Interval, len: Int): Interval = {
     def processEndpoint(p: IntervalEndpoint): IntervalEndpoint = {
       val r = p.point.asInstanceOf[Row]
-      val newr = Row(Row.fromSeq((0 until len).map(i => if (i >= r.length) null else r.get(i))), r.length)
+      val newr = Row(Row.fromSeq((0 until len).fmap(i => if (i >= r.length) null else r.get(i))), r.length)
       p.copy(point = newr)
     }
 

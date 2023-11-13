@@ -121,7 +121,7 @@ case class GridPartitioner(blockSize: Int, nRows: Long, nCols: Long, partitionIn
       case Some(bis) =>
         def transposeBI(bi: Int): Int = gpT.coordinatesBlock(this.blockBlockCol(bi), this.blockBlockRow(bi))
 
-        val (partIdxTToBlockIdxT, partIdxTToPartIdx) = bis.map(transposeBI).zipWithIndex.sortBy(_._1).unzip
+        val (partIdxTToBlockIdxT, partIdxTToPartIdx) = bis.fmap(transposeBI).zipWithIndex.sortBy(_._1).unzip
         val transposedPartitionIndicesToParentPartitions = partIdxTToPartIdx.apply(_)
 
         (GridPartitioner(blockSize, nCols, nRows, Some(partIdxTToBlockIdxT)), transposedPartitionIndicesToParentPartitions)
@@ -145,7 +145,7 @@ case class GridPartitioner(blockSize: Int, nRows: Long, nCols: Long, partitionIn
   def maybeBlockRows(): Option[IndexedSeq[Int]] =
     partitionIndexToBlockIndex match {
       case Some(bis) =>
-        val bisRow = bis.map(blockBlockRow).distinct
+        val bisRow = bis.fmap(blockBlockRow).distinct
         if (bisRow.length < nBlockRows) Some(bisRow) else None
       case None => None
     }
@@ -153,7 +153,7 @@ case class GridPartitioner(blockSize: Int, nRows: Long, nCols: Long, partitionIn
   def maybeBlockCols(): Option[IndexedSeq[Int]] =
     partitionIndexToBlockIndex match {
       case Some(bis) =>
-        val bisCol = bis.map(blockBlockCol).distinct
+        val bisCol = bis.fmap(blockBlockCol).distinct
         if (bisCol.length < nBlockCols) Some(bisCol) else None
       case None => None
     }

@@ -31,7 +31,7 @@ object StoredCodeTuple {
 class StoredCodeTuple(tis: Array[TypeInfo[_]]) {
   tis.foreach(ti => require(StoredCodeTuple.canStore(ti)))
 
-  private[this] val tiByteSize = tis.map(StoredCodeTuple.byteSize)
+  private[this] val tiByteSize = tis.fmap(StoredCodeTuple.byteSize)
   private[this] val fieldOffsets = new Array[Long](tis.length)
   val byteSize: Long = getByteSizeAndOffsets(tiByteSize, tiByteSize, 0, fieldOffsets)
   val alignment: Long = tiByteSize.max
@@ -56,7 +56,7 @@ class StoredCodeTuple(tis: Array[TypeInfo[_]]) {
   }
 
   def load(cb: EmitCodeBuilder, addr: Value[Long]): IndexedSeq[Code[_]] = {
-    tis.indices.map { i =>
+    tis.indices.fmap { i =>
       val ti = tis(i)
       val offset = addr + fieldOffsets(i)
       ti match {
@@ -70,7 +70,7 @@ class StoredCodeTuple(tis: Array[TypeInfo[_]]) {
   }
 
   def loadValues(cb: EmitCodeBuilder, addr: Value[Long]): IndexedSeq[Value[_]] = {
-    tis.indices.map { i =>
+    tis.indices.fmap { i =>
       val ti = tis(i)
       val offset = addr + fieldOffsets(i)
       val code = ti match {
@@ -93,12 +93,12 @@ case class StoredSTypePType(sType: SType, required: Boolean) extends PType {
 
   override def store(cb: EmitCodeBuilder, region: Value[Region], value: SValue, deepCopy: Boolean): Value[Long] = {
     val addr = cb.memoize(region.allocate(ct.alignment, ct.byteSize))
-    ct.store(cb, addr, value.st.coerceOrCopy(cb, region, value, deepCopy).valueTuple.map(_.get))
+    ct.store(cb, addr, value.st.coerceOrCopy(cb, region, value, deepCopy).valueTuple.fmap(_.get))
     addr
   }
 
   override def storeAtAddress(cb: EmitCodeBuilder, addr: Code[Long], region: Value[Region], value: SValue, deepCopy: Boolean): Unit = {
-    ct.store(cb, cb.newLocal[Long]("stored_stype_ptype_addr", addr), value.st.coerceOrCopy(cb, region, value, deepCopy).valueTuple.map(_.get))
+    ct.store(cb, cb.newLocal[Long]("stored_stype_ptype_addr", addr), value.st.coerceOrCopy(cb, region, value, deepCopy).valueTuple.fmap(_.get))
   }
 
   override def loadCheapSCode(cb: EmitCodeBuilder, addr: Code[Long]): SValue = {

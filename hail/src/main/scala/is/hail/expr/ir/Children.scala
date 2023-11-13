@@ -44,7 +44,7 @@ object Children {
     case AggLet(name, value, body, _) =>
       Array(value, body)
     case TailLoop(_, args, body) =>
-      args.map(_._2).toFastSeq :+ body
+      args.fmap(_._2).toFastSeq :+ body
     case Recur(_, args, _) =>
       args.toFastSeq
     case Ref(name, typ) =>
@@ -142,7 +142,7 @@ object Children {
     case StreamFold(a, zero, accumName, valueName, body) =>
       Array(a, zero, body)
     case StreamFold2(a, accum, valueName, seq, result) =>
-      Array(a) ++ accum.map(_._2) ++ seq ++ Array(result)
+      Array(a) ++ accum.fmap(_._2) ++ seq ++ Array(result)
     case StreamScan(a, zero, accumName, valueName, body) =>
       Array(a, zero, body)
     case StreamJoinRightDistinct(left, right, lKey, rKey, l, r, join, joinType) =>
@@ -195,11 +195,11 @@ object Children {
       Array(key, aggIR)
     case AggArrayPerElement(a, _, _, aggBody, knownLength, _) => Array(a, aggBody) ++ knownLength.toArray[IR]
     case MakeStruct(fields) =>
-      fields.map(_._2).toFastSeq
+      fields.fmap(_._2).toFastSeq
     case SelectFields(old, fields) =>
       Array(old)
     case InsertFields(old, fields, _) =>
-      (old +: fields.map(_._2)).toFastSeq
+      (old +: fields.fmap(_._2)).toFastSeq
     case InitOp(_, args, _) => args
     case SeqOp(_, args, _) => args
     case _: ResultOp => none
@@ -220,7 +220,7 @@ object Children {
     case GetField(o, name) =>
       Array(o)
     case MakeTuple(fields) =>
-      fields.map(_._2).toFastSeq
+      fields.fmap(_._2).toFastSeq
     case GetTupleElement(o, idx) =>
       Array(o)
     case In(i, typ) =>

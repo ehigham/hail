@@ -12,7 +12,7 @@ import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 
 object Locus {
-  val simpleContigs: Seq[String] = (1 to 22).map(_.toString) ++ Seq("X", "Y", "MT")
+  val simpleContigs: Seq[String] = (1 to 22).fmap(_.toString) ++ Seq("X", "Y", "MT")
 
   def apply(contig: String, position: Int, rg: ReferenceGenome): Locus = {
     rg.checkLocus(contig, position)
@@ -53,7 +53,7 @@ object Locus {
   def parseInterval(str: String, rg: ReferenceGenome, invalidMissing: Boolean = false): Interval =
     Parser.parseLocusInterval(str, rg, invalidMissing)
 
-  def parseIntervals(arr: Array[String], rg: ReferenceGenome, invalidMissing: Boolean): Array[Interval] = arr.map(parseInterval(_, rg, invalidMissing))
+  def parseIntervals(arr: Array[String], rg: ReferenceGenome, invalidMissing: Boolean): Array[Interval] = arr.fmap(parseInterval(_, rg, invalidMissing))
 
   def parseIntervals(arr: java.util.List[String], rg: ReferenceGenome, invalidMissing: Boolean = false): Array[Interval] = parseIntervals(arr.asScala.toArray, rg, invalidMissing)
 

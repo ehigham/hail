@@ -40,7 +40,7 @@ object Graph {
   }
 
   def maximalIndependentSet(edges: UnsafeIndexedSeq): IndexedSeq[Any] = {
-    maximalIndependentSet(mkGraph(edges.map { case Row(i, j) => i -> j }))
+    maximalIndependentSet(mkGraph(edges.fmap { case Row(i, j) => i -> j }))
   }
 
   def maximalIndependentSet(rgs: Map[String, ReferenceGenome], edges: UnsafeIndexedSeq, hcl: HailClassLoader, fs: FS, htc: HailTaskContext, outerRegion: Region,
@@ -75,7 +75,7 @@ object Graph {
       }
     }
 
-    maximalIndependentSet(mkGraph(edges.map { case Row(i, j) => i -> j }), Some(tbf))
+    maximalIndependentSet(mkGraph(edges.fmap { case Row(i, j) => i -> j }), Some(tbf))
   }
 
   def maximalIndependentSet[T: ClassTag](edges: Array[(T, T)]): IndexedSeq[T] = {

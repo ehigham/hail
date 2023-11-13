@@ -3,7 +3,7 @@ package is.hail.expr.ir
 import is.hail.TestUtils._
 import is.hail.expr.ir.TestUtils._
 import is.hail.types.virtual._
-import is.hail.utils.FastSeq
+import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq, toRichOption}
 import is.hail.{ExecStrategy, HailSuite}
 import org.testng.annotations.{DataProvider, Test}
 
@@ -157,13 +157,14 @@ class ArrayFunctionsSuite extends HailSuite {
   ).combinations(2).toArray
 
   @DataProvider(name = "arrayOpsOperations")
-  def arrayOpsOperations: Array[Array[Any]] = Array[(String, (Int, Int) => Int)](
-    ("add", _ + _),
-    ("sub", _ - _),
-    ("mul", _ * _),
-    ("floordiv", _ / _),
-    ("mod", _ % _)
-  ).map(_.productIterator.toArray)
+  def arrayOpsOperations: Array[Array[Any]] =
+    Array[(String, (Int, Int) => Int)](
+      ("add", _ + _),
+      ("sub", _ - _),
+      ("mul", _ * _),
+      ("floordiv", _ / _),
+      ("mod", _ % _)
+    ).fmap(_.productIterator.toArray)
 
   @DataProvider(name = "arrayOps")
   def arrayOpsPairs(): Array[Array[Any]] =
@@ -186,7 +187,7 @@ class ArrayFunctionsSuite extends HailSuite {
   def arrayOpsFPDiv(a: IndexedSeq[Integer], b: IndexedSeq[Integer]) {
     assertEvalsTo(invoke("div", TArray(TFloat64), toIRArray(a), toIRArray(b)),
       Option(a).zip(Option(b)).headOption.map { case (a0, b0) =>
-        a0.zip(b0).map { case (i, j) => Option(i).zip(Option(j)).headOption.map[java.lang.Double] { case (m, n) => m.toDouble / n }.orNull }
+        a0.zip(b0).fmap { case (i, j) => Option(i).zip(Option(j)).headOption.map[java.lang.Double] { case (m, n) => m.toDouble / n }.orNull }
       }.orNull )
   }
 
@@ -194,7 +195,7 @@ class ArrayFunctionsSuite extends HailSuite {
   def arrayOpsPow(a: IndexedSeq[Integer], b: IndexedSeq[Integer]) {
     assertEvalsTo(invoke("pow", TArray(TFloat64), toIRArray(a), toIRArray(b)),
       Option(a).zip(Option(b)).headOption.map { case (a0, b0) =>
-        a0.zip(b0).map { case (i, j) => Option(i).zip(Option(j)).headOption.map[java.lang.Double] { case (m, n) => math.pow(m.toDouble, n.toDouble) }.orNull }
+        a0.zip(b0).fmap { case (i, j) => Option(i).zip(Option(j)).headOption.map[java.lang.Double] { case (m, n) => math.pow(m.toDouble, n.toDouble) }.orNull }
       }.orNull )
   }
 
@@ -256,7 +257,7 @@ class ArrayFunctionsSuite extends HailSuite {
 
   @Test(dataProvider = "flatten")
   def flatten(in: IndexedSeq[IndexedSeq[Integer]], expected: IndexedSeq[Int]) {
-    assertEvalsTo(invoke("flatten", TArray(TInt32), MakeArray(in.map(toIRArray(_)), TArray(TArray(TInt32)))), expected)
+    assertEvalsTo(invoke("flatten", TArray(TInt32), MakeArray(in.fmap(toIRArray(_)), TArray(TArray(TInt32)))), expected)
   }
 
   @Test def testContains() {

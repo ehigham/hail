@@ -164,7 +164,7 @@ class PruneSuite extends HailSuite {
   }
 
   def tableRefStruct(tt: TableType, fields: String*): IR = {
-    MakeStruct(tt.key.map(k => k -> GetField(Ref("row", tt.rowType), k)) ++ FastSeq("foo" -> tableRefBoolean(tt, fields: _*)))
+    MakeStruct(tt.key.fmap(k => k -> GetField(Ref("row", tt.rowType), k)) ++ FastSeq("foo" -> tableRefBoolean(tt, fields: _*)))
   }
 
   def matrixRefBoolean(mt: MatrixType, fields: String*): IR = {
@@ -251,8 +251,8 @@ class PruneSuite extends HailSuite {
   def mangle(t: TableIR): TableIR = {
     TableRename(
       t,
-      t.typ.rowType.fieldNames.map(x => x -> (x + "_")).toMap,
-      t.typ.globalType.fieldNames.map(x => x -> (x + "_")).toMap
+      t.typ.rowType.fieldNames.fmap(x => x -> (x + "_")).toMap,
+      t.typ.globalType.fieldNames.fmap(x => x -> (x + "_")).toMap
     )
   }
 
@@ -317,7 +317,7 @@ class PruneSuite extends HailSuite {
     val tk1 = TableKeyBy(tab, Array("1"))
     val ts = Array(tk1, tk1, tk1)
     val tmwzj = TableMultiWayZipJoin(ts, "data", "gbls")
-    checkMemo(tmwzj, subsetTable(tmwzj.typ, "row.data.2", "global.gbls.g1"), ts.map { t =>
+    checkMemo(tmwzj, subsetTable(tmwzj.typ, "row.data.2", "global.gbls.g1"), ts.fmap { t =>
       subsetTable(t.typ, "row.2", "global.g1")
     })
   }
@@ -1125,7 +1125,7 @@ class PruneSuite extends HailSuite {
         wrappedMat,
         Map.empty,
         Map.empty,
-        wrappedMat.typ.rowType.fieldNames.map(x => x -> (x + "_")).toMap,
+        wrappedMat.typ.rowType.fieldNames.fmap(x => x -> (x + "_")).toMap,
         Map.empty)
 
     val mucBothSame = MatrixUnionCols(wrappedMat, wrappedMat2, "inner")

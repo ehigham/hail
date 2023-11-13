@@ -18,7 +18,7 @@ class OriginUnionRDD[T: ClassTag, S: ClassTag](
   f: (Int, Int, Iterator[T]) => Iterator[S]
 ) extends RDD[S](sc, Nil) {
   override def getPartitions: Array[Partition] = {
-    val arr = new Array[Partition](rdds.map(_.partitions.length).sum)
+    val arr = new Array[Partition](rdds.foldLeft(0) { case (sum, rdd) => sum + rdd.partitions.length })
     var i = 0
     for ((rdd, rddIdx) <- rdds.zipWithIndex; part <- rdd.partitions) {
       arr(i) = new OriginUnionPartition(i, rddIdx, part)

@@ -4,7 +4,7 @@ import is.hail.expr.ir.lowering.LowerDistributedSort.samplePartition
 import is.hail.expr.ir.{Apply, Ascending, Descending, ErrorIDs, GetField, I32, Literal, LoweringAnalyses, MakeStruct, Ref, SelectFields, SortField, TableIR, TableMapRows, TableRange, ToArray, ToStream, mapIR}
 import is.hail.types.RTable
 import is.hail.types.virtual.{TArray, TInt32, TStruct}
-import is.hail.utils.FastSeq
+import is.hail.utils.{FastSeq, toRichIndexedSeq}
 import is.hail.{ExecStrategy, HailSuite, TestUtils}
 import org.apache.spark.sql.Row
 import org.testng.annotations.Test
@@ -15,7 +15,7 @@ class LowerDistributedSortSuite extends HailSuite {
   @Test def testSamplePartition() {
     val dataKeys = IndexedSeq((0, 0), (0, -1), (1, 4), (2, 8), (3, 4), (4, 5), (5, 3), (6, 9), (7, 7), (8, -3), (9, 1))
     val elementType = TStruct(("key1", TInt32), ("key2", TInt32), ("value", TInt32))
-    val data1 = ToStream(Literal(TArray(elementType), dataKeys.map{ case (k1, k2) => Row(k1, k2, k1 * k1)}))
+    val data1 = ToStream(Literal(TArray(elementType), dataKeys.fmap{ case (k1, k2) => Row(k1, k2, k1 * k1)}))
     val sampleSeq = ToStream(Literal(TArray(TInt32), IndexedSeq(0, 2, 3, 7)))
 
     val sampled = samplePartition(mapIR(data1)(s => SelectFields(s, IndexedSeq("key1", "key2"))), sampleSeq, IndexedSeq(SortField("key1", Ascending), SortField("key2", Ascending)))
@@ -24,7 +24,7 @@ class LowerDistributedSortSuite extends HailSuite {
 
     val dataKeys2 = IndexedSeq((0, 0), (0, 1), (1, 0), (3, 3))
     val elementType2 = TStruct(("key1", TInt32), ("key2", TInt32))
-    val data2 = ToStream(Literal(TArray(elementType2), dataKeys2.map{ case (k1, k2) => Row(k1, k2)}))
+    val data2 = ToStream(Literal(TArray(elementType2), dataKeys2.fmap{ case (k1, k2) => Row(k1, k2)}))
     val sampleSeq2 = ToStream(Literal(TArray(TInt32), IndexedSeq(0)))
     val sampled2 = samplePartition(mapIR(data2)(s => SelectFields(s, IndexedSeq("key2", "key1"))), sampleSeq2, IndexedSeq(SortField("key2", Ascending), SortField("key1", Ascending)))
     assertEvalsTo(sampled2, Row(Row(0, 0), Row(3, 3), IndexedSeq( Row(0, 0)), false))
@@ -44,7 +44,7 @@ class LowerDistributedSortSuite extends HailSuite {
         .lower(ctx, myTable.typ.copy(key = FastSeq()))
       val res = TestUtils.eval(sortedTs.mapCollect("test")(x => ToArray(x))).asInstanceOf[IndexedSeq[IndexedSeq[Row]]].flatten
 
-      val rowFunc = myTable.typ.rowType.select(sortFields.map(_.field))._2
+      val rowFunc = myTable.typ.rowType.select(sortFields.fmap(_.field))._2
       val unsortedCollect = is.hail.expr.ir.TestUtils.collect(myTable)
       val unsortedAnalyses = LoweringAnalyses.apply(unsortedCollect, ctx)
       val unsorted = TestUtils.eval(LowerTableIR.apply(unsortedCollect, DArrayLowering.All, ctx, unsortedAnalyses)).asInstanceOf[Row](0).asInstanceOf[IndexedSeq[Row]]

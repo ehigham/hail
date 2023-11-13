@@ -41,7 +41,7 @@ object VariantMethods {
       val alts = altAlleles.filter(a => a != "*")
       require(!alts.contains(ref))
 
-      val min_length = math.min(ref.length, alts.map(x => x.length).min)
+      val min_length = math.min(ref.length, alts.fmap(x => x.length).min)
       var ne = 0
 
       while (ne < min_length - 1
@@ -63,7 +63,7 @@ object VariantMethods {
         assert(ns < ref.length - ne && alts.forall(x => ns < x.length - ne))
         (Locus(locus.contig, locus.position + ns),
           ref.substring(ns, ref.length - ne) +:
-            altAlleles.map(a => if (a == "*") a else a.substring(ns, a.length - ne)).toArray)
+            altAlleles.fmap(a => if (a == "*") a else a.substring(ns, a.length - ne)).toArray)
       }
     }
   }
@@ -79,7 +79,7 @@ object VariantSubgen {
 
   def plinkCompatible(rg: ReferenceGenome): VariantSubgen = {
     val r = random(rg)
-    val compatible = (1 until 22).map(_.toString).toSet
+    val compatible = (1 until 22).fmap(_.toString).toSet
     r.copy(
       contigGen = r.contigGen.filter { case (contig, len) =>
         compatible.contains(contig)

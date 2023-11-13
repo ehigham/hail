@@ -489,7 +489,7 @@ case class BlockMatrixDot(left: BlockMatrixIR, right: BlockMatrixIR) extends Blo
       BlockMatrixSparsity.constructFromShapeAndFunction(
         BlockMatrixType.numBlocks(lRows, blockSize),
         BlockMatrixType.numBlocks(rCols, blockSize)) { (i: Int, j: Int) =>
-        Array.tabulate(BlockMatrixType.numBlocks(rCols, blockSize)) { k =>
+        FastSeq.tabulate(BlockMatrixType.numBlocks(rCols, blockSize)) { k =>
           left.typ.hasBlock(i -> k) && right.typ.hasBlock(k -> j)
         }.reduce(_ || _)
       } else BlockMatrixSparsity.dense
@@ -567,7 +567,7 @@ case class BlockMatrixBroadcast(
           case IndexedSeq(1, 0) => // transpose
             assert(child.typ.blockSize == blockSize)
             assert(shape(0) == child.typ.nCols && shape(1) == child.typ.nRows)
-            BlockMatrixSparsity(child.typ.sparsity.definedBlocks.map(seq => seq.map { case (i, j) => (j, i)}))
+            BlockMatrixSparsity(child.typ.sparsity.definedBlocks.map(seq => seq.fmap { case (i, j) => (j, i) }.toFastSeq))
           case IndexedSeq(0, 1) =>
             assert(child.typ.blockSize == blockSize)
             assert(shape(0) == child.typ.nRows && shape(1) == child.typ.nCols)
@@ -635,7 +635,7 @@ case class BlockMatrixAgg(
   override lazy val typ: BlockMatrixType = {
     val matrixShape = BlockMatrixIR.tensorShapeToMatrixShape(child)
     val matrixShapeArr = Array[Long](matrixShape._1, matrixShape._2)
-    val shape = IndexedSeq(0, 1).filter(i => !axesToSumOut.contains(i)).map({ i: Int => matrixShapeArr(i) }).toFastSeq
+    val shape = IndexedSeq(0, 1).filter(i => !axesToSumOut.contains(i)).fmap({ i: Int => matrixShapeArr(i) }).toFastSeq
     val isRowVector = axesToSumOut == FastSeq(0)
 
     val sparsity = if (child.typ.isSparse) {
@@ -686,8 +686,10 @@ case class BlockMatrixFilter(
   lazy val keepRowPartitioned: Array[Array[Long]] = keepRow.grouped(blockSize).toArray
   lazy val keepColPartitioned: Array[Array[Long]] = keepCol.grouped(blockSize).toArray
 
-  lazy val rowBlockDependents: Array[Array[Int]] = child.typ.rowBlockDependents(keepRowPartitioned)
-  lazy val colBlockDependents: Array[Array[Int]] = child.typ.colBlockDependents(keepColPartitioned)
+  lazy val rowBlockDependents: IndexedSeq[Array[Int]] =
+    child.typ.rowBlockDependents(keepRowPartitioned)
+  lazy val colBlockDependents: IndexedSeq[Array[Int]] =
+    child.typ.colBlockDependents(keepColPartitioned)
 
   override lazy val typ: BlockMatrixType = {
     val childTensorShape = child.typ.shape
@@ -697,7 +699,7 @@ case class BlockMatrixFilter(
       case (IndexedSeq(numRows, numCols), false) => IndexedSeq(numRows, numCols)
     }
 
-    val matrixShape = indices.zipWithIndex.map({ case (dim, i) =>
+    val matrixShape = indices.zipWithIndex.fmap({ case (dim, i) =>
       if (dim.isEmpty) childMatrixShape(i) else dim.length
     })
 
@@ -808,7 +810,7 @@ case class RectangleSparsifier(rectangles: IndexedSeq[IndexedSeq[Long]]) extends
       Array.range(rs, re).flatMap { i =>
         Array.range(cs, ce)
           .filter { j => childType.hasBlock(i -> j) }
-          .map { j => i -> j }
+          .fmap { j => i -> j }
       }
     }.distinct
 
@@ -864,18 +866,19 @@ case class BlockMatrixSlice(child: BlockMatrixIR, slices: IndexedSeq[IndexedSeq[
 
   val blockCostIsLinear: Boolean = child.blockCostIsLinear
 
-  lazy val IndexedSeq(rowBlockDependents: Array[Array[Int]], colBlockDependents: Array[Array[Int]]) = slices.map { case IndexedSeq(start, stop, step) =>
-    val size = 1 + (stop - start - 1) / step
-    val nBlocks = BlockMatrixType.numBlocks(size, child.typ.blockSize)
-    Array.tabulate(nBlocks) { blockIdx =>
-      val blockStart = start + blockIdx * child.typ.blockSize * step
-      val blockEnd = java.lang.Math.min(start + ((blockIdx + 1) * child.typ.blockSize - 1) * step, stop)
-      Array.range(child.typ.getBlockIdx(blockStart), child.typ.getBlockIdx(blockEnd) + 1)
+  lazy val Array(rowBlockDependents: IndexedSeq[Array[Int]], colBlockDependents: IndexedSeq[Array[Int]]) =
+    slices.fmap { case IndexedSeq(start, stop, step) =>
+      val size = 1 + (stop - start - 1) / step
+      val nBlocks = BlockMatrixType.numBlocks(size, child.typ.blockSize)
+      FastSeq.tabulate(nBlocks) { blockIdx =>
+        val blockStart = start + blockIdx * child.typ.blockSize * step
+        val blockEnd = java.lang.Math.min(start + ((blockIdx + 1) * child.typ.blockSize - 1) * step, stop)
+        Array.range(child.typ.getBlockIdx(blockStart), child.typ.getBlockIdx(blockEnd) + 1)
+      }
     }
-  }
 
   override lazy val typ: BlockMatrixType = {
-    val matrixShape: IndexedSeq[Long] = slices.map { s =>
+    val matrixShape: IndexedSeq[Long] = slices.fmap { s =>
       val IndexedSeq(start, stop, step) = s
       1 + (stop - start - 1) / step
     }
@@ -895,7 +898,7 @@ case class BlockMatrixSlice(child: BlockMatrixIR, slices: IndexedSeq[IndexedSeq[
 
   override protected[ir] def execute(ctx: ExecuteContext): BlockMatrix = {
     val bm = child.execute(ctx)
-    val IndexedSeq(rowKeep, colKeep) = slices.map { s =>
+    val Array(rowKeep, colKeep) = slices.fmap { s =>
       val IndexedSeq(start, stop, step) = s
       start until stop by step
     }

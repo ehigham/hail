@@ -178,13 +178,13 @@ class Pretty(width: Int, ribbonWidth: Int, elideLiterals: Boolean, maxLen: Int, 
         else
           "<literal value>")
     case EncodedLiteral(codec, _) => single(codec.encodedVirtualType.parsableString())
-    case Let(bindings, _) if !elideBindings => bindings.map(b => text(prettyIdentifier(b._1)))
+    case Let(bindings, _) if !elideBindings => bindings.fmap(b => text(prettyIdentifier(b._1)))
     case AggLet(name, _, _, isScan) => if (elideBindings)
       single(Pretty.prettyBooleanLiteral(isScan))
     else
       FastSeq(prettyIdentifier(name), Pretty.prettyBooleanLiteral(isScan))
     case TailLoop(name, args, _) if !elideBindings =>
-      FastSeq(prettyIdentifier(name), prettyIdentifiers(args.map(_._1).toFastSeq))
+      FastSeq(prettyIdentifier(name), prettyIdentifiers(args.fmap(_._1).toFastSeq))
     case Recur(name, _, t) => if (elideBindings)
       single(t.parsableString())
     else
@@ -201,7 +201,7 @@ class Pretty(width: Int, ribbonWidth: Int, elideLiterals: Boolean, maxLen: Int, 
     case ApplyComparisonOp(op, _, _) => single(op.render())
     case GetField(_, name) => single(prettyIdentifier(name))
     case GetTupleElement(_, idx) => single(idx.toString)
-    case MakeTuple(fields) => FastSeq(prettyInts(fields.map(_._1).toFastSeq, elideLiterals))
+    case MakeTuple(fields) => FastSeq(prettyInts(fields.fmap(_._1).toFastSeq, elideLiterals))
     case MakeArray(_, typ) => single(typ.parsableString())
     case MakeStream(_, typ, requiresMemoryManagementPerElement) =>
       FastSeq(typ.parsableString(), Pretty.prettyBooleanLiteral(requiresMemoryManagementPerElement))
@@ -233,7 +233,7 @@ class Pretty(width: Int, ribbonWidth: Int, elideLiterals: Boolean, maxLen: Int, 
     case StreamDropWhile(_, name, _) if !elideBindings => single(prettyIdentifier(name))
     case StreamFlatMap(_, name, _) if !elideBindings => single(prettyIdentifier(name))
     case StreamFold(_, _, accumName, valueName, _) if !elideBindings => FastSeq(prettyIdentifier(accumName), prettyIdentifier(valueName))
-    case StreamFold2(_, acc, valueName, _, _) if !elideBindings => FastSeq(prettyIdentifiers(acc.map(_._1)), prettyIdentifier(valueName))
+    case StreamFold2(_, acc, valueName, _, _) if !elideBindings => FastSeq(prettyIdentifiers(acc.fmap(_._1)), prettyIdentifier(valueName))
     case StreamScan(_, _, accumName, valueName, _) if !elideBindings => FastSeq(prettyIdentifier(accumName), prettyIdentifier(valueName))
     case StreamWhiten(_, newChunk, prevWindow, vecSize, windowSize, chunkSize, blockSize, normalizeAfterWhiten) =>
       FastSeq(prettyIdentifier(newChunk), prettyIdentifier(prevWindow), vecSize.toString, windowSize.toString, chunkSize.toString, blockSize.toString, Pretty.prettyBooleanLiteral(normalizeAfterWhiten))
@@ -393,7 +393,7 @@ class Pretty(width: Int, ribbonWidth: Int, elideLiterals: Boolean, maxLen: Int, 
         prettyIdentifier(cname),
         prettyIdentifier(gname),
         {
-          val boundsJson = Serialization.write(partitioner.rangeBounds.map(_.toJSON(partitioner.kType.toJSON)))
+          val boundsJson = Serialization.write(partitioner.rangeBounds.fmap(_.toJSON(partitioner.kType.toJSON)))
           list("Partitioner " + partitioner.kType.parsableString() + prettyStringLiteral(boundsJson))
         },
         text(errorId.toString)
@@ -401,17 +401,17 @@ class Pretty(width: Int, ribbonWidth: Int, elideLiterals: Boolean, maxLen: Int, 
     case TableRename(_, rowMap, globalMap) =>
       val rowKV = rowMap.toArray
       val globalKV = globalMap.toArray
-      FastSeq(prettyStrings(rowKV.map(_._1)), prettyStrings(rowKV.map(_._2)),
-        prettyStrings(globalKV.map(_._1)), prettyStrings(globalKV.map(_._2)))
+      FastSeq(prettyStrings(rowKV.fmap(_._1)), prettyStrings(rowKV.fmap(_._2)),
+        prettyStrings(globalKV.fmap(_._1)), prettyStrings(globalKV.fmap(_._2)))
     case MatrixRename(_, globalMap, colMap, rowMap, entryMap) =>
       val globalKV = globalMap.toArray
       val colKV = colMap.toArray
       val rowKV = rowMap.toArray
       val entryKV = entryMap.toArray
-      FastSeq(prettyStrings(globalKV.map(_._1)), prettyStrings(globalKV.map(_._2)),
-        prettyStrings(colKV.map(_._1)), prettyStrings(colKV.map(_._2)),
-        prettyStrings(rowKV.map(_._1)), prettyStrings(rowKV.map(_._2)),
-        prettyStrings(entryKV.map(_._1)), prettyStrings(entryKV.map(_._2)))
+      FastSeq(prettyStrings(globalKV.fmap(_._1)), prettyStrings(globalKV.fmap(_._2)),
+        prettyStrings(colKV.fmap(_._1)), prettyStrings(colKV.fmap(_._2)),
+        prettyStrings(rowKV.fmap(_._1)), prettyStrings(rowKV.fmap(_._2)),
+        prettyStrings(entryKV.fmap(_._1)), prettyStrings(entryKV.fmap(_._2)))
     case TableFilterIntervals(child, intervals, keep) =>
       FastSeq(
         prettyStringLiteral(Serialization.write(
@@ -470,7 +470,7 @@ class Pretty(width: Int, ribbonWidth: Int, elideLiterals: Boolean, maxLen: Int, 
             list(prettyIdentifier(n), pretty(a))
           }
           pretty(old) +: prettyStringsOpt(fieldOrder) +: fieldDocs
-        case _ => ir.children.map(pretty).toFastSeq
+        case _ => ir.children.view.map(pretty)
       }
 
       /*
@@ -495,12 +495,12 @@ class Pretty(width: Int, ribbonWidth: Int, elideLiterals: Boolean, maxLen: Int, 
       case _: Switch =>
         if (i > 0) Some(FastSeq()) else None
       case TailLoop(name, args, body) => if (i == args.length)
-        Some(args.map { case (name, ir) => name -> "loopvar" } :+
+        Some(args.fmap { case (name, ir) => name -> "loopvar" } :+
           name -> "loop") else None
       case StreamMap(a, name, _) =>
         if (i == 1) Some(Array(name -> "elt")) else None
       case StreamZip(as, names, _, _, _) =>
-        if (i == as.length) Some(names.map(_ -> "elt")) else None
+        if (i == as.length) Some(names.fmap(_ -> "elt")) else None
       case StreamZipJoin(as, key, curKey, curVals, _) =>
         if (i == as.length)
           Some(Array(curKey -> "key", curVals -> "elts"))
@@ -522,9 +522,9 @@ class Pretty(width: Int, ribbonWidth: Int, elideLiterals: Boolean, maxLen: Int, 
         if (i <= accum.length)
           None
         else if (i < 2 * accum.length + 1)
-          Some(Array(valueName -> "elt") ++ accum.map { case (name, value) => name -> "accum" })
+          Some(Array(valueName -> "elt") ++ accum.fmap { case (name, value) => name -> "accum" })
         else
-          Some(accum.map { case (name, value) => name -> "accum" })
+          Some(accum.fmap { case (name, value) => name -> "accum" })
       case RunAggScan(a, name, _, _, _, _) =>
         if (i == 2 || i == 3) Some(Array(name -> "elt")) else None
       case StreamScan(a, zero, accumName, valueName, _) =>
@@ -647,12 +647,12 @@ class Pretty(width: Int, ribbonWidth: Int, elideLiterals: Boolean, maxLen: Int, 
     }
 
     def prettyBlock(ir: BaseIR, newBindings: IndexedSeq[(String, String)], bindings: Env[String]): Doc = {
-      val args = newBindings.map { case (name, base) => name -> s"%${uniqueify(base)}" }
+      val args = newBindings.fmap { case (name, base) => name -> s"%${uniqueify(base)}" }
       val blockBindings = bindings.bindIterable(args)
       val openBlock = if (args.isEmpty)
         text("{")
       else
-        concat("{", softline, args.map(_._2).mkString("(", ", ", ") =>"))
+        concat("{", softline, args.fmap(_._2).mkString("(", ", ", ") =>"))
       ir match {
         case Ref(name, _) =>
           val body = blockBindings.lookupOption(name).getOrElse(uniqueify("%undefined_ref"))
@@ -725,12 +725,12 @@ class Pretty(width: Int, ribbonWidth: Int, elideLiterals: Boolean, maxLen: Int, 
 
         val head = ir match {
           case MakeStruct(fields) =>
-            val args = (fields.map(_._1), strictChildIdents).zipped.map { (field, value) =>
+            val args = fields.view.map(_._1).zip(strictChildIdents).map { case (field, value) =>
               s"$field: $value"
             }.mkString("(", ", ", ")")
             hsep(text(Pretty.prettyClass(ir) + args) +: (attributes ++ nestedBlocks))
           case InsertFields(_, fields, _) =>
-            val newFields = (fields.map(_._1), strictChildIdents.tail).zipped.map { (field, value) =>
+            val newFields = fields.view.map(_._1).zip(strictChildIdents.tail).map { case (field, value) =>
               s"$field: $value"
             }.mkString("(", ", ", ")")
             val args = s" ${strictChildIdents.head} $newFields"

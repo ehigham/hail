@@ -4,10 +4,11 @@ import is.hail.asm4s.{Code, Value}
 import is.hail.expr.ir.EmitCodeBuilder
 import is.hail.types.physical.stypes.interfaces.{SBaseStruct, SBaseStructValue}
 import is.hail.types.virtual.{Field, TStruct}
+import is.hail.utils.toRichIndexedSeq
 
 trait PStruct extends PBaseStruct {
   override lazy val virtualType: TStruct =
-    TStruct(fields.map(f => Field(f.name, f.typ.virtualType, f.index)))
+    TStruct(fields.fmap(f => Field(f.name, f.typ.virtualType, f.index)))
 
   override def sType: SBaseStruct
 
@@ -35,11 +36,11 @@ trait PStruct extends PBaseStruct {
 
   def identBase: String = "struct"
 
-  final def selectFields(names: Seq[String]): PCanonicalStruct = PCanonicalStruct(required, names.map(f => f -> field(f).typ): _*)
+  final def selectFields(names: IndexedSeq[String]): PCanonicalStruct = PCanonicalStruct(required, names.fmap(f => f -> field(f).typ): _*)
 
   final def dropFields(names: Set[String]): PCanonicalStruct = selectFields(fieldNames.filter(!names.contains(_)))
 
-  final def typeAfterSelect(keep: IndexedSeq[Int]): PCanonicalStruct = PCanonicalStruct(required, keep.map(i => fieldNames(i) -> types(i)): _*)
+  final def typeAfterSelect(keep: IndexedSeq[Int]): PCanonicalStruct = PCanonicalStruct(required, keep.fmap(i => fieldNames(i) -> types(i)): _*)
 
   def loadField(offset: Code[Long], fieldName: String): Code[Long]
 

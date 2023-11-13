@@ -61,7 +61,7 @@ class RVD(
 
   def cast(newRowType: PStruct): RVD = {
     val nameMap = rowType.fieldNames.zip(newRowType.fieldNames).toMap
-    val newTyp = RVDType(newRowType, typ.key.map(nameMap))
+    val newTyp = RVDType(newRowType, typ.key.fmap(nameMap))
     val newPartitioner = partitioner.rename(nameMap)
     new RVD(newTyp, newPartitioner, crdd)
   }
@@ -338,7 +338,7 @@ class RVD(
       val partCumulativeSize = mapAccumulate[Array, Long](partSize, 0L)((s, acc) => (s + acc, s + acc))
       val totalSize = partCumulativeSize.last
 
-      var newPartEnd = (0 until maxPartitions).map { i =>
+      var newPartEnd = (0 until maxPartitions).fmap { i =>
         val t = totalSize * (i + 1) / maxPartitions
 
         /* j largest index not greater than t */
@@ -355,7 +355,7 @@ class RVD(
       }.toArray
 
       newPartEnd = newPartEnd.zipWithIndex.filter { case (end, i) => i == 0 || newPartEnd(i) != newPartEnd(i - 1) }
-        .map(_._1)
+        .fmap(_._1)
 
       val newPartitioner = partitioner.coalesceRangeBounds(newPartEnd)
       if (newPartitioner.numPartitions< maxPartitions)
@@ -512,7 +512,7 @@ class RVD(
     val newNParts = newRDD.getNumPartitions
     assert(newNParts >= 0)
 
-    val newRangeBounds = Array.range(0, newNParts).map(partitioner.rangeBounds)
+    val newRangeBounds = Array.range(0, newNParts).fmap(partitioner.rangeBounds)
     val newPartitioner = partitioner.copy(rangeBounds = newRangeBounds)
 
     RVD(typ, newPartitioner, newRDD)
@@ -559,7 +559,7 @@ class RVD(
     assert(oldNParts >= newNParts)
     assert(newNParts >= 0)
 
-    val newRangeBounds = Array.range(oldNParts - newNParts, oldNParts).map(partitioner.rangeBounds)
+    val newRangeBounds = Array.range(oldNParts - newNParts, oldNParts).fmap(partitioner.rangeBounds)
     val newPartitioner = partitioner.copy(rangeBounds = newRangeBounds)
 
     RVD(typ, newPartitioner, newRDD)
@@ -620,7 +620,7 @@ class RVD(
     val pred: (RVDContext, Long) => Boolean = (ctx: RVDContext, ptr: Long) => {
       val ur = new UnsafeRow(localRowPType, ctx.r, ptr)
       val key = Row.fromSeq(
-        kRowFieldIdx.map(i => ur.get(i)))
+        kRowFieldIdx.fmap(i => ur.get(i)))
       intervalsBc.value.contains(key)
     }
 
@@ -646,7 +646,7 @@ class RVD(
     require(keep.isIncreasing && (keep.isEmpty || (keep.head >= 0 && keep.last < crdd.partitions.length)),
       "values not increasing or not in range [0, number of partitions)")
 
-    val newPartitioner = partitioner.copy(rangeBounds = keep.map(partitioner.rangeBounds))
+    val newPartitioner = partitioner.copy(rangeBounds = keep.fmap(partitioner.rangeBounds))
 
     RVD(typ, newPartitioner, crdd.subsetPartitions(keep))
   }
@@ -776,7 +776,7 @@ class RVD(
 
   def write(ctx: ExecuteContext, path: String, idxRelPath: String, stageLocally: Boolean, codecSpec: AbstractTypedCodecSpec): Array[FileWriteMetadata] = {
     val fileData = crdd.writeRows(ctx, path, idxRelPath, typ, stageLocally, codecSpec)
-    val spec = MakeRVDSpec(codecSpec, fileData.map(_.path), partitioner, IndexSpec.emptyAnnotation(idxRelPath, typ.kType))
+    val spec = MakeRVDSpec(codecSpec, fileData.fmap(_.path), partitioner, IndexSpec.emptyAnnotation(idxRelPath, typ.kType))
     spec.write(ctx.fs, path)
     fileData
   }
@@ -916,7 +916,7 @@ class RVD(
             start = Row(interval.start),
             end = Row(interval.end))
           val bytes = encoder.regionValueToBytes(ptr)
-          partBc.value.queryInterval(wrappedInterval).map(i => ((i, interval), bytes))
+          partBc.value.queryInterval(wrappedInterval).fmap(i => ((i, interval), bytes))
         } else
           Iterator()
       }
@@ -1106,11 +1106,11 @@ object RVD {
     if (keyInfo.isEmpty)
       return emptyCoercer
 
-    val bounds = keyInfo.map(_.interval).toFastSeq
-    val pkBounds = bounds.map(_.coarsen(partitionKey))
+    val bounds = keyInfo.fmap(_.interval).toFastSeq
+    val pkBounds = bounds.fmap(_.coarsen(partitionKey))
 
     def orderPartitions = { crdd: CRDD =>
-      val pids = keyInfo.map(_.partitionIndex)
+      val pids = keyInfo.fmap(_.partitionIndex)
       if (pids.isSorted && crdd.getNumPartitions == pids.length) {
         assert(pids.isEmpty || pids.last < crdd.getNumPartitions)
         crdd
@@ -1201,8 +1201,8 @@ object RVD {
     assert(pInfo.nonEmpty)
 
     val kord = PartitionBoundOrdering(ctx, typ.kType.virtualType).toOrdering
-    val min = pInfo.map(_.min).min(kord)
-    val max = pInfo.map(_.max).max(kord)
+    val min = pInfo.fmap(_.min).min(kord)
+    val max = pInfo.fmap(_.max).max(kord)
     val samples = pInfo.flatMap(_.samples)
 
     RVDPartitioner.fromKeySamples(ctx, typ, min, max, samples, nPartitions, partitionKey)
@@ -1219,40 +1219,33 @@ object RVD {
       new RVD(typ, partitioner, crdd).checkKeyOrdering()
   }
 
-  def unify(execCtx: ExecuteContext, rvds: Seq[RVD]): Seq[RVD] = {
+  def unify(execCtx: ExecuteContext, rvds: IndexedSeq[RVD]): IndexedSeq[RVD] = {
     if (rvds.length == 1 || rvds.forall(_.rowPType == rvds.head.rowPType))
       return rvds
 
     val sm = execCtx.stateManager
     val unifiedRowPType = InferPType.getCompatiblePType(rvds.map(_.rowPType)).asInstanceOf[PStruct]
-    val unifiedKey = rvds.map(_.typ.key).reduce((l, r) => commonPrefix(l, r))
-    rvds.map { rvd =>
+    val unifiedKey = rvds.view.map(_.typ.key).reduce((l, r) => commonPrefix(l, r))
+    rvds.fmap { rvd =>
       val srcRowPType = rvd.rowPType
       val newRVDType = rvd.typ.copy(rowType = unifiedRowPType, key = unifiedKey)
       rvd.map(newRVDType)((ctx, ptr) => unifiedRowPType.copyFromAddress(sm, ctx.r, srcRowPType, ptr, false))
     }
   }
 
-  def union(
-    rvds: Seq[RVD],
-    joinKey: Int,
-    ctx: ExecuteContext
-  ): RVD = rvds match {
+  def union(rvds: IndexedSeq[RVD], joinKey: Int, ctx: ExecuteContext): RVD = rvds match {
     case Seq(x) => x
     case first +: _ =>
       assert(rvds.forall(_.rowPType == first.rowPType))
 
       if (joinKey == 0) {
         val sc = first.sparkContext
-        RVD.unkeyed(first.rowPType, ContextRDD.union(sc, rvds.map(_.crdd)))
+        RVD.unkeyed(first.rowPType, ContextRDD.union(sc, rvds.fmap(_.crdd)))
       } else
         rvds.toArray.treeReduce(_.orderedMerge(_, joinKey, ctx))
   }
 
-  def union(
-    rvds: Seq[RVD],
-    ctx: ExecuteContext
-  ): RVD =
+  def union(rvds: IndexedSeq[RVD], ctx: ExecuteContext): RVD =
     union(rvds, rvds.head.typ.key.length, ctx)
 
   def writeRowsSplitFiles(
@@ -1324,7 +1317,7 @@ object RVD {
     }
 
     val partFilePartitionCounts = execCtx.timer.time("writeOriginUnionRDD")(new ContextRDD(
-      new OriginUnionRDD(first.crdd.rdd.sparkContext, rvds.map(_.crdd.rdd), partF))
+      new OriginUnionRDD(first.crdd.rdd.sparkContext, rvds.fmap(_.crdd.rdd), partF))
       .collect())
 
     val fileDataByOrigin = Array.fill[BoxedArrayBuilder[FileWriteMetadata]](nRVDs)(new BoxedArrayBuilder())
@@ -1333,7 +1326,7 @@ object RVD {
       fileDataByOrigin(oidx) += fd
     }
 
-    val fileData = fileDataByOrigin.map(_.result())
+    val fileData = fileDataByOrigin.fmap(_.result())
 
     execCtx.timer.time("writeMetadataInParallel")(
       fileData.zipWithIndex
@@ -1344,7 +1337,7 @@ object RVD {
           val basePath = paths(i)
           RichContextRDDRegionValue.writeSplitSpecs(fs, basePath,
             rowsCodecSpec, entriesCodecSpec, rowsIndexSpec, entriesIndexSpec,
-            localTyp, rowsRVType, entriesRVType, partFiles.map(_.path), partitionerBc.value)
+            localTyp, rowsRVType, entriesRVType, partFiles.fmap(_.path), partitionerBc.value)
         })
 
     fileData

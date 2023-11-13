@@ -167,12 +167,13 @@ abstract class AbstractTypedRegionBackedAggState(val ptype: PType) extends Regio
 }
 
 class PrimitiveRVAState(val vtypes: Array[VirtualTypeWithReq], val kb: EmitClassBuilder[_]) extends AggregatorState {
-  private[this] val emitTypes = vtypes.map(_.canonicalEmitType)
+  private[this] val emitTypes = vtypes.fmap(_.canonicalEmitType)
   assert(emitTypes.forall(_.st.isPrimitive))
 
   val nFields: Int = emitTypes.length
-  val fields: Array[EmitSettable] = Array.tabulate(nFields) { i => kb.newEmitField(s"primitiveRVA_${ i }_v", emitTypes(i)) }
-  val storageType = PCanonicalTuple(true, emitTypes.map(_.typeWithRequiredness.canonicalPType): _*)
+  val fields: IndexedSeq[EmitSettable] =
+    FastSeq.tabulate(nFields) { i => kb.newEmitField(s"primitiveRVA_${ i }_v", emitTypes(i)) }
+  val storageType = PCanonicalTuple(true, emitTypes.fmap(_.typeWithRequiredness.canonicalPType): _*)
   val sStorageType = storageType.sType
 
   def foreachField(f: (Int, EmitSettable) => Unit): Unit = {
@@ -200,7 +201,7 @@ class PrimitiveRVAState(val vtypes: Array[VirtualTypeWithReq], val kb: EmitClass
     storageType.storeAtAddress(cb,
       dest,
       null,
-      SStackStruct.constructFromArgs(cb, null, storageType.virtualType, fields.map(_.load): _*),
+      SStackStruct.constructFromArgs(cb, null, storageType.virtualType, fields.fmap(_.load): _*),
       false)
   }
 
@@ -238,7 +239,7 @@ class PrimitiveRVAState(val vtypes: Array[VirtualTypeWithReq], val kb: EmitClass
 
 case class StateTuple(states: Array[AggregatorState]) {
   val nStates: Int = states.length
-  val storageType: PTuple = PCanonicalTuple(true, states.map { s => s.storageType }: _*)
+  val storageType: PTuple = PCanonicalTuple(true, states.fmap { s => s.storageType }: _*)
 
   def apply(i: Int): AggregatorState = {
     if (i >= states.length)

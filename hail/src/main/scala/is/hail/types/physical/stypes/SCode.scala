@@ -6,6 +6,7 @@ import is.hail.expr.ir.EmitCodeBuilder
 import is.hail.types.physical.stypes.concrete.SRNGStateValue
 import is.hail.types.physical.stypes.interfaces._
 import is.hail.types.physical.stypes.primitives._
+import is.hail.utils.toRichIndexedSeq
 
 object SCode {
   def add(cb: EmitCodeBuilder, left: SValue, right: SValue, required: Boolean): SValue = {
@@ -116,7 +117,7 @@ trait SSettable extends SValue {
 
 object SSettable {
   def apply(sb: SettableBuilder, st: SType, name: String): SSettable = {
-    st.fromSettables(st.settableTupleTypes().zipWithIndex.map { case (ti, i) =>
+    st.fromSettables(st.settableTupleTypes().zipWithIndex.fmap { case (ti, i) =>
       sb.newSettable(s"${ name }_${ st.getClass.getSimpleName }_$i")(ti)
     })
   }

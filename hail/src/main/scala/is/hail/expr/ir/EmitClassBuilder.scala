@@ -60,7 +60,7 @@ class EmitModuleBuilder(val ctx: ExecuteContext, val modb: ModuleBuilder) {
   }
 
   def referenceGenomes(): IndexedSeq[ReferenceGenome] = rgContainers.keys.map(ctx.getReference(_)).toIndexedSeq.sortBy(_.name)
-  def referenceGenomeFields(): IndexedSeq[StaticField[ReferenceGenome]] = rgContainers.toFastSeq.sortBy(_._1).map(_._2)
+  def referenceGenomeFields(): IndexedSeq[StaticField[ReferenceGenome]] = rgContainers.toFastSeq.sortBy(_._1).fmap(_._2)
 
   var _rgMapField: StaticFieldRef[Map[String, ReferenceGenome]] = null
 
@@ -101,8 +101,8 @@ class EmitModuleBuilder(val ctx: ExecuteContext, val modb: ModuleBuilder) {
   }
 
   def literalsResult(): (Array[(VirtualTypeWithReq, Any, PType, Int)], Array[(EncodedLiteral, PType, Int)]) = {
-    (literalsBuilder.toArray.map { case ((vt, a), (pt, i)) => (vt, a, pt, i) },
-      encodedLiteralsBuilder.toArray.map { case (el, (pt, i)) => (el, pt, i) })
+    (literalsBuilder.toArray.fmap { case ((vt, a), (pt, i)) => (vt, a, pt, i) },
+      encodedLiteralsBuilder.toArray.fmap { case (el, (pt, i)) => (el, pt, i) })
   }
 
   def hasLiterals: Boolean = currLitIndex > 0
@@ -332,7 +332,7 @@ class EmitClassBuilder[C](
 
   private[this] def encodeLiterals(): Array[AnyRef] = {
     val (literals, preEncodedLiterals) = emodb.literalsResult()
-    val litType = PCanonicalTuple(true, literals.map(_._1.canonicalPType.setRequired(true)): _*)
+    val litType = PCanonicalTuple(true, literals.fmap(_._1.canonicalPType.setRequired(true)): _*)
     val spec = TypedCodecSpec(litType, BufferSpec.wireSpec)
 
     cb.addInterface(typeInfo[FunctionWithLiterals].iname)
@@ -378,7 +378,7 @@ class EmitClassBuilder[C](
     }
     enc.flush()
     enc.close()
-    Array[AnyRef](baos.toByteArray) ++ preEncodedLiterals.map(_._1.value.ba)
+    Array[AnyRef](baos.toByteArray) ++ preEncodedLiterals.fmap(_._1.value.ba)
   }
 
   private[this] var _mods: BoxedArrayBuilder[(String, (HailClassLoader, FS, HailTaskContext, Region) => AsmFunction3[Region, Array[Byte], Array[Byte], Array[Byte]])] = new BoxedArrayBuilder()
@@ -411,7 +411,7 @@ class EmitClassBuilder[C](
     val getSer = newEmitMethod("getSerializedAgg", FastSeq[ParamType](typeInfo[Int]), typeInfo[Array[Byte]])
 
     val (nfcode, states) = EmitCodeBuilder.scoped(newF) { cb =>
-      val states = agg.StateTuple(aggSigs.map(a => agg.AggStateSig.getState(a, cb.emb.ecb)).toArray)
+      val states = agg.StateTuple(aggSigs.fmap(a => agg.AggStateSig.getState(a, cb.emb.ecb)).toArray)
       _aggState = new agg.TupleAggregatorState(this, states, _aggRegion, _aggOff)
       cb += (_aggRegion := newF.getCodeParam[Region](1))
       cb += _aggState.topRegion.setNumParents(aggSigs.length)
@@ -561,7 +561,7 @@ class EmitClassBuilder[C](
     op: CodeOrdering.Op
   ): CodeOrdering.F[op.ReturnType] = {
     { (cb: EmitCodeBuilder, v1: EmitValue, v2: EmitValue) =>
-      val ord = StructOrdering.make(t1, t2, cb.emb.ecb, sortFields.map(_.sortOrder))
+      val ord = StructOrdering.make(t1, t2, cb.emb.ecb, sortFields.fmap(_.sortOrder))
 
       val r: Code[_] = op match {
         case CodeOrdering.StructLt(missingEqual) => ord.lt(cb, v1, v2, missingEqual)
@@ -621,7 +621,7 @@ class EmitClassBuilder[C](
 
   def newEmitMethod(name: String, argsInfo: IndexedSeq[MaybeGenericTypeInfo[_]], returnInfo: MaybeGenericTypeInfo[_]): EmitMethodBuilder[C] = {
     new EmitMethodBuilder[C](
-      argsInfo.map(ai => CodeParamType(ai.base)), CodeParamType(returnInfo.base),
+      argsInfo.fmap(ai => CodeParamType(ai.base)), CodeParamType(returnInfo.base),
       this, cb.newMethod(name, argsInfo, returnInfo), asmTuple = null)
   }
 
@@ -976,10 +976,10 @@ class EmitMethodBuilder[C](
   val mb: MethodBuilder[C],
   private[ir] val asmTuple: AsmTuple[_]
 ) extends WrappedEmitClassBuilder[C] {
-  private[this] val nCodeArgs = emitParamTypes.map(_.nCodes).sum
+  private[this] val nCodeArgs = emitParamTypes.fmap(_.nCodes).sum
   if (nCodeArgs > 255)
     throw new RuntimeException(s"invalid method ${ mb.methodName }: ${ nCodeArgs } code arguments:" +
-      s"\n  ${ emitParamTypes.map(p => s"${ p.nCodes } - $p").mkString("\n  ") }")
+      s"\n  ${ emitParamTypes.fmap(p => s"${ p.nCodes } - $p").mkString("\n  ") }")
   // wrapped MethodBuilder methods
   def newLocal[T: TypeInfo](name: String = null): LocalRef[T] = mb.newLocal[T](name)
 
@@ -1015,7 +1015,7 @@ class EmitMethodBuilder[C](
     val ts = _st.settableTupleTypes()
     val codeIndex = emitParamCodeIndex(emitIndex - static)
 
-    _st.fromValues(ts.zipWithIndex.map { case (t, i) =>
+    _st.fromValues(ts.zipWithIndex.fmap { case (t, i) =>
       mb.getArg(codeIndex + i)(t)
     })
   }
@@ -1047,7 +1047,7 @@ class EmitMethodBuilder[C](
         val ts = et.st.settableTupleTypes()
 
         val m = if (et.required) None else Some(mb.getArg[Boolean](codeIndex + ts.length))
-        val v = et.st.fromValues(ts.zipWithIndex.map { case (t, i) =>
+        val v = et.st.fromValues(ts.zipWithIndex.fmap { case (t, i) =>
           mb.getArg(codeIndex + i)(t)
         })
         EmitValue(m, v)
@@ -1088,7 +1088,7 @@ class EmitMethodBuilder[C](
       if (res.st.nSettables == 1)
         res.valueTuple.head
       else
-        asmTuple.newTuple(res.valueTuple.map(_.get))
+        asmTuple.newTuple(res.valueTuple.fmap(_.get))
     })
   }
 

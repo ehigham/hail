@@ -89,11 +89,8 @@ object ContextRDD {
   def empty[T: ClassTag](): ContextRDD[T] =
     new ContextRDD(SparkBackend.sparkContext("ContextRDD.empty").emptyRDD[RVDContext => Iterator[T]])
 
-  def union[T: ClassTag](
-    sc: SparkContext,
-    xs: Seq[ContextRDD[T]]
-  ): ContextRDD[T] =
-    new ContextRDD(sc.union(xs.map(_.rdd)))
+  def union[T: ClassTag](sc: SparkContext, xs: IndexedSeq[ContextRDD[T]]): ContextRDD[T] =
+    new ContextRDD(sc.union(xs.fmap(_.rdd)))
 
   def weaken[T: ClassTag](
     rdd: RDD[T]
@@ -121,17 +118,17 @@ object ContextRDD {
         nPartitions)
         .mapPartitions(filterAndReplace.apply))
 
-  def parallelize[T: ClassTag](sc: SparkContext, data: Seq[T], nPartitions: Option[Int] = None): ContextRDD[T] =
+  def parallelize[T: ClassTag](sc: SparkContext, data: IndexedSeq[T], nPartitions: Option[Int] = None): ContextRDD[T] =
     weaken(sc.parallelize(data, nPartitions.getOrElse(sc.defaultMinPartitions))).map(x => {
       x
     })
 
-  def parallelize[T: ClassTag](data: Seq[T], numSlices: Int): ContextRDD[T] =
+  def parallelize[T: ClassTag](data: IndexedSeq[T], numSlices: Int): ContextRDD[T] =
     weaken(SparkBackend.sparkContext("ContextRDD.parallelize").parallelize(data, numSlices)).map(x => {
       x
     })
 
-  def parallelize[T: ClassTag](data: Seq[T]): ContextRDD[T] =
+  def parallelize[T: ClassTag](data: IndexedSeq[T]): ContextRDD[T] =
     weaken(SparkBackend.sparkContext("ContextRDD.parallelize").parallelize(data)).map(x => {
       x
     })
@@ -145,8 +142,8 @@ object ContextRDD {
   ): ContextRDD[U] = {
     def inCtx(f: RVDContext => Iterator[U]): Iterator[RVDContext => Iterator[U]] = Iterator.single(f)
     new ContextRDD(
-      MultiWayZipPartitionsRDD(crdds.map(_.rdd)) { its =>
-        inCtx(ctx => f(ctx, its.map(_.flatMap(_(ctx)))))
+      MultiWayZipPartitionsRDD(crdds.fmap(_.rdd)) { its =>
+        inCtx(ctx => f(ctx, its.fmap(_.flatMap(_(ctx)))))
       })
   }
 }

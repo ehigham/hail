@@ -20,15 +20,12 @@ object IndexBTree {
     depth
   }
 
-  private[io] def calcDepth(arr: Array[Long], branchingFactor: Int) =
+  private[io] def calcDepth(arr: IndexedSeq[Long], branchingFactor: Int): Int =
     //max necessary for array of length 1 becomes depth=0
     math.max(1, (math.log10(arr.length) / math.log10(branchingFactor)).ceil.toInt)
 
-  private[io] def btreeLayers(
-    arr: Array[Long],
-    branchingFactor: Int = 1024
-  ): Array[Array[Long]] = {
-    require(arr.length > 0)
+  private[io] def btreeLayers(arr: IndexedSeq[Long], branchingFactor: Int = 1024): Array[Array[Long]] = {
+    require(arr.nonEmpty)
 
     val depth = calcDepth(arr, branchingFactor)
 
@@ -36,7 +33,7 @@ object IndexBTree {
     val layers = mutable.ArrayBuffer[IndexedSeq[Long]]()
     for (i <- 0 until depth - 1) {
       val multiplier = math.pow(branchingFactor, depth - 1 - i).toInt
-      layers.append((0 until math.pow(branchingFactor, i + 1).toInt).map { j =>
+      layers.append((0 until math.pow(branchingFactor, i + 1).toInt).fmap { j =>
         if (j * multiplier < arr.length)
           arr(j * multiplier)
         else
@@ -49,17 +46,17 @@ object IndexBTree {
     val paddingRequired =
       if (danglingElements == 0) 0
       else branchingFactor - danglingElements
-    val padding = (0 until paddingRequired).map { _ => -1L }
+    val padding = (0 until paddingRequired).fmap { _ => -1L }
     // Write last layer
     layers.append(arr ++ padding)
 
-    layers.map(_.toArray).toArray
+    layers.result().fmap(_.toArray)
   }
 
-  private[io] def btreeBytes(
-    arr: Array[Long],
-    branchingFactor: Int = 1024
-  ): Array[Byte] = btreeLayers(arr, branchingFactor)
+  private[io] def btreeBytes(arr: IndexedSeq[Long],
+                             branchingFactor: Int = 1024
+                            ): Array[Byte] =
+    btreeLayers(arr, branchingFactor)
     .flatten
     .flatMap(l => Array[Byte](
       (l >>> 56).toByte,
@@ -72,20 +69,17 @@ object IndexBTree {
       (l >>> 0).toByte))
     .toArray
 
-  def write(
-    arr: Array[Long],
-    fileName: String,
-    fs: FS,
-    branchingFactor: Int = 1024
-  ): Unit = using(new DataOutputStream(fs.create(fileName))) { w =>
-    w.write(btreeBytes(arr, branchingFactor))
-  }
+  def write(arr: IndexedSeq[Long],
+            fileName: String,
+            fs: FS,
+            branchingFactor: Int = 1024
+           ): Unit =
+    using(new DataOutputStream(fs.create(fileName))) { w =>
+      w.write(btreeBytes(arr, branchingFactor))
+    }
 
-  def toString(
-    arr: Array[Long],
-    branchingFactor: Int = 1024
-  ): String =
-    btreeLayers(arr, branchingFactor).map(_.mkString("[", " ", "]")).mkString("(BTREE\n", "\n", "\n)")
+  def toString(arr: IndexedSeq[Long], branchingFactor: Int = 1024): String =
+    btreeLayers(arr, branchingFactor).fmap(_.mkString("[", " ", "]")).mkString("(BTREE\n", "\n", "\n)")
 }
 
 class IndexBTree(indexFileName: String, fs: FS, branchingFactor: Int = 1024) extends Closeable {
@@ -102,7 +96,7 @@ class IndexBTree(indexFileName: String, fs: FS, branchingFactor: Int = 1024) ext
     IndexBTree.calcDepth(fs.getFileSize(indexFileName) / 8, branchingFactor)
 
   private def getOffset(depth: Int): Long = {
-    (1 until depth).map(math.pow(branchingFactor, _).toLong * 8).sum
+    (1 until depth).fmap(math.pow(branchingFactor, _).toLong * 8).sum
   }
 
   private def getOffset(depth: Int, blockIndex: Long): Long = {

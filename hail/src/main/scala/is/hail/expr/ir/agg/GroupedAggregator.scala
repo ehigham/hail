@@ -202,7 +202,7 @@ class DictState(val kb: EmitClassBuilder[_], val keyVType: VirtualTypeWithReq, v
   }
 
   def serialize(codec: BufferSpec): (EmitCodeBuilder, Value[OutputBuffer]) => Unit = {
-    val serializers = nested.states.map(_.serialize(codec))
+    val serializers = nested.states.fmap(_.serialize(codec))
 
     { (cb: EmitCodeBuilder, ob: Value[OutputBuffer]) =>
       initContainer.load(cb)
@@ -229,7 +229,7 @@ class DictState(val kb: EmitClassBuilder[_], val keyVType: VirtualTypeWithReq, v
   }
 
   def deserialize(codec: BufferSpec): (EmitCodeBuilder, Value[InputBuffer]) => Unit = {
-    val deserializers = nested.states.map(_.deserialize(codec))
+    val deserializers = nested.states.fmap(_.deserialize(codec))
 
     { (cb: EmitCodeBuilder, ib: Value[InputBuffer]) =>
       init(cb, { cb =>
@@ -258,7 +258,7 @@ class GroupedAggregator(ktV: VirtualTypeWithReq, nestedAggs: Array[StagedAggrega
   type State = DictState
 
   private val kt = ktV.canonicalPType
-  val resultEltType: PTuple = PCanonicalTuple(true, nestedAggs.map(_.resultEmitType.storageType): _*)
+  val resultEltType: PTuple = PCanonicalTuple(true, nestedAggs.fmap(_.resultEmitType.storageType): _*)
   val resultPType: PCanonicalDict = PCanonicalDict(kt, resultEltType)
   override val resultEmitType = EmitType(SIndexablePointer(resultPType), true)
   private[this] val arrayRep = resultPType.arrayRep

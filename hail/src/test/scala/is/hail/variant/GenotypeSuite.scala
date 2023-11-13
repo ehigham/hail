@@ -36,8 +36,8 @@ class GenotypeSuite extends TestNGSuite {
 
   @Test def testGtFromLinear() {
     val gen = for (nGenotype <- Gen.choose(2, 5).map(triangleNumberOf);
-      dosageGen = Gen.partition(nGenotype, 32768);
-      result <- dosageGen) yield result
+                   dosageGen = Gen.partition(nGenotype, 32768);
+                   result <- dosageGen) yield result
 
     val p = forAll(gen) { gp =>
       val gt = Option(uniqueMaxIndex(gp))

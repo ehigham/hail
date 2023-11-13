@@ -4,7 +4,7 @@ import is.hail.backend.ExecuteContext
 import is.hail.expr.ir._
 import is.hail.types.RTable
 import is.hail.types.virtual.TStruct
-import is.hail.utils.FastSeq
+import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq}
 
 object LowerTableIRHelpers {
 
@@ -23,19 +23,19 @@ object LowerTableIRHelpers {
       (lGlobals, rGlobals) => {
         val rGlobalType = rGlobals.typ.asInstanceOf[TStruct]
         bindIR(rGlobals) { rGlobalRef  =>
-          InsertFields(lGlobals, rGlobalType.fieldNames.map(f => f -> GetField(rGlobalRef, f)))
+          InsertFields(lGlobals, rGlobalType.fieldNames.fmap(f => f -> GetField(rGlobalRef, f)))
         }
       },
       (lEltRef, rEltRef) => {
         MakeStruct(
-          (lKeyFields, rKeyFields).zipped.map { (lKey, rKey) =>
+          lKeyFields.zip(rKeyFields).fmap { case (lKey, rKey) =>
             if (joinType == "outer" && lReq.field(lKey).required && rReq.field(rKey).required)
               lKey -> Coalesce(FastSeq(GetField(lEltRef, lKey), GetField(rEltRef, rKey), Die("TableJoin expected non-missing key", left.typ.rowType.fieldType(lKey), -1)))
             else
               lKey -> Coalesce(FastSeq(GetField(lEltRef, lKey), GetField(rEltRef, rKey)))
           }
-            ++ lValueFields.map(f => f -> GetField(lEltRef, f))
-            ++ rValueFields.map(f => f -> GetField(rEltRef, f)))
+            ++ lValueFields.fmap(f => f -> GetField(lEltRef, f))
+            ++ rValueFields.fmap(f => f -> GetField(rEltRef, f)))
       }, rightKeyIsDistinct)
 
     assert(joinedStage.rowType == tj.typ.rowType)

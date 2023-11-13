@@ -14,10 +14,10 @@ import is.hail.utils._
 
 case class LogisticRegression(
   test: String,
-  yFields: Seq[String],
+  yFields: IndexedSeq[String],
   xField: String,
-  covFields: Seq[String],
-  passThrough: Seq[String],
+  covFields: IndexedSeq[String],
+  passThrough: IndexedSeq[String],
   maxIterations: Int,
   tolerance: Double
 ) extends MatrixToTableFunction {
@@ -25,7 +25,7 @@ case class LogisticRegression(
   override def typ(childType: MatrixType): TableType = {
     val logRegTest = LogisticRegressionTest.tests(test)
     val multiPhenoSchema = TStruct(("logistic_regression", TArray(logRegTest.schema)))
-    val passThroughType = TStruct(passThrough.map(f => f -> childType.rowType.field(f).typ): _*)
+    val passThroughType = TStruct(passThrough.fmap(f => f -> childType.rowType.field(f).typ): _*)
     TableType(childType.rowKeyStruct ++ passThroughType ++ multiPhenoSchema, childType.rowKey, TStruct.empty)
   }
 
@@ -58,7 +58,7 @@ case class LogisticRegression(
     info(s"logistic_regression_rows: running $test on $n samples for response variable y,\n"
       + s"    with input variable x, and ${ k } additional ${ plural(k, "covariate") }...")
 
-    val nullFits = (0 until yVecs.cols).map(col => {
+    val nullFits = (0 until yVecs.cols).fmap(col => {
       val nullModel = new LogisticRegressionModel(cov, yVecs(::, col))
       var nullFit = nullModel.fit(maxIter=maxIterations, tol=tolerance)
 
@@ -93,7 +93,7 @@ case class LogisticRegression(
     val entryArrayIdx = mv.entriesIdx
     val fieldIdx = entryType.fieldIdx(xField)
 
-    val copiedFieldIndices = (mv.typ.rowKey ++ passThrough).map(mv.rvRowType.fieldIdx(_)).toArray
+    val copiedFieldIndices = (mv.typ.rowKey ++ passThrough).fmap(mv.rvRowType.fieldIdx(_)).toArray
 
     val newRVD = mv.rvd.mapPartitions(newRVDType) { (ctx, it) =>
       val rvb = ctx.rvb
@@ -105,7 +105,7 @@ case class LogisticRegression(
       it.map { ptr =>
         RegressionUtils.setMeanImputedDoubles(X.data, n * k, completeColIdxBc.value, missingCompleteCols,
           ptr, fullRowType, entryArrayType, entryType, entryArrayIdx, fieldIdx)
-        val logregAnnotations = (0 until _yVecs.cols).map(col => {
+        val logregAnnotations = (0 until _yVecs.cols).fmap(col => {
           logRegTestBc.value.test(X, _yVecs(::,col), _nullFits(col), "logistic", maxIter=maxIterations, tol=tolerance)
         })
 

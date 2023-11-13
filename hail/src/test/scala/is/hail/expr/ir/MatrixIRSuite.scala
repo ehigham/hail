@@ -35,15 +35,15 @@ class MatrixIRSuite extends HailSuite {
       val read = MatrixIR.read(fs, path, dropCols = false, dropRows = false, None)
       val droppedRows = MatrixIR.read(fs, path, dropCols = false, dropRows = true, None)
 
-      val expectedCols = Array.tabulate(10)(i => Row(i, Row(0L, i.toLong))).toFastSeq
+      val expectedCols = FastSeq.tabulate(10)(i => Row(i, Row(0L, i.toLong))).toFastSeq
       val expectedRows = if (writer eq writer1) {
         val uids = for {
           (partSize, partIndex) <- partition(10, 3).zipWithIndex
           i <- 0 until partSize
         } yield Row(partIndex.toLong, i.toLong)
-        (0 until 10, uids).zipped.map { (i, uid) => Row(i, uid, expectedCols.map { case Row(j, _) => Row(i, j) }) }
+        (0 until 10).zip(uids).fmap { case (i, uid) => Row(i, uid, expectedCols.fmap { case Row(j, _) => Row(i, j) }) }
       } else
-        Array.tabulate(10)(i => Row(i, Row(0L, i.toLong), expectedCols.map { case Row(j, _) => Row(i, j) })).toFastSeq
+        FastSeq.tabulate(10)(i => Row(i, Row(0L, i.toLong), expectedCols.fmap { case Row(j, _) => Row(i, j) })).toFastSeq
       val expectedGlobals = Row(0, expectedCols);
       {
         implicit val execStrats: Set[ExecStrategy] = Set(ExecStrategy.Interpret, ExecStrategy.InterpretUnoptimized)
@@ -74,7 +74,7 @@ class MatrixIRSuite extends HailSuite {
     val mt = rangeMatrix()
     val oldRow = Ref("va", mt.typ.rowType)
 
-    val newRow = InsertFields(oldRow, Seq("idx" -> IRScanCount))
+    val newRow = InsertFields(oldRow, FastSeq("idx" -> IRScanCount))
 
     val newMatrix = MatrixMapRows(mt, newRow)
     val rows = getRows(newMatrix)
@@ -85,7 +85,7 @@ class MatrixIRSuite extends HailSuite {
     val mt = rangeMatrix()
     val oldRow = Ref("va", mt.typ.rowType)
 
-    val newRow = InsertFields(oldRow, Seq("range" -> IRScanCollect(GetField(oldRow, "row_idx"))))
+    val newRow = InsertFields(oldRow, FastSeq("range" -> IRScanCollect(GetField(oldRow, "row_idx"))))
 
     val newMatrix = MatrixMapRows(mt, newRow)
     val rows = getRows(newMatrix)
@@ -96,7 +96,7 @@ class MatrixIRSuite extends HailSuite {
     val mt = rangeMatrix()
     val oldRow = Ref("va", mt.typ.rowType)
 
-    val newRow = InsertFields(oldRow, Seq("n" -> IRAggCount, "range" -> IRScanCollect(GetField(oldRow, "row_idx").toL)))
+    val newRow = InsertFields(oldRow, FastSeq("n" -> IRAggCount, "range" -> IRScanCollect(GetField(oldRow, "row_idx").toL)))
 
     val newMatrix = MatrixMapRows(mt, newRow)
     val rows = getRows(newMatrix)
@@ -107,7 +107,7 @@ class MatrixIRSuite extends HailSuite {
     val mt = rangeMatrix()
     val oldCol = Ref("sa", mt.typ.colType)
 
-    val newCol = InsertFields(oldCol, Seq("idx" -> IRScanCount))
+    val newCol = InsertFields(oldCol, FastSeq("idx" -> IRScanCount))
 
     val newMatrix = MatrixMapCols(mt, newCol, None)
     val cols = getCols(newMatrix)
@@ -118,7 +118,7 @@ class MatrixIRSuite extends HailSuite {
     val mt = rangeMatrix()
     val oldCol = Ref("sa", mt.typ.colType)
 
-    val newCol = InsertFields(oldCol, Seq("range" -> IRScanCollect(GetField(oldCol, "col_idx"))))
+    val newCol = InsertFields(oldCol, FastSeq("range" -> IRScanCollect(GetField(oldCol, "col_idx"))))
 
     val newMatrix = MatrixMapCols(mt, newCol, None)
     val cols = getCols(newMatrix)
@@ -129,7 +129,7 @@ class MatrixIRSuite extends HailSuite {
     val mt = rangeMatrix()
     val oldCol = Ref("sa", mt.typ.colType)
 
-    val newCol = InsertFields(oldCol, Seq("n" -> IRAggCount, "range" -> IRScanCollect(GetField(oldCol, "col_idx").toL)))
+    val newCol = InsertFields(oldCol, FastSeq("n" -> IRAggCount, "range" -> IRScanCollect(GetField(oldCol, "col_idx").toL)))
 
     val newMatrix = MatrixMapCols(mt, newCol, None)
     val cols = getCols(newMatrix)
@@ -164,10 +164,10 @@ class MatrixIRSuite extends HailSuite {
       Array.range(start, end)
     }.sorted
 
-    val unioned = MatrixUnionRows(ranges.map { case (start, end) =>
+    val unioned = MatrixUnionRows(ranges.fmap { case (start, end) =>
       rangeRowMatrix(start, end)
     })
-    val actualOrdering = getRows(unioned).map { case Row(i: Int) => i }
+    val actualOrdering = getRows(unioned).fmap { case Row(i: Int) => i }
 
     assert(actualOrdering sameElements expectedOrdering)
   }
@@ -192,7 +192,7 @@ class MatrixIRSuite extends HailSuite {
     val annotated = MatrixMapRows(range, InsertFields(Ref("va", range.typ.rowType), FastSeq(field)))
 
     val q = annotated.typ.rowType.query(path: _*)
-    val exploded = getRows(MatrixExplodeRows(annotated, path.toFastSeq)).map(q(_).asInstanceOf[Integer])
+    val exploded = getRows(MatrixExplodeRows(annotated, path.toFastSeq)).fmap(q(_).asInstanceOf[Integer])
 
     val expected = if (collection == null) Array[Integer]() else Array.fill(5)(collection).flatten
     assert(exploded sameElements expected)
@@ -234,7 +234,7 @@ class MatrixIRSuite extends HailSuite {
 
     // Rows are same
     val mtRows = Interpret(MatrixRowsTable(mir), ctx).rdd.collect()
-    assert(mtRows sameElements rdata.map(row => Row.fromSeq(row.toSeq.take(2))))
+    assert(mtRows sameElements rdata.fmap(row => Row.fromSeq(row.toSeq.take(2))))
 
     // Round trip
     val roundTrip = Interpret(CastMatrixToTable(mir, "__entries", "__cols"), ctx)
@@ -312,7 +312,7 @@ class MatrixIRSuite extends HailSuite {
     params.foreach { case (n, strat) =>
       val rvd = Interpret(MatrixRepartition(range, n, strat), ctx, optimize = false).rvd
       assert(rvd.getNumPartitions == n, n -> strat)
-      val values = rvd.collect(ctx).map(r => r.getAs[Int](0))
+      val values = rvd.collect(ctx).fmap(r => r.getAs[Int](0))
       assert(values.isSorted && values.length == 11, n -> strat)
     }
   }

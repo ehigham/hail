@@ -20,7 +20,7 @@ class TestFileInputFormat extends hd.mapreduce.lib.input.TextInputFormat {
   override def getSplits(job: hd.mapreduce.JobContext): java.util.List[hd.mapreduce.InputSplit] = {
     val hConf = job.getConfiguration
 
-    val splitPoints = hConf.get("bgz.test.splits").split(",").map(_.toLong)
+    val splitPoints = hConf.get("bgz.test.splits").split(",").fmap(_.toLong)
 
     val splits = new mutable.ArrayBuffer[hd.mapreduce.InputSplit]
     val files = listStatus(job).asScala
@@ -32,7 +32,7 @@ class TestFileInputFormat extends hd.mapreduce.lib.input.TextInputFormat {
     val fileSystem = path.getFileSystem(hConf)
     val blkLocations = fileSystem.getFileBlockLocations(file, 0, length)
 
-    Array.tabulate(splitPoints.length - 1) { i =>
+    FastSeq.tabulate(splitPoints.length - 1) { i =>
       val s = splitPoints(i)
       val e = splitPoints(i + 1)
       val splitSize = e - s
@@ -138,7 +138,7 @@ class BGzipCodecSuite extends HailSuite {
     val p = forAll(g) { splits =>
 
       val contexts = (0 until (splits.length - 1))
-        .map { i =>
+        .fmap { i =>
           val end = makeVirtualOffset(splits(i + 1), 0)
           Row(i, 0, compPath, splits(i), end, true)
         }

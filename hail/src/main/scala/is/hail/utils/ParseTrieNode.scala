@@ -35,7 +35,7 @@ object ParseTrieNode {
       var nextChar: ArrayBuffer[Char]) {
 
       def result(): ParseTrieNode = {
-        new ParseTrieNode(value, children.toArray.map(_.result()), nextChar.toArray)
+        new ParseTrieNode(value, children.toArray.fmap(_.result()), nextChar.toArray)
       }
     }
 

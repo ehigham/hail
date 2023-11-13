@@ -579,12 +579,12 @@ class IRSuite extends HailSuite {
   @DataProvider(name="SwitchEval")
   def switchEvalRules: Array[Array[Any]] =
     Array(
-      Array(I32(-1), I32(Int.MinValue), FastSeq(0, Int.MaxValue).map(I32), Int.MinValue),
-      Array(I32(0), I32(Int.MinValue), FastSeq(0, Int.MaxValue).map(I32), 0),
-      Array(I32(1), I32(Int.MinValue), FastSeq(0, Int.MaxValue).map(I32), Int.MaxValue),
-      Array(I32(2), I32(Int.MinValue), FastSeq(0, Int.MaxValue).map(I32), Int.MinValue),
-      Array(NA(TInt32), I32(Int.MinValue), FastSeq(0, Int.MaxValue).map(I32), null),
-      Array(I32(-1), NA(TInt32), FastSeq(0, Int.MaxValue).map(I32), null),
+      Array(I32(-1), I32(Int.MinValue), FastSeq(0, Int.MaxValue).fmap(I32), Int.MinValue),
+      Array(I32(0), I32(Int.MinValue), FastSeq(0, Int.MaxValue).fmap(I32), 0),
+      Array(I32(1), I32(Int.MinValue), FastSeq(0, Int.MaxValue).fmap(I32), Int.MaxValue),
+      Array(I32(2), I32(Int.MinValue), FastSeq(0, Int.MaxValue).fmap(I32), Int.MinValue),
+      Array(NA(TInt32), I32(Int.MinValue), FastSeq(0, Int.MaxValue).fmap(I32), null),
+      Array(I32(-1), NA(TInt32), FastSeq(0, Int.MaxValue).fmap(I32), null),
       Array(I32(0), NA(TInt32), FastSeq(NA(TInt32), I32(0)), null),
     )
 
@@ -1131,7 +1131,7 @@ class IRSuite extends HailSuite {
     assertEvalsTo(MakeStruct(FastSeq()), Row())
     assertEvalsTo(MakeStruct(FastSeq("a" -> NA(TInt32), "b" -> 4, "c" -> 0.5)), Row(null, 4, 0.5))
     //making sure wide structs get emitted without failure
-    assertEvalsTo(GetField(MakeStruct((0 until 20000).map(i => s"foo$i" -> I32(1))), "foo1"), 1)
+    assertEvalsTo(GetField(MakeStruct((0 until 20000).fmap(i => s"foo$i" -> I32(1))), "foo1"), 1)
   }
 
   @Test def testMakeArrayWithDifferentRequiredness(): Unit = {
@@ -1152,7 +1152,7 @@ class IRSuite extends HailSuite {
     assertEvalsTo(MakeTuple.ordered(FastSeq()), Row())
     assertEvalsTo(MakeTuple.ordered(FastSeq(NA(TInt32), 4, 0.5)), Row(null, 4, 0.5))
     //making sure wide structs get emitted without failure
-    assertEvalsTo(GetTupleElement(MakeTuple.ordered((0 until 20000).map(I32)), 1), 1)
+    assertEvalsTo(GetTupleElement(MakeTuple.ordered((0 until 20000).fmap(I32)), 1), 1)
   }
 
   @Test def testGetTupleElement() {
@@ -1214,8 +1214,8 @@ class IRSuite extends HailSuite {
 
     def zip(behavior: ArrayZipBehavior, irs: IR*): IR = StreamZip(
       irs.toFastSeq,
-      irs.indices.map(_.toString),
-      MakeTuple.ordered(irs.toArray.zipWithIndex.map { case (ir, i) => Ref(i.toString, ir.typ.asInstanceOf[TStream].elementType) }),
+      irs.indices.fmap(_.toString),
+      MakeTuple.ordered(irs.toArray.zipWithIndex.fmap { case (ir, i) => Ref(i.toString, ir.typ.asInstanceOf[TStream].elementType) }),
       behavior
     )
     def zipToTuple(behavior: ArrayZipBehavior, irs: IR*): IR = ToArray(zip(behavior, irs: _*))
@@ -1660,20 +1660,20 @@ class IRSuite extends HailSuite {
   }
 
   def makeNDArray(data: IndexedSeq[Double], shape: IndexedSeq[Long], rowMajor: IR): MakeNDArray = {
-    MakeNDArray(MakeArray(data.map(F64), TArray(TFloat64)), MakeTuple.ordered(shape.map(I64)), rowMajor, ErrorIDs.NO_ERROR)
+    MakeNDArray(MakeArray(data.fmap(F64), TArray(TFloat64)), MakeTuple.ordered(shape.fmap(I64)), rowMajor, ErrorIDs.NO_ERROR)
   }
 
-  def makeNDArrayRef(nd: IR, indxs: IndexedSeq[Long]): NDArrayRef = NDArrayRef(nd, indxs.map(I64), -1)
+  def makeNDArrayRef(nd: IR, indxs: IndexedSeq[Long]): NDArrayRef = NDArrayRef(nd, indxs.fmap(I64), -1)
 
   val scalarRowMajor = makeNDArray(FastSeq(3.0), FastSeq(), True())
   val scalarColMajor = makeNDArray(FastSeq(3.0), FastSeq(), False())
   val vectorRowMajor = makeNDArray(FastSeq(1.0, -1.0), FastSeq(2), True())
   val vectorColMajor = makeNDArray(FastSeq(1.0, -1.0), FastSeq(2), False())
   val matrixRowMajor = makeNDArray(FastSeq(1.0, 2.0, 3.0, 4.0), FastSeq(2, 2), True())
-  val threeTensorRowMajor = makeNDArray((0 until 30).map(_.toDouble), FastSeq(2, 3, 5), True())
-  val threeTensorColMajor = makeNDArray((0 until 30).map(_.toDouble), FastSeq(2, 3, 5), False())
-  val cubeRowMajor = makeNDArray((0 until 27).map(_.toDouble), FastSeq(3, 3, 3), True())
-  val cubeColMajor = makeNDArray((0 until 27).map(_.toDouble), FastSeq(3, 3, 3), False())
+  val threeTensorRowMajor = makeNDArray((0 until 30).fmap(_.toDouble), FastSeq(2, 3, 5), True())
+  val threeTensorColMajor = makeNDArray((0 until 30).fmap(_.toDouble), FastSeq(2, 3, 5), False())
+  val cubeRowMajor = makeNDArray((0 until 27).fmap(_.toDouble), FastSeq(3, 3, 3), True())
+  val cubeColMajor = makeNDArray((0 until 27).fmap(_.toDouble), FastSeq(3, 3, 3), False())
 
   @Test def testNDArrayShape() {
     implicit val execStrats = ExecStrategy.compileOnly
@@ -1694,8 +1694,8 @@ class IRSuite extends HailSuite {
     assertEvalsTo(makeNDArrayRef(vectorRowMajor, FastSeq(1)), -1.0)
     assertEvalsTo(makeNDArrayRef(vectorColMajor, FastSeq(1)), -1.0)
 
-    val threeTensorRowMajor = makeNDArray((0 until 30).map(_.toDouble), FastSeq(2, 3, 5), True())
-    val threeTensorColMajor = makeNDArray((0 until 30).map(_.toDouble), FastSeq(2, 3, 5), False())
+    val threeTensorRowMajor = makeNDArray((0 until 30).fmap(_.toDouble), FastSeq(2, 3, 5), True())
+    val threeTensorColMajor = makeNDArray((0 until 30).fmap(_.toDouble), FastSeq(2, 3, 5), False())
     val sevenRowMajor = makeNDArrayRef(threeTensorRowMajor, FastSeq(0, 1, 2))
     val sevenColMajor = makeNDArrayRef(threeTensorColMajor, FastSeq(1, 0, 1))
     // np.arange(0, 30).reshape((2, 3, 5), order="C")[0,1,2]
@@ -1703,8 +1703,8 @@ class IRSuite extends HailSuite {
     // np.arange(0, 30).reshape((2, 3, 5), order="F")[1,0,1]
     assertEvalsTo(sevenColMajor, 7.0)
 
-    val cubeRowMajor = makeNDArray((0 until 27).map(_.toDouble), FastSeq(3, 3, 3), True())
-    val cubeColMajor = makeNDArray((0 until 27).map(_.toDouble), FastSeq(3, 3, 3), False())
+    val cubeRowMajor = makeNDArray((0 until 27).fmap(_.toDouble), FastSeq(3, 3, 3), True())
+    val cubeColMajor = makeNDArray((0 until 27).fmap(_.toDouble), FastSeq(3, 3, 3), False())
     val centerRowMajor = makeNDArrayRef(cubeRowMajor, FastSeq(1, 1, 1))
     val centerColMajor = makeNDArrayRef(cubeColMajor, FastSeq(1, 1, 1))
     assertEvalsTo(centerRowMajor, 13.0)
@@ -1727,7 +1727,7 @@ class IRSuite extends HailSuite {
     implicit val execStrats: Set[ExecStrategy] = ExecStrategy.compileOnly
 
     def nds(ndData: (IndexedSeq[Int], Long, Long)*): IR = {
-      MakeArray(ndData.toArray.map { case (values, nRows, nCols) =>
+      MakeArray(ndData.toArray.fmap { case (values, nRows, nCols) =>
         if (values == null) NA(TNDArray(TInt32, Nat(2))) else
           MakeNDArray(Literal(TArray(TInt32), values),
             Literal(TTuple(TInt64, TInt64), Row(nRows, nCols)), True(), ErrorIDs.NO_ERROR)
@@ -1785,18 +1785,18 @@ class IRSuite extends HailSuite {
     val shape = FastSeq(2L, 5L)
     val nDim = 2
 
-    val positives = makeNDArray(data.map(_.toDouble), shape, True())
+    val positives = makeNDArray(data.fmap(_.toDouble), shape, True())
     val negatives = NDArrayMap(positives, "e", ApplyUnaryPrimOp(Negate, Ref("e", TFloat64)))
     assertEvalsTo(makeNDArrayRef(positives, FastSeq(1L, 0L)), 5.0)
     assertEvalsTo(makeNDArrayRef(negatives, FastSeq(1L, 0L)), -5.0)
 
-    val trues = MakeNDArray(MakeArray(data.map(_ => True()), TArray(TBoolean)), MakeTuple.ordered(shape.map(I64)), True(), ErrorIDs.NO_ERROR)
+    val trues = MakeNDArray(MakeArray(data.fmap(_ => True()), TArray(TBoolean)), MakeTuple.ordered(shape.fmap(I64)), True(), ErrorIDs.NO_ERROR)
     val falses = NDArrayMap(trues, "e", ApplyUnaryPrimOp(Bang, Ref("e", TBoolean)))
     assertEvalsTo(makeNDArrayRef(trues, FastSeq(1L, 0L)), true)
     assertEvalsTo(makeNDArrayRef(falses, FastSeq(1L, 0L)), false)
 
-    val bools = MakeNDArray(MakeArray(data.map(i => if (i % 2 == 0) True() else False()), TArray(TBoolean)),
-      MakeTuple.ordered(shape.map(I64)), False(), ErrorIDs.NO_ERROR)
+    val bools = MakeNDArray(MakeArray(data.fmap(i => if (i % 2 == 0) True() else False()), TArray(TBoolean)),
+      MakeTuple.ordered(shape.fmap(I64)), False(), ErrorIDs.NO_ERROR)
     val boolsToBinary = NDArrayMap(bools, "e", If(Ref("e", TBoolean), I64(1L), I64(0L)))
     val one = makeNDArrayRef(boolsToBinary, FastSeq(0L, 0L))
     val zero = makeNDArrayRef(boolsToBinary, FastSeq(1L, 1L))
@@ -1807,8 +1807,8 @@ class IRSuite extends HailSuite {
   @Test def testNDArrayMap2() {
     implicit val execStrats: Set[ExecStrategy] = ExecStrategy.compileOnly
 
-    val shape = MakeTuple.ordered(FastSeq(2L, 2L).map(I64))
-    val numbers = MakeNDArray(MakeArray((0 until 4).map { i => F64(i.toDouble) }, TArray(TFloat64)), shape, True(), ErrorIDs.NO_ERROR)
+    val shape = MakeTuple.ordered(FastSeq(2L, 2L).fmap(I64))
+    val numbers = MakeNDArray(MakeArray((0 until 4).fmap { i => F64(i.toDouble) }, TArray(TFloat64)), shape, True(), ErrorIDs.NO_ERROR)
     val bools = MakeNDArray(MakeArray(IndexedSeq(True(), False(), False(), True()), TArray(TBoolean)), shape, True(), ErrorIDs.NO_ERROR)
 
     val actual = NDArrayMap2(numbers, bools, "n", "b",
@@ -2002,10 +2002,10 @@ class IRSuite extends HailSuite {
 
       Let(FastSeq("_right" -> r, "_left" -> l),
         MakeStruct(
-          (lKeys, rKeys).zipped.map { (lk, rk) => lk -> Coalesce(IndexedSeq(getL(lk), getR(rk))) }
-            ++ tcoerce[TStruct](l.typ).fields.filter(f => !lKeys.contains(f.name)).map { f =>
+          lKeys.zip(rKeys).fmap { case (lk, rk) => lk -> Coalesce(IndexedSeq(getL(lk), getR(rk))) }
+            ++ tcoerce[TStruct](l.typ).fields.filter(f => !lKeys.contains(f.name)).fmap { f =>
             f.name -> GetField(Ref("_left", l.typ), f.name)
-          } ++ tcoerce[TStruct](r.typ).fields.filter(f => !rKeys.contains(f.name)).map { f =>
+          } ++ tcoerce[TStruct](r.typ).fields.filter(f => !rKeys.contains(f.name)).fmap { f =>
             f.name -> GetField(Ref("_right", r.typ), f.name)
           }
         )
@@ -2023,7 +2023,7 @@ class IRSuite extends HailSuite {
         NA(TStream(eltType))
       else
         MakeStream(
-          a.zipWithIndex.map { case (n, idx) =>
+          a.zipWithIndex.fmap { case (n, idx) =>
             MakeStruct(FastSeq(
               "k1" -> (if (n == null) NA(TInt32) else I32(n)),
               "k2" -> Str("x"),
@@ -2032,8 +2032,8 @@ class IRSuite extends HailSuite {
     }
 
     def zipJoin(as: IndexedSeq[IndexedSeq[Integer]], key: Int): IR = {
-      val streams = as.map(makeStream)
-      val keyRef = Ref(genUID(), TStruct(FastSeq("k1", "k2").take(key).map(k => k -> eltType.fieldType(k)): _*))
+      val streams = as.fmap(makeStream)
+      val keyRef = Ref(genUID(), TStruct(FastSeq("k1", "k2").take(key).fmap(k => k -> eltType.fieldType(k)): _*))
       val valsRef = Ref(genUID(), TArray(eltType))
       ToArray(StreamZipJoin(streams, FastSeq("k1", "k2").take(key), keyRef.name, valsRef.name, InsertFields(keyRef, FastSeq("vals" -> valsRef))))
     }
@@ -2083,7 +2083,7 @@ class IRSuite extends HailSuite {
         NA(TStream(eltType))
       else
         MakeStream(
-          a.zipWithIndex.map { case (n, idx) =>
+          a.zipWithIndex.fmap { case (n, idx) =>
             MakeStruct(FastSeq(
               "k1" -> (if (n == null) NA(TInt32) else I32(n)),
               "k2" -> Str("x"),
@@ -2092,7 +2092,7 @@ class IRSuite extends HailSuite {
     }
 
     def merge(as: IndexedSeq[IndexedSeq[Integer]], key: Int): IR = {
-      val streams = as.map(makeStream)
+      val streams = as.fmap(makeStream)
       ToArray(StreamMultiMerge(streams, FastSeq("k1", "k2").take(key)))
     }
 
@@ -2147,8 +2147,8 @@ class IRSuite extends HailSuite {
 
     def joinRows(left: IndexedSeq[Integer], right: IndexedSeq[Integer], joinType: String): IR = {
       join(
-        MakeStream.unify(ctx, left.zipWithIndex.map { case (n, idx) => MakeStruct(FastSeq("lk1" -> (if (n == null) NA(TInt32) else I32(n)), "lk2" -> Str("x"), "a" -> I64(idx))) }),
-        MakeStream.unify(ctx, right.zipWithIndex.map { case (n, idx) => MakeStruct(FastSeq("b" -> I32(idx), "rk2" -> Str("x"), "rk1" -> (if (n == null) NA(TInt32) else I32(n)), "c" -> Str("foo"))) }),
+        MakeStream.unify(ctx, left.zipWithIndex.fmap { case (n, idx) => MakeStruct(FastSeq("lk1" -> (if (n == null) NA(TInt32) else I32(n)), "lk2" -> Str("x"), "a" -> I64(idx))) }),
+        MakeStream.unify(ctx, right.zipWithIndex.fmap { case (n, idx) => MakeStruct(FastSeq("b" -> I32(idx), "rk2" -> Str("x"), "rk1" -> (if (n == null) NA(TInt32) else I32(n)), "c" -> Str("foo"))) }),
         FastSeq("lk1", "lk2"),
         FastSeq("rk1", "rk2"),
         rightDistinct = true,
@@ -2211,8 +2211,8 @@ class IRSuite extends HailSuite {
 
     def joinRows(left: IndexedSeq[Integer], right: IndexedSeq[Integer], joinType: String): IR = {
       join(
-        MakeStream.unify(ctx, left.zipWithIndex.map { case (n, idx) => MakeStruct(FastSeq("lk" -> (if (n == null) NA(TInt32) else I32(n)), "l" -> I32(idx))) }),
-        MakeStream.unify(ctx, right.zipWithIndex.map { case (n, idx) => MakeStruct(FastSeq("rk" -> (if (n == null) NA(TInt32) else I32(n)), "r" -> I32(idx))) }),
+        MakeStream.unify(ctx, left.zipWithIndex.fmap { case (n, idx) => MakeStruct(FastSeq("lk" -> (if (n == null) NA(TInt32) else I32(n)), "l" -> I32(idx))) }),
+        MakeStream.unify(ctx, right.zipWithIndex.fmap { case (n, idx) => MakeStruct(FastSeq("rk" -> (if (n == null) NA(TInt32) else I32(n)), "r" -> I32(idx))) }),
         FastSeq("lk"),
         FastSeq("rk"),
         false,
@@ -2281,7 +2281,7 @@ class IRSuite extends HailSuite {
         if (left == null)
           NA(typ)
         else
-          MakeStream(left.zipWithIndex.map { case (n, idx) =>
+          MakeStream(left.zipWithIndex.fmap { case (n, idx) =>
             MakeStruct(FastSeq(
               "k" -> (if (n == null) NA(TInt32) else I32(n)),
               "sign" -> I32(1),
@@ -2290,7 +2290,7 @@ class IRSuite extends HailSuite {
         if (right == null)
           NA(typ)
         else
-          MakeStream(right.zipWithIndex.map { case (n, idx) =>
+          MakeStream(right.zipWithIndex.fmap { case (n, idx) =>
             MakeStruct(FastSeq(
               "k" -> (if (n == null) NA(TInt32) else I32(n)),
               "sign" -> I32(-1),
@@ -2387,7 +2387,7 @@ class IRSuite extends HailSuite {
       assertEquals(start, stop, -step, expected = Array.range(start, stop, -step).toFastSeq)
     }
     // this needs to be written this way because of a bug in Scala's Array.range
-    val expected = Array.tabulate(11)(Int.MinValue + _ * (Int.MaxValue / 5)).toFastSeq
+    val expected = FastSeq.tabulate(11)(Int.MinValue + _ * (Int.MaxValue / 5)).toFastSeq
     assertEquals(Int.MinValue, Int.MaxValue, Int.MaxValue / 5, expected)
   }
 
@@ -2425,7 +2425,7 @@ class IRSuite extends HailSuite {
           isScan = false)))
 
     assertEvalsTo(ir, FastSeq(1 -> TInt32),
-      (0 until 10).map(i => FastSeq(1, i, i, i)) ++ FastSeq(FastSeq(1)))
+      (0 until 10).fmap(i => FastSeq(1, i, i, i)) ++ FastSeq(FastSeq(1)))
   }
 
   @Test def testStreamAggScan() {
@@ -2582,7 +2582,7 @@ class IRSuite extends HailSuite {
     )
 
     assertEvalsTo(Literal(types(0), values(0)), values(0))
-    assertEvalsTo(MakeTuple.ordered(types.zip(values).map { case (t, v) => Literal(t, v) }), Row.fromSeq(values.toFastSeq))
+    assertEvalsTo(MakeTuple.ordered(types.zip(values).fmap { case (t, v) => Literal(t, v) }), Row.fromSeq(values.toFastSeq))
     assertEvalsTo(Str("hello"+poopEmoji), "hello"+poopEmoji)
   }
 
@@ -2738,7 +2738,7 @@ class IRSuite extends HailSuite {
     implicit def addEnv(ir: IR): (IR, BindingEnv[Type] => BindingEnv[Type]) =
       (ir, env => env)
     implicit def liftRefs(refs: Array[Ref]): BindingEnv[Type] => BindingEnv[Type] =
-      env => env.bindEval(refs.map(r => r.name -> r.typ): _*)
+      env => env.bindEval(refs.fmap(r => r.name -> r.typ): _*)
 
     val irs = Array[(IR, BindingEnv[Type] => BindingEnv[Type])](
       i, I64(5), F32(3.14f), F64(3.14), str, True(), False(), Void(),
@@ -2883,7 +2883,7 @@ class IRSuite extends HailSuite {
       TailLoop("y", IndexedSeq("x" -> I32(0)), Recur("y", FastSeq(I32(4)), TInt32))
       )
     val emptyEnv = BindingEnv.empty[Type]
-    irs.map { case (ir, bind) => Array(ir, bind(emptyEnv)) }
+    irs.fmap { case (ir, bind) => Array(ir, bind(emptyEnv)) }
   }
 
   @DataProvider(name = "tableIRs")
@@ -2951,7 +2951,7 @@ class IRSuite extends HailSuite {
           TableGen(structs, MakeStruct(FastSeq()), "cname", "gname", structs, partitioner, errorId = 180)
         }
       )
-      xs.map(x => Array(x))
+      xs.fmap(x => Array(x))
     } catch {
       case t: Throwable =>
         println(t)
@@ -3050,7 +3050,7 @@ class IRSuite extends HailSuite {
         MatrixFilterIntervals(read, FastSeq(Interval(IntervalEndpoint(Row(0), -1), IntervalEndpoint(Row(10), 1))), keep = false),
         RelationalLetMatrixTable("x", I32(0), read))
 
-      xs.map(x => Array(x))
+      xs.fmap(x => Array(x))
     } catch {
       case t: Throwable =>
         println(t)
@@ -3081,7 +3081,7 @@ class IRSuite extends HailSuite {
       RelationalLetBlockMatrix("x", I32(0), read),
       slice)
 
-    blockMatrixIRs.map(ir => Array(ir))
+    blockMatrixIRs.fmap(ir => Array(ir))
   }
 
   @Test def testIRConstruction(): Unit = {
@@ -3468,8 +3468,8 @@ class IRSuite extends HailSuite {
 
     val stream = mapIR(rangeIR(5)) { _ => single }
 
-    def selfZip(s: IR, n: Int) = StreamZip(Array.fill(n)(s), Array.tabulate(n)(i => s"$i"),
-      MakeArray(Array.tabulate(n)(i => Ref(s"$i", TString)), TArray(TString)),
+    def selfZip(s: IR, n: Int) = StreamZip(Array.fill(n)(s), FastSeq.tabulate(n)(i => s"$i"),
+      MakeArray(FastSeq.tabulate(n)(i => Ref(s"$i", TString)), TArray(TString)),
       ArrayZipBehavior.AssumeSameLength)
 
     def assertNumDistinct(s: IR, expected: Int) =
@@ -3520,11 +3520,11 @@ class IRSuite extends HailSuite {
   def runStreamDistTest(data: IndexedSeq[Int], splitters: IndexedSeq[Int]): Unit = {
     def makeRowStruct(i: Int) = MakeStruct(IndexedSeq(("rowIdx", I32(i)), ("extraInfo", I32(i * i))))
     def makeKeyStruct(i: Int) = MakeStruct(IndexedSeq(("rowIdx", I32(i))))
-    val child = ToStream(MakeArray(data.map(makeRowStruct):_*))
-    val pivots = MakeArray(splitters.map(makeKeyStruct):_*)
+    val child = ToStream(MakeArray(data.fmap(makeRowStruct):_*))
+    val pivots = MakeArray(splitters.fmap(makeKeyStruct):_*)
     val spec = TypedCodecSpec(PCanonicalStruct(("rowIdx", PInt32Required), ("extraInfo", PInt32Required)), BufferSpec.default)
     val dist = StreamDistribute(child, pivots, Str(ctx.localTmpdir), Compare(pivots.typ.asInstanceOf[TArray].elementType), spec)
-    val result = eval(dist).asInstanceOf[IndexedSeq[Row]].map(row => (row(0).asInstanceOf[Interval], row(1).asInstanceOf[String], row(2).asInstanceOf[Int], row(3).asInstanceOf[Long]))
+    val result = eval(dist).asInstanceOf[IndexedSeq[Row]].fmap(row => (row(0).asInstanceOf[Interval], row(1).asInstanceOf[String], row(2).asInstanceOf[Int], row(3).asInstanceOf[Long]))
     val kord: ExtendedOrdering = PartitionBoundOrdering(ctx, pivots.typ.asInstanceOf[TArray].elementType)
 
     var dataIdx = 0
@@ -3547,7 +3547,7 @@ class IRSuite extends HailSuite {
 
     assert(dataIdx == data.size)
 
-    result.map(_._1).sliding(2).foreach { case IndexedSeq(interval1, interval2) =>
+    result.fmap(_._1).sliding(2).foreach { case Array(interval1, interval2) =>
       assert(interval1.isDisjointFrom(kord, interval2))
     }
 
@@ -3561,7 +3561,7 @@ class IRSuite extends HailSuite {
     }
     val expectedStartsAndEnds = intBuilder.result().sliding(2).toIndexedSeq
 
-    result.map(_._1).zip(expectedStartsAndEnds).foreach { case (interval, splitterPair) =>
+    result.fmap(_._1).zip(expectedStartsAndEnds).foreach { case (interval, splitterPair) =>
       assert(interval.start.asInstanceOf[Row](0) == splitterPair(0))
       assert(interval.end.asInstanceOf[Row](0) == splitterPair(1))
     }

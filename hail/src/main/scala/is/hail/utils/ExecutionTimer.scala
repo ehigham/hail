@@ -42,7 +42,7 @@ class TimeBlock(val name: String) {
       "total_time" -> totalTime,
       "self_time" -> (totalTime - childrenTime),
       "children_time" -> childrenTime,
-      "children" -> children.map(_.toMap))
+      "children" -> children.fmap(_.toMap))
   }
 }
 

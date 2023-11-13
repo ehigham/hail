@@ -8,7 +8,7 @@ import org.testng.annotations.Test
 
 class PContainerTest extends PhysicalTestUtils {
   def nullInByte(nElements: Int, missingElement: Int) = {
-    IndexedSeq.tabulate(nElements)(i => {
+    FastSeq.tabulate(nElements)(i => {
       if (i == missingElement - 1)
         null
       else

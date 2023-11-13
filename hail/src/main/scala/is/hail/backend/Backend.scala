@@ -180,7 +180,7 @@ abstract class Backend {
       val t = x.typ
       JObject(
         "element_type" -> JString(t.elementType.toString),
-        "shape" -> JArray(t.shape.map(s => JInt(s)).toList),
+        "shape" -> JArray(t.shape.fmap(s => JInt(s)).toList),
         "is_row_vector" -> JBool(t.isRowVector),
         "block_size" -> JInt(t.blockSize)
       )
@@ -193,7 +193,7 @@ abstract class Backend {
       rgs.foreach(addReference)
 
       implicit val formats: Formats = defaultJSONFormats
-      Serialization.write(rgs.map(_.toJSON).toFastSeq).getBytes(StandardCharsets.UTF_8)
+      Serialization.write(rgs.fmap(_.toJSON).toFastSeq).getBytes(StandardCharsets.UTF_8)
     }
   }
 

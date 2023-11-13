@@ -118,11 +118,11 @@ case class TableValue(ctx: ExecuteContext, typ: TableType, globals: BroadcastRow
     val fields = typ.rowType.fields
 
     Option(typesFile).foreach { file =>
-      exportTypes(file, fs, fields.map(f => (f.name, f.typ)).toArray)
+      exportTypes(file, fs, fields.fmap(f => (f.name, f.typ)).toArray)
     }
 
     val localSignature = rvd.rowPType
-    val localTypes = fields.map(_.typ)
+    val localTypes = fields.fmap(_.typ)
 
     val localDelim = delimiter
     rvd.mapPartitions { (ctx, it) =>
@@ -137,7 +137,7 @@ case class TableValue(ctx: ExecuteContext, typ: TableType, globals: BroadcastRow
 
         sb.result()
       }
-    }.writeTable(ctx, path, Some(fields.map(_.name).mkString(localDelim)).filter(_ => header), exportType = exportType)
+    }.writeTable(ctx, path, Some(fields.fmap(_.name).mkString(localDelim)).filter(_ => header), exportType = exportType)
   }
 
   def toDF(): DataFrame = {
@@ -151,7 +151,7 @@ case class TableValue(ctx: ExecuteContext, typ: TableType, globals: BroadcastRow
       typ.copy(
         rowType = typ.rowType.rename(rowMap),
         globalType = typ.globalType.rename(globalMap),
-        key = typ.key.map(k => rowMap.getOrElse(k, k))),
+        key = typ.key.fmap(k => rowMap.getOrElse(k, k))),
       globals.copy(t = globals.t.rename(globalMap)), rvd = rvd.cast(rvd.rowPType.rename(rowMap)))
   }
 

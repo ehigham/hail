@@ -177,8 +177,10 @@ class PolyHash(val coeffs: Array[Int]) extends (Int => Int) {
   }
 
   def fillIntArray(size: Int): Array[Int] =
-    Array.tabulate(size)(apply)
+    0 until size fmap apply
 
   def fillLongArray(size: Int): Array[Long] =
-    Array.tabulate(size)(i => (apply(i << 1).toLong << 32) | (apply((i << 1) | 1) & 0xffffffffL))
+    0 until size fmap { i =>
+      (apply(i << 1).toLong << 32) | (apply((i << 1) | 1) & 0xffffffffL)
+    }
 }

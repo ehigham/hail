@@ -281,7 +281,7 @@ final case class InternalChild(
 
 object InternalNode {
   def apply(r: Row): InternalNode = {
-    val children = r.get(0).asInstanceOf[IndexedSeq[Row]].map(r => InternalChild(r.getLong(0), r.getLong(1), r.get(2), r.getLong(3), r.get(4)))
+    val children = r.get(0).asInstanceOf[IndexedSeq[Row]].fmap(r => InternalChild(r.getLong(0), r.getLong(1), r.get(2), r.getLong(3), r.get(4)))
     InternalNode(children)
   }
 }
@@ -304,7 +304,7 @@ final case class LeafChild(
 object LeafNode {
   def apply(r: Row): LeafNode = {
     val firstKeyIndex = r.getLong(0)
-    val keys = r.get(1).asInstanceOf[IndexedSeq[Row]].map(r => LeafChild(r.get(0), r.getLong(1), r.get(2)))
+    val keys = r.get(1).asInstanceOf[IndexedSeq[Row]].fmap(r => LeafChild(r.get(0), r.getLong(1), r.get(2)))
     LeafNode(firstKeyIndex, keys)
   }
 }

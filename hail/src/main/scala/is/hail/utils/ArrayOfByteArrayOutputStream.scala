@@ -53,6 +53,6 @@ class ArrayOfByteArrayOutputStream(initialBufferCapacity: Int) extends OutputStr
   }
 
   def toByteArrays(): Array[Array[Byte]] = {
-    buf.result().map(_.toByteArray)
+    buf.result().fmap(_.toByteArray)
   }
 }

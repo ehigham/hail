@@ -13,7 +13,7 @@ object PBaseStruct {
     if (types.isEmpty)
       1
     else
-      types.map(_.alignment).max
+      types.fmap(_.alignment).max
   }
 }
 
@@ -22,13 +22,13 @@ abstract class PBaseStruct extends PType {
 
   val fields: IndexedSeq[PField]
 
-  final lazy val fieldRequired: Array[Boolean] = types.map(_.required)
+  final lazy val fieldRequired: Array[Boolean] = types.fmap(_.required)
   final lazy val allFieldsRequired: Boolean = fieldRequired.forall(_ == true)
 
   final lazy val fieldIdx: Map[String, Int] =
-    fields.map(f => (f.name, f.index)).toMap
+    fields.fmap(f => (f.name, f.index)).toMap
 
-  final lazy val fieldNames: Array[String] = fields.map(_.name).toArray
+  final lazy val fieldNames: Array[String] = fields.fmap(_.name).toArray
 
   def fieldByName(name: String): PField = fields(fieldIdx(name))
 
@@ -83,7 +83,7 @@ abstract class PBaseStruct extends PType {
 
     val right = rightType.asInstanceOf[PBaseStruct]
     val fieldOrderings: Array[UnsafeOrdering] =
-      types.zip(right.types).map { case (l, r) => l.unsafeOrdering(sm, r)}
+      types.zip(right.types).fmap { case (l, r) => l.unsafeOrdering(sm, r)}
 
     new UnsafeOrdering {
       def compare(o1: Long, o2: Long): Int = {
@@ -152,6 +152,6 @@ abstract class PBaseStruct extends PType {
     if (types.isEmpty) {
       Gen.const(Annotation.empty)
     } else
-      Gen.uniformSequence(types.map(t => t.genValue(sm))).map(a => Annotation(a: _*))
+      Gen.uniformSequence(types.fmap(t => t.genValue(sm))).map(a => Annotation(a: _*))
   }
 }

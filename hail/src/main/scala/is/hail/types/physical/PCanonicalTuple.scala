@@ -5,11 +5,12 @@ import is.hail.types.virtual.{TTuple, Type}
 import is.hail.utils._
 
 object PCanonicalTuple {
-  def apply(required: Boolean, args: PType*): PCanonicalTuple = PCanonicalTuple(args.iterator.zipWithIndex.map { case (t, i) => PTupleField(i, t)}.toIndexedSeq, required)
+  def apply(required: Boolean, args: PType*): PCanonicalTuple =
+    PCanonicalTuple(args.toFastSeq.zipWithIndex.fmap { case (t, i) => PTupleField(i, t)}, required)
 }
 
-final case class PCanonicalTuple(_types: IndexedSeq[PTupleField], override val required: Boolean = false) extends PCanonicalBaseStruct(_types.map(_.typ).toArray) with PTuple {
-  lazy val fieldIndex: Map[Int, Int] = _types.zipWithIndex.map { case (tf, idx) => tf.index -> idx }.toMap
+final case class PCanonicalTuple(_types: IndexedSeq[PTupleField], override val required: Boolean = false) extends PCanonicalBaseStruct(_types.fmap(_.typ).toArray) with PTuple {
+  lazy val fieldIndex: Map[Int, Int] = _types.zipWithIndex.fmap { case (tf, idx) => tf.index -> idx }.toMap
 
   def setRequired(required: Boolean) = if(required == this.required) this else PCanonicalTuple(_types, required)
 
@@ -25,19 +26,18 @@ final case class PCanonicalTuple(_types: IndexedSeq[PTupleField], override val r
 
   override def deepRename(t: Type) = deepTupleRename(t.asInstanceOf[TTuple])
 
-  private def deepTupleRename(t: TTuple) = {
-    PCanonicalTuple((t._types, this._types).zipped.map( (tfield, pfield) => {
+  private def deepTupleRename(t: TTuple) =
+    PCanonicalTuple(t._types.zip(this._types).fmap { case (tfield, pfield) =>
       assert(tfield.index == pfield.index)
       PTupleField(pfield.index, pfield.typ.deepRename(tfield.typ))
-    }), this.required)
-  }
+    }, this.required)
 
   def copiedType: PType = {
-    val copiedTypes = types.map(_.copiedType)
+    val copiedTypes = types.fmap(_.copiedType)
     if (types.indices.forall(i => types(i).eq(copiedTypes(i))))
       this
     else {
-      PCanonicalTuple(copiedTypes.indices.map(i => _types(i).copy(typ = copiedTypes(i))), required)
+      PCanonicalTuple(copiedTypes.indices.fmap(i => _types(i).copy(typ = copiedTypes(i))), required)
     }
   }
 }

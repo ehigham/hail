@@ -583,7 +583,7 @@ trait FS extends Serializable {
 
     val partFileListEntries = partFilesOpt match {
       case None => glob(sourceFolder + "/part-*")
-      case Some(files) => files.map(f => fileListEntry(sourceFolder + "/" + f)).toArray
+      case Some(files) => files.fmap(f => fileListEntry(sourceFolder + "/" + f)).toArray
     }
     val sortedPartFileListEntries = partFileListEntries.sortBy(fs => getPartNumber(new hadoop.fs.Path(fs.getPath).getName))
     if (sortedPartFileListEntries.length != numPartFilesExpected)
@@ -592,7 +592,7 @@ trait FS extends Serializable {
     val filesToMerge = headerFileListEntry ++ sortedPartFileListEntries
 
     info(s"merging ${ filesToMerge.length } files totalling " +
-      s"${ readableBytes(sortedPartFileListEntries.map(_.getLen).sum) }...")
+      s"${ readableBytes(sortedPartFileListEntries.fmap(_.getLen).sum) }...")
 
     val (_, dt) = time {
       copyMergeList(filesToMerge, destinationFile, deleteSource)
@@ -641,10 +641,10 @@ trait FS extends Serializable {
   }
 
   def concatenateFiles(sourceNames: Array[String], destFilename: String): Unit = {
-    val fileListEntries = sourceNames.map(fileListEntry(_))
+    val fileListEntries = sourceNames.fmap(fileListEntry(_))
 
     info(s"merging ${ fileListEntries.length } files totalling " +
-      s"${ readableBytes(fileListEntries.map(_.getLen).sum) }...")
+      s"${ readableBytes(fileListEntries.fmap(_.getLen).sum) }...")
 
     val (_, timing) = time(copyMergeList(fileListEntries, destFilename, deleteSource = false))
 

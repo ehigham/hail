@@ -127,7 +127,7 @@ object Genotype {
 
   val maxPhredInTable = 8192
 
-  lazy val phredToLinearConversionTable: Array[Double] = (0 to maxPhredInTable).map { i => math.pow(10, i / -10.0) }.toArray
+  lazy val phredToLinearConversionTable: Array[Double] = (0 to maxPhredInTable).fmap { i => math.pow(10, i / -10.0) }.toArray
 
   def phredToLinear(i: Int): Double =
     if (i < maxPhredInTable) phredToLinearConversionTable(i) else math.pow(10, i / -10.0)
@@ -150,8 +150,8 @@ object Genotype {
     AllelePair(0, 7), AllelePair(1, 7), AllelePair(2, 7), AllelePair(3, 7), AllelePair(4, 7),
     AllelePair(5, 7), AllelePair(6, 7), AllelePair(7, 7))
 
-  val smallAlleleJ: Array[Int] = smallAllelePair.map(AllelePair.j)
-  val smallAlleleK: Array[Int] = smallAllelePair.map(AllelePair.k)
+  val smallAlleleJ: Array[Int] = smallAllelePair.fmap(AllelePair.j)
+  val smallAlleleK: Array[Int] = smallAllelePair.fmap(AllelePair.k)
 
   val nCachedAllelePairs: Int = smallAllelePair.length
 
@@ -238,27 +238,27 @@ object Genotype {
   def genRealisticNonmissing(nAlleles: Int): Gen[Annotation] = {
     val nGenotypes = triangle(nAlleles)
     val gg = for (callRate <- Gen.choose(0d, 1d);
-      alleleFrequencies <- Gen.buildableOfN[Array](nAlleles, Gen.choose(1e-6, 1d)) // avoid divison by 0
+                  alleleFrequencies <- Gen.buildableOfN[Array](nAlleles, Gen.choose(1e-6, 1d)) // avoid divison by 0
         .map { rawWeights =>
         val sum = rawWeights.sum
-        rawWeights.map(_ / sum)
+        rawWeights.fmap(_ / sum)
       };
-      c <- Gen.option(Gen.zip(Gen.chooseWithWeights(alleleFrequencies), Gen.chooseWithWeights(alleleFrequencies))
+                  c <- Gen.option(Gen.zip(Gen.chooseWithWeights(alleleFrequencies), Gen.chooseWithWeights(alleleFrequencies))
         .map { case (gti, gtj) => Call2(gti, gtj) }, callRate);
-      ad <- Gen.option(Gen.buildableOfN[Array](nAlleles,
+                  ad <- Gen.option(Gen.buildableOfN[Array](nAlleles,
         Gen.choose(0, 50)));
-      dp <- Gen.choose(0, 30).map(d => ad.map(o => o.sum + d));
-      pl <- Gen.option(Gen.buildableOfN[Array](nGenotypes, Gen.choose(0, 1000)).map { arr =>
+                  dp <- Gen.choose(0, 30).map(d => ad.map(o => o.sum + d));
+                  pl <- Gen.option(Gen.buildableOfN[Array](nGenotypes, Gen.choose(0, 1000)).map { arr =>
         c match {
           case Some(x) =>
             arr(Call.unphasedDiploidGtIndex(x)) = 0
             arr
           case None =>
             val min = arr.min
-            arr.map(_ - min)
+            arr.fmap(_ - min)
         }
       });
-      gq <- Gen.choose(-30, 30).map(i => pl.map(pls => math.max(0, gqFromPL(pls) + i)))
+                  gq <- Gen.choose(-30, 30).map(i => pl.map(pls => math.max(0, gqFromPL(pls) + i)))
     ) yield
       Annotation(c.orNull, ad.map(a => a: IndexedSeq[Int]).orNull, dp.orNull, gq.orNull, pl.map(a => a: IndexedSeq[Int]).orNull)
     gg
@@ -277,7 +277,7 @@ object Genotype {
       val c = gp.flatMap(a => Option(uniqueMaxIndex(a))).map(Call2.fromUnphasedDiploidGtIndex(_))
       Row(
         c.orNull,
-        gp.map(gpx => gpx.map(p => p.toDouble / 32768): IndexedSeq[Double]).orNull)
+        gp.map(gpx => gpx.fmap(p => p.toDouble / 32768): IndexedSeq[Double]).orNull)
     }
     Gen.frequency(
       (100, gg),

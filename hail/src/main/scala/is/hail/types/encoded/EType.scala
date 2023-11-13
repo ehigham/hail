@@ -288,7 +288,7 @@ object EType {
     case t: TBaseStruct =>
       val rstruct = tcoerce[RBaseStruct](r)
       assert(t.size == rstruct.size, s"different number of fields: ${t} ${r}")
-      EBaseStruct(Array.tabulate(t.size) { i =>
+      EBaseStruct(FastSeq.tabulate(t.size) { i =>
         val f = rstruct.fields(i)
         if (f.index != i)
           throw new AssertionError(s"${t} [$i]")
@@ -325,7 +325,7 @@ object EType {
     case t: TSet => EUnsortedSet(fromPythonTypeEncoding(t.elementType), false)
     case t: TIterable => EArray(fromPythonTypeEncoding(t.elementType), false)
     case t: TBaseStruct =>
-      EBaseStruct(Array.tabulate(t.size) { i =>
+      EBaseStruct((0 until t.size).fmap { i =>
         val f = t.fields(i)
         if (f.index != i)
           throw new AssertionError(s"${t} [$i]")
@@ -359,7 +359,7 @@ object EType {
         IRParser.punctuation(it, "{")
         val args = IRParser.repsepUntil(it, IRParser.struct_field(eTypeParser), PunctuationToken(","), PunctuationToken("}"))
         IRParser.punctuation(it, "}")
-        EBaseStruct(args.zipWithIndex.map { case ((name, t), i) => EField(name, t, i) }, req)
+        EBaseStruct(args.zipWithIndex.fmap { case ((name, t), i) => EField(name, t, i) }, req)
       case "ENDArrayColumnMajor" =>
         IRParser.punctuation(it, "[")
         val elementType = eTypeParser(it)

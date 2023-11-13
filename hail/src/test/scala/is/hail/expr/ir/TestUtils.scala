@@ -1,7 +1,7 @@
 package is.hail.expr.ir
 
 import is.hail.types.virtual._
-import is.hail.utils.FastSeq
+import is.hail.utils.{FastSeq, toRichIndexedSeq}
 import is.hail.variant.Call
 
 object TestUtils {
@@ -35,7 +35,7 @@ object TestUtils {
     if (a == null)
       NA(TArray(TInt32))
     else
-      MakeArray(a.map(toIRInt), TArray(TInt32))
+      MakeArray(a.fmap(toIRInt), TArray(TInt32))
 
   def IRArray(a: Integer*): IR = toIRArray(a.toArray[Integer])
 
@@ -43,7 +43,7 @@ object TestUtils {
     if (a == null)
       NA(TStream(TInt32))
     else
-      MakeStream(a.map(toIRInt), TStream(TInt32))
+      MakeStream(a.fmap(toIRInt), TStream(TInt32))
 
   def IRStream(a: Integer*): IR = toIRStream(a.toArray[Integer])
 
@@ -51,7 +51,7 @@ object TestUtils {
     if (a == null)
       NA(TArray(TString))
     else
-      MakeArray(a.map(s => Literal.coerce(TString, s)), TArray(TString))
+      MakeArray(a.fmap(s => Literal.coerce(TString, s)), TArray(TString))
 
   def IRStringArray(a: String*): IR = toIRStringArray(FastSeq(a:_*))
 
@@ -61,7 +61,7 @@ object TestUtils {
     if (a == null)
       NA(TArray(TFloat64))
     else
-      MakeArray(a.map(toIRDouble), TArray(TFloat64))
+      MakeArray(a.fmap(toIRDouble), TArray(TFloat64))
 
   def IRDoubleArray(a: java.lang.Double*): IR = toIRDoubleArray(a.toArray[java.lang.Double])
 
@@ -69,13 +69,13 @@ object TestUtils {
     if (a == null)
       NA(TArray(TTuple(TInt32, TInt32)))
     else
-      MakeArray(a.map(toIRPair), TArray(TTuple(TInt32, TInt32)))
+      MakeArray(a.fmap(toIRPair), TArray(TTuple(TInt32, TInt32)))
 
   def toIRDict(a: IndexedSeq[(Integer, Integer)]): IR =
     if (a == null)
       NA(TDict(TInt32, TInt32))
     else
-      ToDict(ToStream(MakeArray(a.map(toIRPair), TArray(TTuple(TInt32, TInt32)))))
+      ToDict(ToStream(MakeArray(a.fmap(toIRPair), TArray(TTuple(TInt32, TInt32)))))
 
   def IRDict(a: (Integer, Integer)*): IR = toIRDict(a.toArray[(Integer, Integer)])
 

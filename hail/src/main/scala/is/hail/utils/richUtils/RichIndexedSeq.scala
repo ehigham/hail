@@ -180,4 +180,12 @@ class RichIndexedSeq[T](val a: IndexedSeq[T]) extends AnyVal {
     }
     is.head
   }
+
+  def fmap[R: ClassTag](f: T => R): Array[R] = {
+    val len = a.length
+    val b = new Array[R](len)
+    var i = 0
+    while (i < len) { b(i) = f(a(i)); i += 1 }
+    b
+  }
 }

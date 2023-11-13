@@ -31,7 +31,7 @@ object BlockMatrixSparsity {
   def fromLinearBlocks(nCols: Long, nRows: Long, blockSize: Int, definedBlocks: Option[IndexedSeq[Int]]): BlockMatrixSparsity = {
     val nColBlocks = BlockMatrixType.numBlocks(nCols, blockSize)
     definedBlocks.map { blocks =>
-      BlockMatrixSparsity(blocks.map { linearIdx => java.lang.Math.floorDiv(linearIdx, nColBlocks) -> linearIdx % nColBlocks })
+      BlockMatrixSparsity(blocks.fmap { linearIdx => java.lang.Math.floorDiv(linearIdx, nColBlocks) -> linearIdx % nColBlocks })
     }.getOrElse(dense)
   }
   def transposeCSCSparsity(
@@ -157,7 +157,7 @@ object BlockMatrixSparsity {
   ): (IR, IR, IR) = {
     val (newRowPos, newRowIdx, nestedSparsities) = groupedCSCSparsity(rowPos, rowIdx, rowDeps, colDeps)
     val t = TArray(TInt32)
-    (Literal(t, newRowPos), Literal(t, newRowIdx), Literal(TArray(TTuple(t, t, t)), nestedSparsities.map(Row.fromTuple)))
+    (Literal(t, newRowPos), Literal(t, newRowIdx), Literal(TArray(TTuple(t, t, t)), nestedSparsities.fmap(Row.fromTuple).toFastSeq))
   }
 }
 
@@ -196,7 +196,7 @@ case class BlockMatrixSparsity(definedBlocks: Option[IndexedSeq[(Int, Int)]]) {
   }
 
   def definedBlocksColMajorIR: Option[IR] = definedBlocksColMajor.map { blocks =>
-    ToStream(Literal(TArray(TTuple(TInt32, TInt32)), blocks.map(Row.fromTuple)))
+    ToStream(Literal(TArray(TTuple(TInt32, TInt32)), blocks.fmap(Row.fromTuple).toFastSeq))
   }
 
   lazy val definedBlocksRowMajor: Option[IndexedSeq[(Int, Int)]] = definedBlocks.map { blocks =>
@@ -206,13 +206,13 @@ case class BlockMatrixSparsity(definedBlocks: Option[IndexedSeq[(Int, Int)]]) {
   }
 
   def definedBlocksRowMajorIR: Option[IR] = definedBlocksRowMajor.map { blocks =>
-    ToStream(Literal(TArray(TTuple(TInt32, TInt32)), blocks.map(Row.fromTuple)))
+    ToStream(Literal(TArray(TTuple(TInt32, TInt32)), blocks.fmap(Row.fromTuple).toFastSeq))
   }
 
   def isSparse: Boolean = definedBlocks.isDefined
   lazy val blockSet: Set[(Int, Int)] = definedBlocks.get.toSet
   def hasBlock(idx: (Int, Int)): Boolean = definedBlocks.isEmpty || blockSet.contains(idx)
-  def condense(blockOverlaps: => (Array[Array[Int]], Array[Array[Int]])): BlockMatrixSparsity = {
+  def condense(blockOverlaps: => (IndexedSeq[Array[Int]], IndexedSeq[Array[Int]])): BlockMatrixSparsity = {
     definedBlocks.map { _ =>
       val (ro, co) = blockOverlaps
       BlockMatrixSparsity.constructFromShapeAndFunction(ro.length, co.length) { (i, j) =>
@@ -273,11 +273,11 @@ case class BlockMatrixSparsity(definedBlocks: Option[IndexedSeq[(Int, Int)]]) {
   }
 
   def transpose: BlockMatrixSparsity =
-    BlockMatrixSparsity(definedBlocks.map(_.map { case (i, j) => (j, i) }))
+    new BlockMatrixSparsity(definedBlocks.map(_.fmap { case (i, j) => (j, i) }))
 
   override def toString: String =
     definedBlocks.map { blocks =>
-      blocks.map { case (i, j) => s"($i,$j)" }.mkString("[", ",", "]")
+      blocks.fmap { case (i, j) => s"($i,$j)" }.mkString("[", ",", "]")
     }.getOrElse("None")
 }
 
@@ -357,7 +357,7 @@ case class BlockMatrixType(
   def allBlocksRowMajorIR: IR = sparsity.allBlocksRowMajorIR(nRowBlocks, nColBlocks)
 
   lazy val linearizedDefinedBlocks: Option[IndexedSeq[Int]] = sparsity.definedBlocksColMajor.map { blocks =>
-    blocks.map { case (i, j) => i + j * nRowBlocks }
+    blocks.fmap { case (i, j) => i + j * nRowBlocks }
   }
 
   def blockShape(i: Int, j: Int): (Long, Long) = {
@@ -375,16 +375,15 @@ case class BlockMatrixType(
   }
 
   private[this] def getBlockDependencies(keep: Array[Array[Long]]): Array[Array[Int]] =
-    keep.map(keeps => Array.range(BlockMatrixType.getBlockIdx(keeps.head, blockSize), BlockMatrixType.getBlockIdx(keeps.last, blockSize) + 1)).toArray
+    keep.fmap(keeps => Array.range(BlockMatrixType.getBlockIdx(keeps.head, blockSize), BlockMatrixType.getBlockIdx(keeps.last, blockSize) + 1)).toArray
 
-  def rowBlockDependents(keepRows: Array[Array[Long]]): Array[Array[Int]] = if (keepRows.isEmpty)
-    Array.tabulate(nRowBlocks)(i => Array(i))
-  else
-    getBlockDependencies(keepRows)
-  def colBlockDependents(keepCols: Array[Array[Long]]): Array[Array[Int]] = if (keepCols.isEmpty)
-    Array.tabulate(nColBlocks)(i => Array(i))
-  else
-    getBlockDependencies(keepCols)
+  def rowBlockDependents(keepRows: Array[Array[Long]]): IndexedSeq[Array[Int]] =
+    if (keepRows.isEmpty) FastSeq.tabulate(nRowBlocks)(i => Array(i))
+    else getBlockDependencies(keepRows)
+
+  def colBlockDependents(keepCols: Array[Array[Long]]): IndexedSeq[Array[Int]] =
+    if (keepCols.isEmpty) FastSeq.tabulate(nColBlocks)(i => Array(i))
+    else getBlockDependencies(keepCols)
 
   override def pretty(sb: StringBuilder, indent0: Int, compact: Boolean): Unit = {
     var indent = indent0

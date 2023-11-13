@@ -89,7 +89,7 @@ object LoweringPipeline {
   private val _dArrayLowerers = Array(
     DArrayLowering.All,
     DArrayLowering.TableOnly,
-    DArrayLowering.BMOnly).map { lv =>
+    DArrayLowering.BMOnly).fmap { lv =>
     (lv -> fullLoweringPipeline("darrayLowerer", LowerToDistributedArrayPass(lv)))
   }.toMap
 

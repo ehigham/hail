@@ -29,24 +29,24 @@ final case class EField(name: String, typ: EType, index: Int) {
 final case class EBaseStruct(fields: IndexedSeq[EField], override val required: Boolean = false) extends EType {
   assert(fields.zipWithIndex.forall { case (f, i) => f.index == i })
 
-  val types: Array[EType] = fields.map(_.typ).toArray
+  val types: Array[EType] = fields.fmap(_.typ).toArray
 
   def size: Int = types.length
 
-  val fieldNames: Array[String] = fields.map(_.name).toArray
-  val fieldIdx: Map[String, Int] = fields.map(f => (f.name, f.index)).toMap
+  val fieldNames: Array[String] = fields.fmap(_.name).toArray
+  val fieldIdx: Map[String, Int] = fields.fmap(f => (f.name, f.index)).toMap
 
   def hasField(name: String): Boolean = fieldIdx.contains(name)
 
   def fieldType(name: String): EType = types(fieldIdx(name))
 
-  val (missingIdx: Array[Int], nMissing: Int) = BaseStruct.getMissingIndexAndCount(types.map(_.required))
+  val (missingIdx: Array[Int], nMissing: Int) = BaseStruct.getMissingIndexAndCount(types.fmap(_.required))
   val nMissingBytes = UnsafeUtils.packBitsToBytes(nMissing)
 
   if (!fieldNames.areDistinct()) {
     val duplicates = fieldNames.duplicates()
     fatal(s"cannot create struct with duplicate ${ plural(duplicates.size, "field") }: " +
-      s"${ fieldNames.map(prettyIdentifier).mkString(", ") }", fieldNames.duplicates())
+      s"${ fieldNames.fmap(prettyIdentifier).mkString(", ") }", fieldNames.duplicates())
   }
 
   def _decodedSType(requestedType: Type): SType = requestedType match {
@@ -57,13 +57,13 @@ final case class EBaseStruct(fields: IndexedSeq[EField], override val required: 
     case t: TLocus =>
       SCanonicalLocusPointer(PCanonicalLocus(t.rg, false))
     case t: TStruct =>
-      val pFields = t.fields.map { case Field(name, typ, idx) =>
+      val pFields = t.fields.fmap { case Field(name, typ, idx) =>
         val pt = fieldType(name).decodedPType(typ)
         PField(name, pt, idx)
       }
       SBaseStructPointer(PCanonicalStruct(pFields, false))
     case t: TTuple =>
-      val pFields = t.fields.map { case Field(name, typ, idx) =>
+      val pFields = t.fields.fmap { case Field(name, typ, idx) =>
         val pt = fieldType(name).decodedPType(typ)
         PTupleField(t._types(idx).index, pt)
       }
@@ -80,7 +80,7 @@ final case class EBaseStruct(fields: IndexedSeq[EField], override val required: 
     }
     // write missing bytes
     structValue.st match {
-      case SBaseStructPointer(st) if st.size == size && st.fieldRequired.sameElements(fields.map(_.typ.required)) =>
+      case SBaseStructPointer(st) if st.size == size && st.fieldRequired.sameElements(fields.fmap(_.typ.required)) =>
         val missingBytes = UnsafeUtils.packBitsToBytes(st.nMissing)
 
         val addr = structValue.asInstanceOf[SBaseStructPointerValue].a

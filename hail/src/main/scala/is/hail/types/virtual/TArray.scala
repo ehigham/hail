@@ -3,6 +3,7 @@ package is.hail.types.virtual
 import is.hail.annotations.{Annotation, ExtendedOrdering}
 import is.hail.backend.HailStateManager
 import is.hail.check.Gen
+import is.hail.utils.toRichIndexedSeq
 import org.json4s.jackson.JsonMethods
 
 import scala.reflect.{ClassTag, classTag}
@@ -39,7 +40,7 @@ final case class TArray(elementType: Type) extends TContainer {
 
   override def _showStr(a: Annotation): String =
     a.asInstanceOf[IndexedSeq[Annotation]]
-      .map(elt => elementType.showStr(elt))
+      .fmap(elt => elementType.showStr(elt))
       .mkString("[", ",", "]")
 
   override def str(a: Annotation): String = JsonMethods.compact(toJSON(a))
@@ -57,7 +58,7 @@ final case class TArray(elementType: Type) extends TContainer {
       return identity
 
     val subsetElem = elementType.valueSubsetter(subtype.asInstanceOf[TArray].elementType)
-    (a: Any) => a.asInstanceOf[IndexedSeq[Any]].map(subsetElem)
+    (a: Any) => a.asInstanceOf[IndexedSeq[Any]].fmap(subsetElem)
   }
 
   override def arrayElementsRepr: TArray = this

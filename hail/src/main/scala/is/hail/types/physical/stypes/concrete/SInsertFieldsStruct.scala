@@ -15,7 +15,7 @@ final case class SInsertFieldsStruct(virtualType: TStruct, parent: SBaseStruct, 
   // Maps index in result struct to index in insertedFields.
   // Indices that refer to parent fields are not present.
   lazy val insertedFieldIndices: Map[Int, Int] = insertedFields.zipWithIndex
-    .map { case ((name, _), idx) => virtualType.fieldIdx(name) -> idx }
+    .fmap { case ((name, _), idx) => virtualType.fieldIdx(name) -> idx }
     .toMap
 
   def getFieldIndexInNewOrParent(idx: Int): Either[Int, Int] = {
@@ -25,30 +25,30 @@ final case class SInsertFieldsStruct(virtualType: TStruct, parent: SBaseStruct, 
     }
   }
 
-  override val fieldEmitTypes: IndexedSeq[EmitType] = virtualType.fieldNames.zipWithIndex.map { case (f, idx) =>
+  override val fieldEmitTypes: IndexedSeq[EmitType] = virtualType.fieldNames.zipWithIndex.fmap { case (f, idx) =>
     insertedFieldIndices.get(idx) match {
       case Some(idx) => insertedFields(idx)._2
       case None => parent.fieldEmitTypes(parent.fieldIdx(f))
     }
   }
-  private lazy val insertedFieldSettableStarts = insertedFields.map(_._2.nSettables).scanLeft(0)(_ + _).init
+  private lazy val insertedFieldSettableStarts = insertedFields.fmap(_._2.nSettables).scanLeft(0)(_ + _).init
 
-  override lazy val fieldTypes: IndexedSeq[SType] = fieldEmitTypes.map(_.st)
+  override lazy val fieldTypes: IndexedSeq[SType] = fieldEmitTypes.fmap(_.st)
 
   override def fieldIdx(fieldName: String): Int = virtualType.fieldIdx(fieldName)
 
   override def copiedType: SType = {
     if (virtualType.size < 64)
-      SStackStruct(virtualType, fieldEmitTypes.map(_.copiedType))
+      SStackStruct(virtualType, fieldEmitTypes.fmap(_.copiedType))
     else {
-      val ct = SBaseStructPointer(PCanonicalStruct(false, virtualType.fieldNames.zip(fieldEmitTypes.map(_.copiedType.storageType)): _*))
+      val ct = SBaseStructPointer(PCanonicalStruct(false, virtualType.fieldNames.zip(fieldEmitTypes.fmap(_.copiedType.storageType)): _*))
       assert(ct.virtualType == virtualType, s"ct=$ct, this=$this")
       ct
     }
   }
 
   override def storageType(): PType = {
-    val pt = PCanonicalStruct(false, virtualType.fieldNames.zip(fieldEmitTypes.map(_.copiedType.storageType)): _*)
+    val pt = PCanonicalStruct(false, virtualType.fieldNames.zip(fieldEmitTypes.fmap(_.copiedType.storageType)): _*)
     assert(pt.virtualType == virtualType, s"cp=$pt, this=$this")
     pt
   }
@@ -61,8 +61,8 @@ final case class SInsertFieldsStruct(virtualType: TStruct, parent: SBaseStruct, 
   override lazy val settableTupleTypes: IndexedSeq[TypeInfo[_]] = parent.settableTupleTypes() ++ insertedFields.flatMap(_._2.settableTupleTypes)
 
   override def fromSettables(settables: IndexedSeq[Settable[_]]): SInsertFieldsStructSettable = {
-    assert(settables.map(_.ti) == settableTupleTypes)
-    new SInsertFieldsStructSettable(this, parent.fromSettables(settables.take(parent.nSettables)).asInstanceOf[SBaseStructSettable], insertedFields.indices.map { i =>
+    assert(settables.fmap(_.ti) == settableTupleTypes)
+    new SInsertFieldsStructSettable(this, parent.fromSettables(settables.take(parent.nSettables)).asInstanceOf[SBaseStructSettable], insertedFields.indices.fmap { i =>
       val et = insertedFields(i)._2
       val start = insertedFieldSettableStarts(i) + parent.nSettables
       et.fromSettables(settables.slice(start, start + et.nSettables))
@@ -70,8 +70,8 @@ final case class SInsertFieldsStruct(virtualType: TStruct, parent: SBaseStruct, 
   }
 
   override def fromValues(values: IndexedSeq[Value[_]]): SInsertFieldsStructValue = {
-    assert(values.map(_.ti) == settableTupleTypes)
-    new SInsertFieldsStructValue(this, parent.fromValues(values.take(parent.nSettables)).asInstanceOf[SBaseStructValue], insertedFields.indices.map { i =>
+    assert(values.fmap(_.ti) == settableTupleTypes)
+    new SInsertFieldsStructValue(this, parent.fromValues(values.take(parent.nSettables)).asInstanceOf[SBaseStructValue], insertedFields.indices.fmap { i =>
       val et = insertedFields(i)._2
       val start = insertedFieldSettableStarts(i) + parent.nSettables
       et.fromValues(values.slice(start, start + et.nSettables))
@@ -106,7 +106,7 @@ final case class SInsertFieldsStruct(virtualType: TStruct, parent: SBaseStruct, 
     }
 
     val parentPassThroughMap = parentPassThroughFieldBuilder.result().toMap
-    val parentCastType = TStruct(parentType.fieldNames.map(f => parentPassThroughMap.getOrElse(f, (f, parentType.fieldType(f)))): _*)
+    val parentCastType = TStruct(parentType.fieldNames.fmap(f => parentPassThroughMap.getOrElse(f, (f, parentType.fieldType(f)))): _*)
     val renamedParentType = parent.castRename(parentCastType)
     SInsertFieldsStruct(ts,
       renamedParentType.asInstanceOf[SBaseStruct],
@@ -136,12 +136,19 @@ class SInsertFieldsStructValue(
     }
 
   override def _insert(newType: TStruct, fields: (String, EmitValue)*): SBaseStructValue = {
-    val newFieldSet = fields.map(_._1).toSet
-    val filteredNewFields = st.insertedFields.map(_._1)
-      .zipWithIndex
-      .filter { case (name, idx) => !newFieldSet.contains(name) }
-      .map { case (name, idx) => (name, newFields(idx)) }
-    parent._insert(newType, filteredNewFields ++ fields: _*)
+    val newFieldSet = fields.toFastSeq.fmap(_._1).toSet
+
+    val filteredNewFields =
+      new BoxedArrayBuilder[(String, EmitValue)](st.insertedFields.size + newFieldSet.size)
+
+    st.insertedFields.zipWithIndex.foreach { case ((name, _), idx) =>
+      if (!newFieldSet.contains(name))
+        filteredNewFields += name -> newFields(idx)
+    }
+
+    filteredNewFields ++= fields
+
+    parent._insert(newType, filteredNewFields.result() : _*)
   }
 }
 

@@ -170,7 +170,7 @@ object LowerMatrixIR {
 
       case MatrixChooseCols(child, oldIndices) =>
         lower(ctx, child, ab)
-          .mapGlobals('global.insertFields('newColIdx -> oldIndices.map(I32)))
+          .mapGlobals('global.insertFields('newColIdx -> oldIndices.fmap(I32).toFastSeq))
           .mapRows('row.insertFields(entriesField -> 'global ('newColIdx).map('i ~> 'row (entriesField)('i))))
           .mapGlobals('global
             .insertFields(colsField -> 'global ('newColIdx).map('i ~> 'global (colsField)('i)))
@@ -178,7 +178,7 @@ object LowerMatrixIR {
 
       case MatrixAnnotateColsTable(child, table, root) =>
         val col = Symbol(genUID())
-        val colKey = makeStruct(table.typ.key.zip(child.typ.colKey).map { case (tk, mck) => Symbol(tk) -> col(Symbol(mck)) }: _*)
+        val colKey = makeStruct(table.typ.key.zip(child.typ.colKey).fmap { case (tk, mck) => Symbol(tk) -> col(Symbol(mck)) }: _*)
         lower(ctx, child, ab)
           .mapGlobals(let(__dictfield = lower(ctx, table, ab)
             .keyBy(FastSeq())
@@ -216,7 +216,7 @@ object LowerMatrixIR {
               val structResult = MakeStruct(aggs)
               val uid = Ref(genUID(), structResult.typ)
               builder += (uid.name -> AggFilter(filt, structResult, true))
-              Let(aggs.map { case (name, _) => name -> GetField(uid, name) }, liftedBody)
+              Let(aggs.fmap { case (name, _) => name -> GetField(uid, name) }, liftedBody)
 
             case AggExplode(a, name, body, true) =>
               val ab = new BoxedArrayBuilder[(String, IR)]
@@ -225,7 +225,7 @@ object LowerMatrixIR {
               val structResult = MakeStruct(aggs)
               val uid = Ref(genUID(), structResult.typ)
               builder += (uid.name -> AggExplode(a, name, structResult, true))
-              Let(aggs.map { case (name, _) => name -> GetField(uid, name) }, liftedBody)
+              Let(aggs.fmap { case (name, _) => name -> GetField(uid, name) }, liftedBody)
 
             case AggGroupBy(a, body, true) =>
               val ab = new BoxedArrayBuilder[(String, IR)]
@@ -241,7 +241,7 @@ object LowerMatrixIR {
               ToDict(mapIR(ToStream(uid)) { eltUID =>
                 Let(
                   (valueUID -> GetField(eltUID, "value")) +:
-                    aggs.map { case (name, _) => name -> GetField(Ref(valueUID, valueType), name) },
+                    aggs.fmap { case (name, _) => name -> GetField(Ref(valueUID, valueType), name) },
                   MakeTuple.ordered(FastSeq(GetField(eltUID, "key"), liftedBody))
                 )
               })
@@ -256,7 +256,7 @@ object LowerMatrixIR {
               builder += (uid.name -> aggIR)
 
               ToArray(mapIR(ToStream(uid)) { eltUID =>
-                Let(aggs.map { case (name, _) => name -> GetField(eltUID, name) }, liftedBody)
+                Let(aggs.fmap { case (name, _) => name -> GetField(eltUID, name) }, liftedBody)
               })
 
             case AggLet(name, value, body, true) =>
@@ -266,7 +266,7 @@ object LowerMatrixIR {
               val structResult = MakeStruct(aggs)
               val uid = genUID()
               builder += (uid -> AggLet(name, value, structResult, true))
-              Let(aggs.map { case (name, _) => name -> GetField(Ref(uid, structResult.typ), name) }, liftedBody)
+              Let(aggs.fmap { case (name, _) => name -> GetField(Ref(uid, structResult.typ), name) }, liftedBody)
 
             case _ =>
               MapIR(lift(_, builder))(ir)
@@ -335,7 +335,7 @@ object LowerMatrixIR {
 
             val uid = Ref(genUID(), structResult.typ)
             builder += (uid.name -> AggFilter(filt, structResult, isScan))
-            Let(aggs.map { case (name, _) => name -> GetField(uid, name) }, liftedBody)
+            Let(aggs.fmap { case (name, _) => name -> GetField(uid, name) }, liftedBody)
 
           case AggExplode(a, name, body, isScan) =>
             val ab = new BoxedArrayBuilder[(String, IR)]
@@ -347,7 +347,7 @@ object LowerMatrixIR {
             val structResult = MakeStruct(aggs)
             val uid = Ref(genUID(), structResult.typ)
             builder += (uid.name -> AggExplode(a, name, structResult, isScan))
-            Let(aggs.map { case (name, _) => name -> GetField(uid, name) }, liftedBody)
+            Let(aggs.fmap { case (name, _) => name -> GetField(uid, name) }, liftedBody)
 
           case AggGroupBy(a, body, isScan) =>
             val ab = new BoxedArrayBuilder[(String, IR)]
@@ -367,7 +367,7 @@ object LowerMatrixIR {
                 FastSeq(GetField(eltUID, "key"),
                   Let(
                     (valueUID -> GetField(eltUID, "value")) +:
-                      aggs.map { case (name, _) => name -> GetField(Ref(valueUID, valueType), name) },
+                      aggs.fmap { case (name, _) => name -> GetField(Ref(valueUID, valueType), name) },
                     liftedBody
                   )
                 )
@@ -385,7 +385,7 @@ object LowerMatrixIR {
             val uid = Ref(genUID(), aggIR.typ)
             builder += (uid.name -> aggIR)
             ToArray(mapIR(ToStream(uid)) { eltUID =>
-              Let(aggs.map { case (name, _) => name -> GetField(eltUID, name) }, liftedBody)
+              Let(aggs.fmap { case (name, _) => name -> GetField(eltUID, name) }, liftedBody)
             })
 
           case AggLet(name, value, body, isScan) =>
@@ -399,7 +399,7 @@ object LowerMatrixIR {
 
             val uid = Ref(genUID(), structResult.typ)
             builder += (uid.name -> AggLet(name, value, structResult, isScan))
-            Let(aggs.map { case (name, _) => name -> GetField(uid, name) }, liftedBody)
+            Let(aggs.fmap { case (name, _) => name -> GetField(uid, name) }, liftedBody)
 
           case x: StreamAgg => x
           case x: StreamAggScan => x
@@ -511,7 +511,7 @@ object LowerMatrixIR {
           else
             irIf('row(entries).isNA) {
               irRange(0, 'global(cols).len)
-                .map('a ~> irToProxy(MakeStruct(right.typ.entryType.fieldNames.map(f => (f, NA(right.typ.entryType.fieldType(f)))))))
+                .map('a ~> irToProxy(MakeStruct(right.typ.entryType.fieldNames.fmap(f => (f, NA(right.typ.entryType.fieldType(f)))))))
             } {
               'row(entries)
             }
@@ -563,7 +563,7 @@ object LowerMatrixIR {
         // FIXME: this should check that all children have the same column keys.
         val first = lower(ctx, children.head, ab)
         TableUnion(FastSeq(first) ++
-          children.tail.map(lower(ctx, _, ab)
+          children.tail.fmap(lower(ctx, _, ab)
             .mapRows('row.selectFields(first.typ.rowType.fieldNames: _*))))
 
       case MatrixDistinctByRow(child) => TableDistinct(lower(ctx, child, ab))
@@ -644,7 +644,7 @@ object LowerMatrixIR {
           .mapRows('row.insertFields(entriesField ->
             'global ('newColIdx).map {
               'kv ~>
-                makeStruct(child.typ.entryType.fieldNames.map { s =>
+                makeStruct(child.typ.entryType.fieldNames.fmap { s =>
                   (Symbol(s), 'kv ('value).map {
                     'i ~> 'row (entriesField)('i)(Symbol(s))
                   })
@@ -655,7 +655,7 @@ object LowerMatrixIR {
               'global ('newColIdx).map {
                 'kv ~>
                   'kv ('key).insertFields(
-                    child.typ.colValueStruct.fieldNames.map { s =>
+                    child.typ.colValueStruct.fieldNames.fmap { s =>
                       (Symbol(s), 'kv ('value).map('i ~> 'global (colsField)('i)(Symbol(s))))
                     }: _*)
               })
@@ -761,14 +761,14 @@ object LowerMatrixIR {
                   .filter(lambdaIdx2 ~> !lambdaIdx2(entriesField)(lambdaIdx1).isNA)
                   .map(lambdaIdx3 ~> let(__col = 'global (colsField)(lambdaIdx1), __entry = lambdaIdx3(entriesField)(lambdaIdx1)) {
                     makeStruct(
-                      child.typ.rowValueStruct.fieldNames.map(Symbol(_)).map(f => f -> lambdaIdx3(f)) ++
-                        child.typ.colType.fieldNames.map(Symbol(_)).map(f => f -> '__col (f)) ++
-                        child.typ.entryType.fieldNames.map(Symbol(_)).map(f => f -> '__entry (f)): _*
+                      child.typ.rowValueStruct.fieldNames.fmap(Symbol(_)).fmap(f => f -> lambdaIdx3(f)) ++
+                        child.typ.colType.fieldNames.fmap(Symbol(_)).fmap(f => f -> '__col (f)) ++
+                        child.typ.entryType.fieldNames.fmap(Symbol(_)).fmap(f => f -> '__entry (f)): _*
                     )
                   }))))
 
             .explode(toExplode)
-            .mapRows(makeStruct(x.typ.rowType.fieldNames.map { f =>
+            .mapRows(makeStruct(x.typ.rowType.fieldNames.fmap { f =>
               val fd = Symbol(f)
               (fd, if (child.typ.rowKey.contains(f)) 'row (fd) else 'row (toExplode) (fd)) }: _*))
             .mapGlobals('global.dropFields(colsField, oldColIdx))
@@ -782,8 +782,8 @@ object LowerMatrixIR {
             .explode(colIdx)
             .mapRows(let(__col_struct = 'global (colsField)('row (colIdx)),
               __entry_struct = 'row (entriesField)('row (colIdx))) {
-              val newFields = child.typ.colType.fieldNames.map(Symbol(_)).map(f => f -> '__col_struct (f)) ++
-                child.typ.entryType.fieldNames.map(Symbol(_)).map(f => f -> '__entry_struct (f))
+              val newFields = child.typ.colType.fieldNames.fmap(Symbol(_)).fmap(f => f -> '__col_struct (f)) ++
+                child.typ.entryType.fieldNames.fmap(Symbol(_)).fmap(f => f -> '__entry_struct (f))
 
               'row.dropFields(entriesField, colIdx).insertFieldsList(newFields,
                 ordering = Some(x.typ.rowType.fieldNames.toFastSeq))
@@ -856,7 +856,7 @@ object LowerMatrixIR {
       case MatrixWrite(child, writer) =>
         TableWrite(lower(ctx, child, ab), WrappedMatrixWriter(writer, colsFieldName, entriesFieldName, child.typ.colKey))
       case MatrixMultiWrite(children, writer) =>
-        TableMultiWrite(children.map(lower(ctx, _, ab)), WrappedMatrixNativeMultiWriter(writer, children.head.typ.colKey))
+        TableMultiWrite(children.fmap(lower(ctx, _, ab)), WrappedMatrixNativeMultiWriter(writer, children.head.typ.colKey))
       case MatrixCount(child) =>
         lower(ctx, child, ab)
           .aggregate(makeTuple(applyAggOp(Count(), FastSeq(), FastSeq()), 'global(colsField).len))

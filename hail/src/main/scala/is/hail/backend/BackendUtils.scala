@@ -57,7 +57,7 @@ class BackendUtils(mods: Array[(String, (HailClassLoader, FS, HailTaskContext, R
 
         log.info(
           s"[collectDArray|$stageName]: executing ${remainingContexts.length} tasks, " +
-            s"contexts size = ${formatSpace(contexts.map(_.length.toLong).sum)}, " +
+            s"contexts size = ${formatSpace(contexts.fmap(_.length.toLong).sum)}, " +
             s"globals size = ${formatSpace(globals.length)}"
         )
 
@@ -105,6 +105,6 @@ class BackendUtils(mods: Array[(String, (HailClassLoader, FS, HailTaskContext, R
         results
       }
 
-      results.map(_._1).toArray
+      results.fmap(_._1).toArray
   }
 }

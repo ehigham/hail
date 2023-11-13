@@ -344,7 +344,7 @@ class BlockMatrixSuite extends HailSuite {
     forAll(squareBlockMatrixGen()) { (m: BlockMatrix) =>
       val lm = m.toBreezeMatrix()
       val diagonalLength = math.min(lm.rows, lm.cols)
-      val diagonal = Array.tabulate(diagonalLength)(i => lm(i, i))
+      val diagonal = FastSeq.tabulate(diagonalLength)(i => lm(i, i))
 
       if (m.diagonal().toSeq == diagonal.toSeq)
         true
@@ -593,7 +593,7 @@ class BlockMatrixSuite extends HailSuite {
 
   @Test
   def filterCols() {
-    val lm = new BDM[Double](9, 10, (0 until 90).map(_.toDouble).toArray)
+    val lm = new BDM[Double](9, 10, (0 until 90).fmap(_.toDouble).toArray)
 
     for {blockSize <- Seq(1, 2, 3, 5, 10, 11)
     } {
@@ -606,7 +606,7 @@ class BlockMatrixSuite extends HailSuite {
         Array(1, 4, 5, 7, 8, 9),
         Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
       } {
-        val filteredViaBlock = bm.filterCols(keep.map(_.toLong)).toBreezeMatrix()
+        val filteredViaBlock = bm.filterCols(keep.fmap(_.toLong)).toBreezeMatrix()
         val filteredViaBreeze = lm(::, keep.toFastSeq).copy
 
         assert(filteredViaBlock === filteredViaBreeze)
@@ -616,7 +616,7 @@ class BlockMatrixSuite extends HailSuite {
 
   @Test
   def filterColsTranspose() {
-    val lm = new BDM[Double](9, 10, (0 until 90).map(_.toDouble).toArray)
+    val lm = new BDM[Double](9, 10, (0 until 90).fmap(_.toDouble).toArray)
     val lmt = lm.t
 
     for {blockSize <- Seq(2, 3)
@@ -627,7 +627,7 @@ class BlockMatrixSuite extends HailSuite {
         Array(1, 4, 5, 7, 8),
         Array(0, 1, 2, 3, 4, 5, 6, 7, 8))
       } {
-        val filteredViaBlock = bm.filterCols(keep.map(_.toLong)).toBreezeMatrix()
+        val filteredViaBlock = bm.filterCols(keep.fmap(_.toLong)).toBreezeMatrix()
         val filteredViaBreeze = lmt(::, keep.toFastSeq).copy
 
         assert(filteredViaBlock === filteredViaBreeze)
@@ -637,7 +637,7 @@ class BlockMatrixSuite extends HailSuite {
 
   @Test
   def filterRows() {
-    val lm = new BDM[Double](9, 10, (0 until 90).map(_.toDouble).toArray)
+    val lm = new BDM[Double](9, 10, (0 until 90).fmap(_.toDouble).toArray)
 
     for {blockSize <- Seq(2, 3)
     } {
@@ -647,7 +647,7 @@ class BlockMatrixSuite extends HailSuite {
         Array(1, 4, 5, 7, 8),
         Array(0, 1, 2, 3, 4, 5, 6, 7, 8))
       } {
-        val filteredViaBlock = bm.filterRows(keep.map(_.toLong)).toBreezeMatrix()
+        val filteredViaBlock = bm.filterRows(keep.fmap(_.toLong)).toBreezeMatrix()
         val filteredViaBreeze = lm(keep.toFastSeq, ::).copy
 
         assert(filteredViaBlock === filteredViaBreeze)
@@ -657,7 +657,7 @@ class BlockMatrixSuite extends HailSuite {
 
   @Test
   def filterSymmetric() {
-    val lm = new BDM[Double](10, 10, (0 until 100).map(_.toDouble).toArray)
+    val lm = new BDM[Double](10, 10, (0 until 100).fmap(_.toDouble).toArray)
 
     for {blockSize <- Seq(1, 2, 3, 5, 10, 11)
     } {
@@ -670,7 +670,7 @@ class BlockMatrixSuite extends HailSuite {
         Array(1, 4, 5, 7, 8, 9),
         Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
       } {
-        val filteredViaBlock = bm.filter(keep.map(_.toLong), keep.map(_.toLong)).toBreezeMatrix()
+        val filteredViaBlock = bm.filter(keep.fmap(_.toLong), keep.fmap(_.toLong)).toBreezeMatrix()
         val filteredViaBreeze = lm(keep.toFastSeq, keep.toFastSeq).copy
 
         assert(filteredViaBlock === filteredViaBreeze)
@@ -680,7 +680,7 @@ class BlockMatrixSuite extends HailSuite {
 
   @Test
   def filter() {
-    val lm = new BDM[Double](9, 10, (0 until 90).map(_.toDouble).toArray)
+    val lm = new BDM[Double](9, 10, (0 until 90).fmap(_.toDouble).toArray)
 
     for {blockSize <- Seq(1, 2, 3, 5, 10, 11)
     } {
@@ -695,7 +695,7 @@ class BlockMatrixSuite extends HailSuite {
           Array(1, 4, 5, 7, 8, 9),
           Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
       } {
-        val filteredViaBlock = bm.filter(keepRows.map(_.toLong), keepCols.map(_.toLong)).toBreezeMatrix()
+        val filteredViaBlock = bm.filter(keepRows.fmap(_.toLong), keepCols.fmap(_.toLong)).toBreezeMatrix()
         val filteredViaBreeze = lm(keepRows.toFastSeq, keepCols.toFastSeq).copy
 
         assert(filteredViaBlock === filteredViaBreeze)
@@ -705,7 +705,7 @@ class BlockMatrixSuite extends HailSuite {
 
   @Test
   def writeLocalAsBlockTest() {
-    val lm = new BDM[Double](10, 10, (0 until 100).map(_.toDouble).toArray)
+    val lm = new BDM[Double](10, 10, (0 until 100).fmap(_.toDouble).toArray)
 
     for {blockSize <- Seq(1, 2, 3, 5, 10, 11)} {
       val fname = ctx.createTmpPath("test")
@@ -741,9 +741,9 @@ class BlockMatrixSuite extends HailSuite {
 
   @Test
   def testEntriesTable(): Unit = {
-    val data = (0 until 90).map(_.toDouble).toArray
+    val data = (0 until 90).fmap(_.toDouble).toArray
     val lm = new BDM[Double](9, 10, data)
-    val expectedEntries = data.map(x => ((x % 9).toLong, (x / 9).toLong, x)).toSet
+    val expectedEntries = data.fmap(x => ((x % 9).toLong, (x / 9).toLong, x)).toSet
     val expectedSignature = TStruct("i" -> TInt64, "j" -> TInt64, "entry" -> TFloat64)
 
     for {blockSize <- Seq(1, 4, 10)} {
@@ -751,7 +751,7 @@ class BlockMatrixSuite extends HailSuite {
       assert(entriesLiteral.typ.rowType == expectedSignature)
       val rows = CompileAndEvaluate[IndexedSeq[Row]](ctx,
         GetField(TableCollect(entriesLiteral), "rows"))
-      val entries = rows.map(row => (row.get(0), row.get(1), row.get(2))).toSet
+      val entries = rows.fmap(row => (row.get(0), row.get(1), row.get(2))).toSet
       // block size affects order of rows in table, but sets will be the same
       assert(entries === expectedEntries)
     }
@@ -759,7 +759,7 @@ class BlockMatrixSuite extends HailSuite {
 
   @Test
   def testEntriesTableWhenKeepingOnlySomeBlocks(): Unit = {
-    val data = (0 until 50).map(_.toDouble).toArray
+    val data = (0 until 50).fmap(_.toDouble).toArray
     val lm = new BDM[Double](5, 10, data)
     val bm = toBM(lm, blockSize = 2)
 
@@ -777,7 +777,7 @@ class BlockMatrixSuite extends HailSuite {
     )
     val expected = rows
       .sortBy(r => (r.get(0).asInstanceOf[Long], r.get(1).asInstanceOf[Long]))
-      .map(r => r.get(2).asInstanceOf[Double])
+      .fmap(r => r.get(2).asInstanceOf[Double])
 
     assert(expected sameElements Array[Double](0, 5, 20, 25, 1, 6, 21, 26, 2, 7, 3, 8))
   }
@@ -798,7 +798,7 @@ class BlockMatrixSuite extends HailSuite {
 
   @Test
   def testSparseFilterEdges(): Unit = {
-    val lm = new BDM[Double](12, 12, (0 to 143).map(_.toDouble).toArray)
+    val lm = new BDM[Double](12, 12, (0 to 143).fmap(_.toDouble).toArray)
     val bm = toBM(lm, blockSize = 5)
 
     val onlyEight = bm.filterBlocks(Array(8)) // Bottom right corner block
@@ -806,14 +806,14 @@ class BlockMatrixSuite extends HailSuite {
     val onlyEightColEleven = onlyEight.filterCols(Array(11)).toBreezeMatrix()
     val onlyEightCornerFour = onlyEight.filter(Array(10, 11), Array(10, 11)).toBreezeMatrix()
 
-    assert(onlyEightRowEleven.toArray sameElements Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 131, 143).map(_.toDouble))
-    assert(onlyEightColEleven.toArray sameElements Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 142, 143).map(_.toDouble))
+    assert(onlyEightRowEleven.toArray sameElements Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 131, 143).fmap(_.toDouble))
+    assert(onlyEightColEleven.toArray sameElements Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 142, 143).fmap(_.toDouble))
     assert(onlyEightCornerFour == new BDM[Double](2, 2, Array(130.0, 131.0, 142.0, 143.0)))
   }
 
   @Test
   def testSparseTransposeMaybeBlocks(): Unit = {
-    val lm = new BDM[Double](9, 12, (0 to 107).map(_.toDouble).toArray)
+    val lm = new BDM[Double](9, 12, (0 to 107).fmap(_.toDouble).toArray)
     val bm = toBM(lm, blockSize = 3)
     val sparse = bm.filterBand(0, 0, true)
     assert(sparse.transpose().gp.partitionIndexToBlockIndex.get.toIndexedSeq == IndexedSeq(0, 5, 10))
@@ -827,7 +827,7 @@ class BlockMatrixSuite extends HailSuite {
     val banded = bm.filterBand(0, 0, false)
     val rowFilt = banded.filterRows((0L until nRows.toLong by 2L).toArray)
     val summed = rowFilt.rowSum().toBreezeMatrix().toArray
-    val expected = Array.tabulate(nRows)(x => if (x % 2 == 0) 2.0 else 0) ++ Array.tabulate(nCols - nRows)(x => 0.0)
+    val expected = FastSeq.tabulate(nRows)(x => if (x % 2 == 0) 2.0 else 0) ++ FastSeq.tabulate(nCols - nRows)(x => 0.0)
     assert(summed sameElements expected)
   }
 
@@ -961,7 +961,7 @@ class BlockMatrixSuite extends HailSuite {
       assert(filteredEquals(fbm.transpose().transpose(), fbm))
 
       assert(filteredEquals(
-        fbm.transpose(), bm.transpose().filterBlocks(keep.map(transposeBI).sorted)))
+        fbm.transpose(), bm.transpose().filterBlocks(keep.fmap(transposeBI).sorted)))
 
       assert(fbm.diagonal() sameElements diag(fbm.toBreezeMatrix()).toArray)
 

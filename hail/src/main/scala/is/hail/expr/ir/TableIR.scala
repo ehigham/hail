@@ -349,16 +349,16 @@ object LoweredTableReader {
               contextType: Type,
               contexts: IndexedSeq[Any],
               body: IR => IR): TableStage = {
-              val partOrigIndex = sortedPartData.map(_.getInt(6))
+              val partOrigIndex = sortedPartData.fmap(_.getInt(6))
 
               val partitioner = new RVDPartitioner(ctx.stateManager, keyType,
-                sortedPartData.map { partData =>
+                sortedPartData.fmap { partData =>
                   Interval(partData.get(1), partData.get(2), includesStart = true, includesEnd = true)
                 },
                 key.length)
 
               TableStage(globals, partitioner, TableStageDependency.none,
-                ToStream(Literal(TArray(contextType), partOrigIndex.map(i => contexts(i)))),
+                ToStream(Literal(TArray(contextType), partOrigIndex.fmap(i => contexts(i)).toFastSeq)),
                 body)
             }
           }
@@ -381,15 +381,15 @@ object LoweredTableReader {
               contextType: Type,
               contexts: IndexedSeq[Any],
               body: IR => IR): TableStage = {
-              val partOrigIndex = sortedPartData.map(_.getInt(6))
+              val partOrigIndex = sortedPartData.fmap(_.getInt(6))
 
               val partitioner = new RVDPartitioner(ctx.stateManager, pkType,
-                sortedPartData.map { partData =>
+                sortedPartData.fmap { partData =>
                   Interval(selectPK(partData.getAs[Row](1)), selectPK(partData.getAs[Row](2)), includesStart = true, includesEnd = true)
                 }, pkType.size)
 
               val pkPartitioned = TableStage(globals, partitioner, TableStageDependency.none,
-                ToStream(Literal(TArray(contextType), partOrigIndex.map(i => contexts(i)))),
+                ToStream(Literal(TArray(contextType), partOrigIndex.fmap(i => contexts(i)).toFastSeq)),
                 body)
 
               pkPartitioned
@@ -411,12 +411,12 @@ object LoweredTableReader {
               contextType: Type,
               contexts: IndexedSeq[Any],
               body: IR => IR): TableStage = {
-              val partOrigIndex = sortedPartData.map(_.getInt(6))
+              val partOrigIndex = sortedPartData.fmap(_.getInt(6))
 
               val partitioner = RVDPartitioner.unkeyed(ctx.stateManager, sortedPartData.length)
 
               val tableStage = TableStage(globals, partitioner, TableStageDependency.none,
-                ToStream(Literal(TArray(contextType), partOrigIndex.map(i => contexts(i)))),
+                ToStream(Literal(TArray(contextType), partOrigIndex.fmap(i => contexts(i)).toFastSeq)),
                 body)
 
               val rowRType = VirtualTypeWithReq(bodyPType(tableStage.rowType)).r.asInstanceOf[RStruct]
@@ -425,7 +425,7 @@ object LoweredTableReader {
 
               ctx.backend.lowerDistributedSort(ctx,
                 tableStage,
-                keyType.fieldNames.map(f => SortField(f, Ascending)),
+                keyType.fieldNames.fmap(f => SortField(f, Ascending)),
                 RTable(rowRType, globRType, FastSeq())
               ).lower(ctx, TableType(tableStage.rowType, keyType.fieldNames, globals.typ.asInstanceOf[TStruct]))
             }
@@ -781,7 +781,7 @@ case class PartitionNativeIntervalReader(sm: HailStateManager, tablePath: String
       val rowsPath = tableSpec.rowsComponent.absolutePath(tablePath)
       val partitionPathsRuntime = cb.memoizeField(mb.addLiteral(cb, rowsSpec.absolutePartPaths(rowsPath).toFastSeq, pathsType), "partitionPathsRuntime")
         .asIndexable
-      val indexPathsRuntime = cb.memoizeField(mb.addLiteral(cb, rowsSpec.partFiles.map(partPath => s"${ rowsPath }/${ indexSpec.relPath }/${ partPath }.idx").toFastSeq, pathsType), "indexPathsRuntime")
+      val indexPathsRuntime = cb.memoizeField(mb.addLiteral(cb, rowsSpec.partFiles.fmap(partPath => s"${ rowsPath }/${ indexSpec.relPath }/${ partPath }.idx").toFastSeq, pathsType), "indexPathsRuntime")
         .asIndexable
 
       val currIdxInPartition = mb.genFieldThisRef[Long]("n_to_read")
@@ -1114,7 +1114,7 @@ case class PartitionZippedNativeReader(left: PartitionReader, right: PartitionRe
     val lRequired = left.rowRequiredness(lRequested)
     val rRequired = right.rowRequiredness(rRequested)
 
-    RStruct.fromNamesAndTypes(requestedType.fieldNames.map(f => (f, lRequired.fieldType.getOrElse(f, rRequired.fieldType(f)))))
+    RStruct.fromNamesAndTypes(requestedType.fieldNames.fmap(f => (f, lRequired.fieldType.getOrElse(f, rRequired.fieldType(f)))))
   }
 
   lazy val fullRowType: TStruct = {
@@ -1227,7 +1227,7 @@ case class PartitionZippedIndexedNativeReader(specLeft: AbstractTypedCodecSpec, 
   def rowRequiredness(requestedType: TStruct): RStruct = {
     val (leftStruct, rightStruct) = splitRequestedTypes(requestedType)
     val rt = TypeWithRequiredness(requestedType).asInstanceOf[RStruct]
-    val pt = specLeft.decodedPType(leftStruct).asInstanceOf[PStruct].insertFields(specRight.decodedPType(rightStruct).asInstanceOf[PStruct].fields.map(f => (f.name, f.typ)))
+    val pt = specLeft.decodedPType(leftStruct).asInstanceOf[PStruct].insertFields(specRight.decodedPType(rightStruct).asInstanceOf[PStruct].fields.fmap(f => (f.name, f.typ)))
     rt.fromPType(pt)
     rt
   }
@@ -1530,7 +1530,7 @@ case class TableNativeZippedReader(
       FastSeq("left" -> SingleCodeEmitParamType(true, PTypeReferenceSingleCodeType(pLeft)), "right" -> SingleCodeEmitParamType(true, PTypeReferenceSingleCodeType(pRight))),
       FastSeq(typeInfo[Region], LongInfo, LongInfo), LongInfo,
       InsertFields(Ref("left", pLeft.virtualType),
-        pRight.fieldNames.map(f =>
+        pRight.fieldNames.fmap(f =>
           f -> GetField(Ref("right", pRight.virtualType), f))))
     (t, mk)
   }
@@ -1592,7 +1592,7 @@ case class TableFromBlockMatrixNativeReader(
 
   val getNumPartitions: Int = params.nPartitions.getOrElse(HailContext.backend.defaultParallelism)
 
-  val partitionRanges = (0 until getNumPartitions).map { i =>
+  val partitionRanges = (0 until getNumPartitions).fmap { i =>
     val nRows = metadata.nRows
     val start = (i * nRows) / getNumPartitions
     val end = ((i + 1) * nRows) / getNumPartitions
@@ -1600,7 +1600,7 @@ case class TableFromBlockMatrixNativeReader(
   }
 
   override def partitionCounts: Option[IndexedSeq[Long]] = {
-    Some(partitionRanges.map(r => r.end - r.start))
+    Some(partitionRanges.fmap(r => r.end - r.start))
   }
 
   override def uidType = TInt64
@@ -1625,7 +1625,7 @@ case class TableFromBlockMatrixNativeReader(
       ctx.fsBc, params.path, partitionRanges, requestedType.rowType, metadata,
       maybeMaximumCacheMemoryInBytes = params.maximumCacheMemoryInBytes)
 
-    val partitionBounds = partitionRanges.map { r => Interval(Row(r.start), Row(r.end), true, false) }
+    val partitionBounds = partitionRanges.fmap { r => Interval(Row(r.start), Row(r.end), true, false) }
     val partitioner = new RVDPartitioner(ctx.stateManager, fullType.keyType, partitionBounds)
 
     val rowTyp = PType.canonical(requestedType.rowType, required = true).asInstanceOf[PStruct]
@@ -1728,7 +1728,7 @@ case class TableParallelize(rowsAndGlobal: IR, nPartitions: Option[Int] = None) 
 
     val bae = new ByteArrayEncoder(ctx.theHailClassLoader, makeEnc)
     var idx = 0
-    val encRows = Array.tabulate(nSplits) { splitIdx =>
+    val encRows = FastSeq.tabulate(nSplits) { splitIdx =>
       val n = parts(splitIdx)
       bae.reset()
       val stop = idx + n
@@ -1868,7 +1868,7 @@ case class TableRange(n: Int, nPartitions: Int) extends TableIR {
 
   private val partCounts = partition(n, nPartitionsAdj)
 
-  override val partitionCounts = Some(partCounts.map(_.toLong).toFastSeq)
+  override val partitionCounts = Some(partCounts.fmap(_.toLong).toFastSeq)
 
   lazy val rowCountUpperBound: Option[Long] = Some(n.toLong)
 
@@ -1886,7 +1886,7 @@ case class TableRange(n: Int, nPartitions: Int) extends TableIR {
       new RVD(
         RVDType(localRowType, Array("idx")),
         new RVDPartitioner(ctx.stateManager, Array("idx"), typ.rowType,
-          Array.tabulate(nPartitionsAdj) { i =>
+          FastSeq.tabulate(nPartitionsAdj) { i =>
             val start = partStarts(i)
             val end = partStarts(i + 1)
             Interval(Row(start), Row(end), includesStart = true, includesEnd = false)
@@ -2220,20 +2220,20 @@ case class TableMultiWayZipJoin(childrenSeq: IndexedSeq[TableIR], fieldName: Str
 
   protected[ir] override def execute(ctx: ExecuteContext, r: LoweringAnalyses): TableExecuteIntermediate = {
     val sm = ctx.stateManager
-    val childValues = childrenSeq.map(_.execute(ctx, r).asTableValue(ctx))
+    val childValues = childrenSeq.fmap(_.execute(ctx, r).asTableValue(ctx))
 
-    val childRVDs = RVD.unify(ctx, childValues.map(_.rvd)).toFastSeq
+    val childRVDs = RVD.unify(ctx, childValues.fmap(_.rvd)).toFastSeq
     assert(childRVDs.forall(_.typ.key.startsWith(typ.key)))
 
     val repartitionedRVDs =
       if (childRVDs(0).partitioner.satisfiesAllowedOverlap(typ.key.length - 1) &&
         childRVDs.forall(rvd => rvd.partitioner == childRVDs(0).partitioner))
-        childRVDs.map(_.truncateKey(typ.key.length))
+        childRVDs.fmap(_.truncateKey(typ.key.length))
       else {
         info("TableMultiWayZipJoin: repartitioning children")
         val childRanges = childRVDs.flatMap(_.partitioner.coarsenedRangeBounds(typ.key.length))
         val newPartitioner = RVDPartitioner.generate(ctx.stateManager, typ.keyType, childRanges)
-        childRVDs.map(_.repartition(ctx, newPartitioner))
+        childRVDs.fmap(_.repartition(ctx, newPartitioner))
       }
     val newPartitioner = repartitionedRVDs(0).partitioner
 
@@ -2242,8 +2242,8 @@ case class TableMultiWayZipJoin(childrenSeq: IndexedSeq[TableIR], fieldName: Str
     val keyIdx = rvdType.kFieldIdx
     val valIdx = rvdType.valueFieldIdx
     val localRVDType = rvdType
-    val keyFields = rvdType.kType.fields.map(f => (f.name, f.typ))
-    val valueFields = rvdType.valueType.fields.map(f => (f.name, f.typ))
+    val keyFields = rvdType.kType.fields.fmap(f => (f.name, f.typ))
+    val valueFields = rvdType.valueType.fields.fmap(f => (f.name, f.typ))
     val localNewRowType = PCanonicalStruct(required = true,
       keyFields ++ Array((fieldName, PCanonicalArray(
         PCanonicalStruct(required = false, valueFields: _*), required = true))): _*)
@@ -2280,13 +2280,13 @@ case class TableMultiWayZipJoin(childrenSeq: IndexedSeq[TableIR], fieldName: Str
     val rvd = RVD(
       typ = RVDType(localNewRowType, typ.key),
       partitioner = newPartitioner,
-      crdd = ContextRDD.czipNPartitions(repartitionedRVDs.map(_.crdd.toCRDDRegionValue)) { (ctx, its) =>
-        val orvIters = its.map(it => OrderedRVIterator(localRVDType, it, ctx, sm))
+      crdd = ContextRDD.czipNPartitions(repartitionedRVDs.fmap(_.crdd.toCRDDRegionValue)) { (ctx, its) =>
+        val orvIters = its.fmap(it => OrderedRVIterator(localRVDType, it, ctx, sm))
         rvMerger(ctx, OrderedRVIterator.multiZipJoin(sm, orvIters))
       }.toCRDDPtr)
 
     val newGlobals = BroadcastRow(ctx,
-      Row(childValues.map(_.globals.javaValue)),
+      Row(childValues.fmap(_.globals.javaValue)),
       newGlobalType)
 
     new TableValueIntermediate(TableValue(ctx, typ, newGlobals, rvd))
@@ -2856,16 +2856,16 @@ case class TableUnion(childrenSeq: IndexedSeq[TableIR]) extends TableIR {
   }
 
   def copy(newChildren: IndexedSeq[BaseIR]): TableUnion = {
-    TableUnion(newChildren.map(_.asInstanceOf[TableIR]))
+    TableUnion(newChildren.fmap(_.asInstanceOf[TableIR]))
   }
 
   val typ: TableType = childrenSeq(0).typ
 
   protected[ir] override def execute(ctx: ExecuteContext, r: LoweringAnalyses): TableExecuteIntermediate = {
-    val tvs = childrenSeq.map(_.execute(ctx, r).asTableValue(ctx))
+    val tvs = childrenSeq.fmap(_.execute(ctx, r).asTableValue(ctx))
     new TableValueIntermediate(
       tvs(0).copy(
-        rvd = RVD.union(RVD.unify(ctx, tvs.map(_.rvd)), tvs(0).typ.key.length, ctx)))
+        rvd = RVD.union(RVD.unify(ctx, tvs.fmap(_.rvd)), tvs(0).typ.key.length, ctx)))
   }
 }
 
@@ -3009,7 +3009,7 @@ case class TableKeyByAndAggregate(
     }
 
     val newRowType = PCanonicalStruct(required = true,
-      localKeyPType.fields.map(f => (f.name, PType.canonical(f.typ))) ++ rTyp.fields.map(f => (f.name, f.typ)): _*)
+      localKeyPType.fields.fmap(f => (f.name, PType.canonical(f.typ))) ++ rTyp.fields.fmap(f => (f.name, f.typ)): _*)
 
     val localBufferSize = bufferSize
     val rdd = prev.rvd
@@ -3141,7 +3141,7 @@ case class TableAggregateByKey(child: TableIR, expr: IR) extends TableIR {
         (key.name, SingleCodeEmitParamType(true, PTypeReferenceSingleCodeType(keyType)))),
       FastSeq(classInfo[Region], LongInfo, LongInfo), LongInfo,
       Let(FastSeq(value.name -> valueIR),
-        InsertFields(key, typ.valueType.fieldNames.map(n => n -> GetField(value, n)))))
+        InsertFields(key, typ.valueType.fieldNames.fmap(n => n -> GetField(value, n)))))
 
     assert(rowType.virtualType == typ.rowType, s"$rowType, ${ typ.rowType }")
 
@@ -3246,7 +3246,7 @@ case class TableOrderBy(child: TableIR, sortFields: IndexedSeq[SortField]) exten
       return new TableValueIntermediate(prev.copy(typ = typ))
 
     val rowType = child.typ.rowType
-    val sortColIndexOrd = sortFields.map { case SortField(n, so) =>
+    val sortColIndexOrd = sortFields.fmap { case SortField(n, so) =>
       val i = rowType.fieldIdx(n)
       val f = rowType.fields(i)
       val fo = f.typ.ordering(ctx.stateManager)
@@ -3258,7 +3258,7 @@ case class TableOrderBy(child: TableIR, sortFields: IndexedSeq[SortField]) exten
     val act = implicitly[ClassTag[Annotation]]
 
     val codec = TypedCodecSpec(prev.rvd.rowPType, BufferSpec.wireSpec)
-    val rdd = prev.rvd.keyedEncodedRDD(ctx, codec, sortFields.map(_.field)).sortBy(_._1)(ord, act)
+    val rdd = prev.rvd.keyedEncodedRDD(ctx, codec, sortFields.fmap(_.field)).sortBy(_._1)(ord, act)
     val (rowPType: PStruct, orderedCRDD) = codec.decodeRDD(ctx, rowType, rdd.map(_._2))
     new TableValueIntermediate(TableValue(ctx, typ, prev.globals, RVD.unkeyed(rowPType, orderedCRDD)))
   }
@@ -3301,7 +3301,7 @@ case class TableRename(child: TableIR, rowMap: Map[String, String], globalMap: M
   lazy val typ: TableType = child.typ.copy(
     rowType = child.typ.rowType.rename(rowMap),
     globalType = child.typ.globalType.rename(globalMap),
-    key = child.typ.key.map(k => rowMap.getOrElse(k, k))
+    key = child.typ.key.fmap(k => rowMap.getOrElse(k, k))
   )
 
   override def partitionCounts: Option[IndexedSeq[Long]] = child.partitionCounts

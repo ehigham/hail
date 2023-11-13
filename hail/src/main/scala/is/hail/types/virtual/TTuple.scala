@@ -8,17 +8,18 @@ import org.apache.spark.sql.Row
 object TTuple {
   val empty: TTuple = TTuple()
 
-  def apply(args: Type*): TTuple = TTuple(args.iterator.zipWithIndex.map { case (t, i) => TupleField(i, t) }.toArray)
+  def apply(args: Type*): TTuple =
+    TTuple(args.toFastSeq.zipWithIndex.fmap { case (t, i) => TupleField(i, t) })
 }
 
 case class TupleField(index: Int, typ: Type)
 
 final case class TTuple(_types: IndexedSeq[TupleField]) extends TBaseStruct {
-  lazy val types: Array[Type] = _types.map(_.typ).toArray
+  lazy val types: Array[Type] = _types.fmap(_.typ)
 
-  lazy val fields: IndexedSeq[Field] = _types.zipWithIndex.map { case (tf, i) => Field(s"${ tf.index }", tf.typ, i) }
+  lazy val fields: IndexedSeq[Field] = _types.zipWithIndex.fmap { case (tf, i) => Field(s"${ tf.index }", tf.typ, i) }
 
-  lazy val fieldIndex: Map[Int, Int] = _types.zipWithIndex.map { case (tf, idx) => tf.index -> idx }.toMap
+  lazy val fieldIndex: Map[Int, Int] = _types.zipWithIndex.fmap { case (tf, idx) => tf.index -> idx }.toMap
 
   override def mkOrdering(sm: HailStateManager, missingEqual: Boolean): ExtendedOrdering =
     TBaseStruct.getOrdering(sm, types, missingEqual)
@@ -44,7 +45,7 @@ final case class TTuple(_types: IndexedSeq[TupleField]) extends TBaseStruct {
     case _ => false
   }
 
-  override def subst() = TTuple(_types.map(tf => tf.copy(typ = tf.typ.subst())))
+  override def subst() = TTuple(_types.fmap(tf => tf.copy(typ = tf.typ.subst())))
 
   override def _pretty(sb: StringBuilder, indent: Int, compact: Boolean) {
     if (!_isCanonical) {
@@ -82,11 +83,11 @@ final case class TTuple(_types: IndexedSeq[TupleField]) extends TBaseStruct {
       return identity
 
     val subTuple = subtype.asInstanceOf[TTuple]
-    val subsetFields = subTuple.fields.map(f => (fieldIndex(f.index), fields(f.index).typ.valueSubsetter(f.typ)))
+    val subsetFields = subTuple.fields.fmap(f => (fieldIndex(f.index), fields(f.index).typ.valueSubsetter(f.typ)))
 
     { (a: Any) =>
       val r = a.asInstanceOf[Row]
-      Row.fromSeq(subsetFields.map { case (i, subset) => subset(r.get(i)) })
+      Row.fromSeq(subsetFields.fmap { case (i, subset) => subset(r.get(i)) })
     }
   }
 }

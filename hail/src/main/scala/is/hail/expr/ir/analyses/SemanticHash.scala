@@ -7,7 +7,7 @@ import is.hail.io.fs.FS
 import is.hail.io.vcf.MatrixVCFReader
 import is.hail.methods._
 import is.hail.types.virtual._
-import is.hail.utils.{Logging, TreeTraversal, toRichBoolean}
+import is.hail.utils.{Logging, TreeTraversal, toRichBoolean, toRichIndexedSeq}
 import org.apache.commons.codec.digest.MurmurHash3
 
 import java.io.FileNotFoundException
@@ -228,14 +228,14 @@ case object SemanticHash extends Logging {
 
       case SelectFields(struct, names) =>
         val getFieldIndex = struct.typ.asInstanceOf[TStruct].fieldIdx
-        names.map(getFieldIndex).foreach(buffer ++= Bytes.fromInt(_))
+        names.fmap(getFieldIndex).foreach(buffer ++= Bytes.fromInt(_))
 
       case StreamZip(_, _, _, behaviour, _) =>
         buffer ++= Bytes.fromInt(behaviour.id)
 
       case TableKeyBy(table, keys, _) =>
         val getFieldIndex = table.typ.rowType.fieldIdx
-        keys.map(getFieldIndex).foreach(buffer ++= Bytes.fromInt(_))
+        keys.fmap(getFieldIndex).foreach(buffer ++= Bytes.fromInt(_))
 
 
       case TableKeyByAndAggregate(_, _, _, nPartitions, bufferSize) =>

@@ -7,7 +7,7 @@ import is.hail.types.physical.stypes.interfaces.{SBaseStruct, SBaseStructSettabl
 import is.hail.types.physical.stypes.{EmitType, SType, SValue}
 import is.hail.types.physical.{PBaseStruct, PType}
 import is.hail.types.virtual.{TBaseStruct, Type}
-import is.hail.utils.FastSeq
+import is.hail.utils.{FastSeq, arrayToRichIndexedSeq}
 
 
 final case class SBaseStructPointer(pType: PBaseStruct) extends SBaseStruct {
@@ -39,8 +39,8 @@ final case class SBaseStructPointer(pType: PBaseStruct) extends SBaseStruct {
 
   def canonicalPType(): PType = pType
 
-  override val fieldTypes: IndexedSeq[SType] = pType.types.map(_.sType)
-  override val fieldEmitTypes: IndexedSeq[EmitType] = pType.types.map(t => EmitType(t.sType, t.required))
+  override val fieldTypes: IndexedSeq[SType] = pType.types.fmap(_.sType)
+  override val fieldEmitTypes: IndexedSeq[EmitType] = pType.types.fmap(t => EmitType(t.sType, t.required))
 
   override def containsPointers: Boolean = pType.containsPointers
 

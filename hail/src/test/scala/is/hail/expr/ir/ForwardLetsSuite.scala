@@ -33,7 +33,7 @@ class ForwardLetsSuite extends HailSuite {
       MakeTuple.ordered(FastSeq(ApplyBinaryPrimOp(Add(), x, I32(1)), ApplyBinaryPrimOp(Add(), x, I32(2)))),
       ApplyBinaryPrimOp(Add(), ApplyBinaryPrimOp(Add(), x, x), I32(1)),
       StreamAgg(ToStream(a), "y", ApplyAggOp(Sum())(x + y))
-    ).map(ir => Array[IR](Let(FastSeq("x" -> (In(0, TInt32) + In(0, TInt32))), ir)))
+    ).fmap(ir => Array[IR](Let(FastSeq("x" -> (In(0, TInt32) + In(0, TInt32))), ir)))
   }
 
   @DataProvider(name = "nonForwardingNonEvalOps")
@@ -44,7 +44,7 @@ class ForwardLetsSuite extends HailSuite {
       NDArrayMap(In(1, TNDArray(TInt32, Nat(1))), "y", x + y),
       NDArrayMap2(In(1, TNDArray(TInt32, Nat(1))), In(2, TNDArray(TInt32, Nat(1))), "y", "z", x + y + Ref("z", TInt32), ErrorIDs.NO_ERROR),
       TailLoop("f", FastSeq("y" -> I32(0)), If(y < x, Recur("f", FastSeq[IR](y - I32(1)), TInt32), x))
-    ).map(ir => Array[IR](Let(FastSeq("x" -> (In(0, TInt32) + In(0, TInt32))), ir)))
+    ).fmap(ir => Array[IR](Let(FastSeq("x" -> (In(0, TInt32) + In(0, TInt32))), ir)))
   }
 
   def aggMin(value: IR): ApplyAggOp = ApplyAggOp(FastSeq(), FastSeq(value), AggSignature(Min(), FastSeq(), FastSeq(value.typ)))
@@ -57,7 +57,7 @@ class ForwardLetsSuite extends HailSuite {
     Array(
       AggArrayPerElement(ToArray(a), "y", "_", aggMin(x + y), None, false),
       AggExplode(a, "y", aggMin(y + x), false)
-    ).map(ir => Array[IR](AggLet("x", In(0, TInt32) + In(0, TInt32), ir, false)))
+    ).fmap(ir => Array[IR](AggLet("x", In(0, TInt32) + In(0, TInt32), ir, false)))
   }
 
   @DataProvider(name = "forwardingOps")
@@ -71,7 +71,7 @@ class ForwardLetsSuite extends HailSuite {
       ApplyUnaryPrimOp(Negate, x),
       ToArray(StreamMap(StreamRange(I32(0), x, I32(1)), "foo", Ref("foo", TInt32))),
       ToArray(StreamFilter(StreamRange(I32(0), x, I32(1)), "foo", Ref("foo", TInt32) <= I32(0)))
-    ).map(ir => Array[IR](Let(FastSeq("x" -> (In(0, TInt32) + In(0, TInt32))), ir)))
+    ).fmap(ir => Array[IR](Let(FastSeq("x" -> (In(0, TInt32) + In(0, TInt32))), ir)))
   }
 
   @DataProvider(name = "forwardingAggOps")
@@ -81,7 +81,7 @@ class ForwardLetsSuite extends HailSuite {
     Array(
       AggFilter(x.ceq(I32(0)), aggMin(other), false),
       aggMin(x + other)
-    ).map(ir => Array[IR](AggLet("x", In(0, TInt32) + In(0, TInt32), ir, false)))
+    ).fmap(ir => Array[IR](AggLet("x", In(0, TInt32) + In(0, TInt32), ir, false)))
   }
 
   @Test def assertDataProvidersWork() {

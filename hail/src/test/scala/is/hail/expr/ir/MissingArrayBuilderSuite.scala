@@ -24,14 +24,11 @@ class MissingArrayBuilderSuite extends TestNGSuite {
     }
   }
 
-  def getResult[B <: MissingArrayBuilder, T >: Null : ClassTag](ab: B)(f: (B, Int) => T): Array[T] = {
-    Array.tabulate[T](ab.size) { i =>
-      if (ab.isMissing(i))
-        null
-      else
-        f(ab, i)
+  def getResult[B <: MissingArrayBuilder, T >: Null : ClassTag](ab: B)(f: (B, Int) => T): IndexedSeq[T] =
+    FastSeq.tabulate[T](ab.size) { i =>
+      if (ab.isMissing(i)) null
+      else f(ab, i)
     }
-  }
 
   @DataProvider(name = "sortInt")
   def integerData(): Array[Array[Any]] = Array(

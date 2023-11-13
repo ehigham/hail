@@ -104,7 +104,7 @@ class ArrayElementState(val kb: EmitClassBuilder[_], val nested: StateTuple) ext
   def store(cb: EmitCodeBuilder): Unit = container.store(cb)
 
   def serialize(codec: BufferSpec): (EmitCodeBuilder, Value[OutputBuffer]) => Unit = {
-    val serializers = nested.states.map(_.serialize(codec));
+    val serializers = nested.states.fmap(_.serialize(codec));
     { (cb: EmitCodeBuilder, ob: Value[OutputBuffer]) =>
       loadInit(cb)
       nested.toCodeWithArgs(cb,
@@ -125,7 +125,7 @@ class ArrayElementState(val kb: EmitClassBuilder[_], val nested: StateTuple) ext
   }
 
   def deserialize(codec: BufferSpec): (EmitCodeBuilder, Value[InputBuffer]) => Unit = {
-    val deserializers = nested.states.map(_.deserialize(codec));
+    val deserializers = nested.states.fmap(_.deserialize(codec));
     { (cb: EmitCodeBuilder, ib: Value[InputBuffer]) =>
       init(cb, cb => nested.toCodeWithArgs(cb,
         { (cb, i, _) =>
@@ -161,7 +161,7 @@ class ArrayElementState(val kb: EmitClassBuilder[_], val nested: StateTuple) ext
 class ArrayElementLengthCheckAggregator(nestedAggs: Array[StagedAggregator], knownLength: Boolean) extends StagedAggregator {
   type State = ArrayElementState
 
-  val resultEltType: PCanonicalTuple = PCanonicalTuple(true, nestedAggs.map(_.resultEmitType.storageType): _*)
+  val resultEltType: PCanonicalTuple = PCanonicalTuple(true, nestedAggs.fmap(_.resultEmitType.storageType): _*)
   val resultPType: PCanonicalArray = PCanonicalArray(resultEltType)
   override def resultEmitType = EmitType(SIndexablePointer(resultPType), knownLength)
 
@@ -266,7 +266,7 @@ class ArrayElementwiseOpAggregator(nestedAggs: Array[StagedAggregator]) extends 
   val initOpTypes: Seq[Type] = Array[Type]()
   val seqOpTypes: Seq[Type] = Array[Type](TInt32, TVoid)
 
-  val resultPType = PCanonicalArray(PCanonicalTuple(false, nestedAggs.map(_.resultEmitType.storageType): _*))
+  val resultPType = PCanonicalArray(PCanonicalTuple(false, nestedAggs.fmap(_.resultEmitType.storageType): _*))
   override def resultEmitType = EmitType(SIndexablePointer(resultPType), false)
 
   protected def _initOp(cb: EmitCodeBuilder, state: State, init: Array[EmitCode]): Unit =

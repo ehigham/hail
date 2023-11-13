@@ -1,5 +1,7 @@
 package is.hail.expr.ir
 
+import is.hail.utils.toRichIndexedSeq
+
 object Copy {
   def apply(x: IR, newChildren: IndexedSeq[BaseIR]): IR = {
     x match {
@@ -25,7 +27,7 @@ object Copy {
         assert(newChildren.length == 1)
         IsNA(newChildren(0).asInstanceOf[IR])
       case Coalesce(_) =>
-        Coalesce(newChildren.map(_.asInstanceOf[IR]))
+        Coalesce(newChildren.fmap(_.asInstanceOf[IR]))
       case Consume(_) =>
         Consume(newChildren(0).asInstanceOf[IR])
       case If(_, _, _) =>
@@ -37,19 +39,19 @@ object Copy {
       case Let(bindings, _) =>
         assert(newChildren.length == x.size)
         val newBindings =
-          (bindings, newChildren.init)
-            .zipped
-            .map { case ((name, _), ir: IR) => name -> ir }
+          bindings
+            .zip(newChildren.init)
+            .fmap { case ((name, _), ir: IR) => name -> ir }
         Let(newBindings, newChildren.last.asInstanceOf[IR])
       case AggLet(name, _, _, isScan) =>
         assert(newChildren.length == 2)
         AggLet(name, newChildren(0).asInstanceOf[IR], newChildren(1).asInstanceOf[IR], isScan)
       case TailLoop(name, params, _) =>
         assert(newChildren.length == params.length + 1)
-        TailLoop(name, params.map(_._1).zip(newChildren.init.map(_.asInstanceOf[IR])), newChildren.last.asInstanceOf[IR])
+        TailLoop(name, params.fmap(_._1).zip(newChildren.init.fmap(_.asInstanceOf[IR])), newChildren.last.asInstanceOf[IR])
       case Recur(name, args, t) =>
         assert(newChildren.length == args.length)
-        Recur(name, newChildren.map(_.asInstanceOf[IR]), t)
+        Recur(name, newChildren.fmap(_.asInstanceOf[IR]), t)
       case Ref(name, t) => Ref(name, t)
       case RelationalRef(name, t) => RelationalRef(name, t)
       case RelationalLet(name, _, _) =>
@@ -66,10 +68,10 @@ object Copy {
         ApplyComparisonOp(op, newChildren(0).asInstanceOf[IR], newChildren(1).asInstanceOf[IR])
       case MakeArray(args, typ) =>
         assert(args.length == newChildren.length)
-        MakeArray(newChildren.map(_.asInstanceOf[IR]), typ)
+        MakeArray(newChildren.fmap(_.asInstanceOf[IR]), typ)
       case MakeStream(args, typ, requiresMemoryManagementPerElement) =>
         assert(args.length == newChildren.length)
-        MakeStream(newChildren.map(_.asInstanceOf[IR]), typ, requiresMemoryManagementPerElement)
+        MakeStream(newChildren.fmap(_.asInstanceOf[IR]), typ, requiresMemoryManagementPerElement)
       case ArrayRef(_, _, errorID) =>
         assert(newChildren.length == 2)
         ArrayRef(newChildren(0).asInstanceOf[IR], newChildren(1).asInstanceOf[IR], errorID)
@@ -117,12 +119,12 @@ object Copy {
         assert(newChildren.length ==  1)
         NDArrayConcat(newChildren(0).asInstanceOf[IR], axis)
       case NDArrayRef(_, _, errorId) =>
-        NDArrayRef(newChildren(0).asInstanceOf[IR], newChildren.tail.map(_.asInstanceOf[IR]), errorId)
+        NDArrayRef(newChildren(0).asInstanceOf[IR], newChildren.tail.fmap(_.asInstanceOf[IR]), errorId)
       case NDArraySlice(_, _) =>
         assert(newChildren.length ==  2)
         NDArraySlice(newChildren(0).asInstanceOf[IR], newChildren(1).asInstanceOf[IR])
       case NDArrayFilter(_, _) =>
-        NDArrayFilter(newChildren(0).asInstanceOf[IR], newChildren.tail.map(_.asInstanceOf[IR]))
+        NDArrayFilter(newChildren(0).asInstanceOf[IR], newChildren.tail.fmap(_.asInstanceOf[IR]))
       case NDArrayMap(_, name, _) =>
         assert(newChildren.length ==  2)
         NDArrayMap(newChildren(0).asInstanceOf[IR], name, newChildren(1).asInstanceOf[IR])
@@ -230,12 +232,12 @@ object Copy {
         assert(newChildren.length == 3)
         StreamFold(newChildren(0).asInstanceOf[IR], newChildren(1).asInstanceOf[IR], accumName, valueName, newChildren(2).asInstanceOf[IR])
       case StreamFold2(_, accum, valueName, seq, _) =>
-        val ncIR = newChildren.map(_.asInstanceOf[IR])
+        val ncIR = newChildren.fmap(_.asInstanceOf[IR])
         assert(newChildren.length == 2 + accum.length + seq.length)
         StreamFold2(ncIR(0),
-          accum.indices.map(i => (accum(i)._1, ncIR(i + 1))),
+          accum.indices.fmap(i => (accum(i)._1, ncIR(i + 1))),
           valueName,
-          seq.indices.map(i => ncIR(i + 1 + accum.length)), ncIR.last)
+          seq.indices.fmap(i => ncIR(i + 1 + accum.length)), ncIR.last)
       case StreamScan(_, _, accumName, valueName, _) =>
         assert(newChildren.length == 3)
         StreamScan(newChildren(0).asInstanceOf[IR], newChildren(1).asInstanceOf[IR], accumName, valueName, newChildren(2).asInstanceOf[IR])
@@ -281,20 +283,20 @@ object Copy {
         AggArrayPerElement(newChildren(0).asInstanceOf[IR], elementName, indexName, newChildren(1).asInstanceOf[IR], newKnownLength, isScan)
       case MakeStruct(fields) =>
         assert(fields.length == newChildren.length)
-        MakeStruct(fields.zip(newChildren).map { case ((n, _), a) => (n, a.asInstanceOf[IR]) })
+        MakeStruct(fields.zip(newChildren).fmap { case ((n, _), a) => (n, a.asInstanceOf[IR]) })
       case SelectFields(_, fields) =>
         assert(newChildren.length == 1)
         SelectFields(newChildren(0).asInstanceOf[IR], fields)
       case InsertFields(_, fields, fieldOrder) =>
         assert(newChildren.length == fields.length + 1)
-        InsertFields(newChildren.head.asInstanceOf[IR], fields.zip(newChildren.tail).map { case ((n, _), a) => (n, a.asInstanceOf[IR]) }, fieldOrder)
+        InsertFields(newChildren.head.asInstanceOf[IR], fields.zip(newChildren.tail).fmap { case ((n, _), a) => (n, a.asInstanceOf[IR]) }, fieldOrder)
       case GetField(_, name) =>
         assert(newChildren.length == 1)
         GetField(newChildren(0).asInstanceOf[IR], name)
       case InitOp(i, _, aggSig) =>
-        InitOp(i, newChildren.map(_.asInstanceOf[IR]), aggSig)
+        InitOp(i, newChildren.fmap(_.asInstanceOf[IR]), aggSig)
       case SeqOp(i, _, aggSig) =>
-        SeqOp(i, newChildren.map(_.asInstanceOf[IR]), aggSig)
+        SeqOp(i, newChildren.fmap(_.asInstanceOf[IR]), aggSig)
       case ResultOp(i, aggSigs) =>
         ResultOp(i, aggSigs)
       case CombOp(i1, i2, aggSig) =>
@@ -310,16 +312,16 @@ object Copy {
       case SerializeAggs(startIdx, serIdx, spec, aggSigs) => SerializeAggs(startIdx, serIdx, spec, aggSigs)
       case DeserializeAggs(startIdx, serIdx, spec, aggSigs) => DeserializeAggs(startIdx, serIdx, spec, aggSigs)
       case Begin(_) =>
-        Begin(newChildren.map(_.asInstanceOf[IR]))
+        Begin(newChildren.fmap(_.asInstanceOf[IR]))
       case x@ApplyAggOp(initOpArgs, seqOpArgs, aggSig) =>
-        val args = newChildren.map(_.asInstanceOf[IR])
+        val args = newChildren.fmap(_.asInstanceOf[IR])
         assert(args.length == x.nInitArgs + x.nSeqOpArgs)
         ApplyAggOp(
           args.take(x.nInitArgs),
           args.drop(x.nInitArgs),
           aggSig)
       case x@ApplyScanOp(initOpArgs, _, aggSig) =>
-        val args = newChildren.map(_.asInstanceOf[IR])
+        val args = newChildren.fmap(_.asInstanceOf[IR])
         assert(args.length == x.nInitArgs + x.nSeqOpArgs)
         ApplyScanOp(
           args.take(x.nInitArgs),
@@ -329,7 +331,7 @@ object Copy {
         AggFold(newChildren(0).asInstanceOf[IR], newChildren(1).asInstanceOf[IR], newChildren(2).asInstanceOf[IR], accumName, otherAccumName, isScan)
       case MakeTuple(fields) =>
         assert(fields.length == newChildren.length)
-        MakeTuple(fields.zip(newChildren).map { case ((i, _), newValue) => (i, newValue.asInstanceOf[IR]) })
+        MakeTuple(fields.zip(newChildren).fmap { case ((i, _), newValue) => (i, newValue.asInstanceOf[IR]) })
       case GetTupleElement(_, idx) =>
         assert(newChildren.length == 1)
         GetTupleElement(newChildren(0).asInstanceOf[IR], idx)
@@ -344,22 +346,22 @@ object Copy {
         assert(newChildren.length == 2)
         ConsoleLog(newChildren(0).asInstanceOf[IR], newChildren(1).asInstanceOf[IR])
       case x@ApplyIR(fn, typeArgs, args, errorID) =>
-        val r = ApplyIR(fn, typeArgs, newChildren.map(_.asInstanceOf[IR]), errorID)
+        val r = ApplyIR(fn, typeArgs, newChildren.fmap(_.asInstanceOf[IR]), errorID)
         r.conversion = x.conversion
         r.inline = x.inline
         r
       case Apply(fn, typeArgs, args, t, errorID) =>
-        Apply(fn, typeArgs, newChildren.map(_.asInstanceOf[IR]), t, errorID)
+        Apply(fn, typeArgs, newChildren.fmap(_.asInstanceOf[IR]), t, errorID)
       case ApplySeeded(fn, args, rngState, staticUID, t) =>
-        ApplySeeded(fn, newChildren.init.map(_.asInstanceOf[IR]), newChildren.last.asInstanceOf[IR], staticUID, t)
+        ApplySeeded(fn, newChildren.init.fmap(_.asInstanceOf[IR]), newChildren.last.asInstanceOf[IR], staticUID, t)
       case ApplySpecial(fn, typeArgs, args, t, errorID) =>
-        ApplySpecial(fn, typeArgs, newChildren.map(_.asInstanceOf[IR]), t, errorID)
+        ApplySpecial(fn, typeArgs, newChildren.fmap(_.asInstanceOf[IR]), t, errorID)
       // from MatrixIR
       case MatrixWrite(_, writer) =>
         assert(newChildren.length == 1)
         MatrixWrite(newChildren(0).asInstanceOf[MatrixIR], writer)
       case MatrixMultiWrite(_, writer) =>
-        MatrixMultiWrite(newChildren.map(_.asInstanceOf[MatrixIR]), writer)
+        MatrixMultiWrite(newChildren.fmap(_.asInstanceOf[MatrixIR]), writer)
       case MatrixCount(_) =>
         assert(newChildren.length == 1)
         MatrixCount(newChildren(0).asInstanceOf[MatrixIR])
@@ -383,7 +385,7 @@ object Copy {
         assert(newChildren.length == 1)
         TableWrite(newChildren(0).asInstanceOf[TableIR], writer)
       case TableMultiWrite(_, writer) =>
-        TableMultiWrite(newChildren.map(_.asInstanceOf[TableIR]), writer)
+        TableMultiWrite(newChildren.fmap(_.asInstanceOf[TableIR]), writer)
       case TableToValueApply(_, function) =>
         assert(newChildren.length == 1)
         TableToValueApply(newChildren(0).asInstanceOf[TableIR], function)
@@ -400,7 +402,7 @@ object Copy {
         assert(newChildren.length == 1)
         BlockMatrixWrite(newChildren(0).asInstanceOf[BlockMatrixIR], writer)
       case BlockMatrixMultiWrite(_, writer) =>
-        BlockMatrixMultiWrite(newChildren.map(_.asInstanceOf[BlockMatrixIR]), writer)
+        BlockMatrixMultiWrite(newChildren.fmap(_.asInstanceOf[BlockMatrixIR]), writer)
       case CollectDistributedArray(_, _, cname, gname, _, _, id, tsd) =>
         assert(newChildren.length == 4)
         CollectDistributedArray(newChildren(0).asInstanceOf[IR], newChildren(1).asInstanceOf[IR], cname, gname, newChildren(2).asInstanceOf[IR], newChildren(3).asInstanceOf[IR], id, tsd)

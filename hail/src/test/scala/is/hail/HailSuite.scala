@@ -216,7 +216,7 @@ class HailSuite extends TestNGSuite {
     val arrayIR = if (expected == null) nd else {
       val refs = Array.fill(nd.typ.asInstanceOf[TNDArray].nDims) { Ref(genUID(), TInt32) }
       Let(FastSeq("nd" -> nd),
-        dims.zip(refs).foldRight[IR](NDArrayRef(Ref("nd", nd.typ), refs.map(Cast(_, TInt64)), -1)) {
+        dims.zip(refs).foldRight[IR](NDArrayRef(Ref("nd", nd.typ), refs.fmap(Cast(_, TInt64)), -1)) {
           case ((n, ref), accum) =>
             ToArray(StreamMap(rangeIR(n.toInt), ref.name, accum))
         })
@@ -252,7 +252,7 @@ class HailSuite extends TestNGSuite {
             if (execStrats.contains(strat)) throw e
         }
       }
-      val expectedArray = Array.tabulate(expected.rows)(i => Array.tabulate(expected.cols)(j => expected(i, j)).toFastSeq).toFastSeq
+      val expectedArray = FastSeq.tabulate(expected.rows)(i => FastSeq.tabulate(expected.cols)(j => expected(i, j)).toFastSeq).toFastSeq
       assertNDEvals(BlockMatrixCollect(bm), expectedArray)(filteredExecStrats.filterNot(ExecStrategy.interpretOnly))
     }
   }
@@ -262,7 +262,7 @@ class HailSuite extends TestNGSuite {
   )(
     implicit execStrats: Set[ExecStrategy]
   ): Unit = {
-    assertEvalsTo(MakeTuple.ordered(xs.toArray.map(_._1)), Row.fromSeq(xs.map(_._2)))
+    assertEvalsTo(MakeTuple.ordered(xs.toArray.fmap(_._1)), Row.fromSeq(xs.map(_._2)))
   }
 
   def assertEvalsTo(

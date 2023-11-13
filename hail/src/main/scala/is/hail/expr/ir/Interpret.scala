@@ -247,8 +247,8 @@ object Interpret {
             case Compare(t, _) => t.ordering(ctx.stateManager).compare(lValue, rValue)
           }
 
-      case MakeArray(elements, _) => elements.map(interpret(_, env, args)).toFastSeq
-      case MakeStream(elements, _, _) => elements.map(interpret(_, env, args)).toFastSeq
+      case MakeArray(elements, _) => elements.fmap(interpret(_, env, args)).toFastSeq
+      case MakeStream(elements, _, _) => elements.fmap(interpret(_, env, args)).toFastSeq
       case x@ArrayRef(a, i, errorId) =>
         val aValue = interpret(a, env, args)
         val iValue = interpret(i, env, args)
@@ -292,7 +292,7 @@ object Interpret {
             else if (requestedStop >= 0) requestedStop
             else if (requestedStop + a.size > 0) requestedStop + a.size
             else minBound
-          (realStart until realStop by requestedStep).map(idx => a(idx))
+          (realStart until realStop by requestedStep).fmap(idx => a(idx))
         }
       case ArrayLen(a) =>
         val aValue = interpret(a, env, args)
@@ -344,7 +344,7 @@ object Interpret {
         if (aValue == null)
           null
         else
-          aValue.asInstanceOf[IndexedSeq[Row]].filter(_ != null).map { case Row(k, v) => (k, v) }.toMap
+          aValue.asInstanceOf[IndexedSeq[Row]].filter(_ != null).fmap { case Row(k, v) => (k, v) }.toMap
       case _: CastToArray | _: ToArray | _: ToStream =>
         val c = ir.children.head.asInstanceOf[IR]
         val cValue = interpret(c, env, args)
@@ -396,7 +396,7 @@ object Interpret {
       case GroupByKey(collection) =>
         interpret(collection, env, args).asInstanceOf[IndexedSeq[Row]]
           .groupBy { case Row(k, _) => k }
-          .mapValues { elt: IndexedSeq[Row] => elt.map { case Row(_, v) => v } }
+          .mapValues { elt: IndexedSeq[Row] => elt.fmap { case Row(_, v) => v } }
       case StreamTake(a, len) =>
         val aValue = interpret(a, env, args)
         val lenValue = interpret(len, env, args)
@@ -462,33 +462,33 @@ object Interpret {
         if (aValue == null)
           null
         else {
-          aValue.asInstanceOf[IndexedSeq[Any]].map { element =>
+          aValue.asInstanceOf[IndexedSeq[Any]].fmap { element =>
             interpret(body, env.bind(name, element), args)
           }
         }
       case StreamZip(as, names, body, behavior, errorID) =>
-        val aValues = as.map(interpret(_, env, args).asInstanceOf[IndexedSeq[_]])
+        val aValues = as.fmap(interpret(_, env, args).asInstanceOf[IndexedSeq[_]])
         if (aValues.contains(null))
           null
         else {
           val len = behavior match {
             case ArrayZipBehavior.AssertSameLength | ArrayZipBehavior.AssumeSameLength =>
-              val lengths = aValues.map(_.length).toSet
+              val lengths = aValues.fmap(_.length).toSet
               if (lengths.size != 1)
                 fatal(s"zip: length mismatch: ${ lengths.mkString(", ") }", errorID)
               lengths.head
             case ArrayZipBehavior.TakeMinLength =>
-              aValues.map(_.length).min
+              aValues.fmap(_.length).min
             case ArrayZipBehavior.ExtendNA =>
-              aValues.map(_.length).max
+              aValues.fmap(_.length).max
           }
-          (0 until len).map { i =>
-            val e = env.bindIterable(names.zip(aValues.map(a => if (i >= a.length) null else a.apply(i))))
+          (0 until len).fmap { i =>
+            val e = env.bindIterable(names.zip(aValues.fmap(a => if (i >= a.length) null else a.apply(i))))
             interpret(body, e, args)
           }
         }
       case StreamMultiMerge(as, key) =>
-        val streams = as.map(interpret(_, env, args).asInstanceOf[IndexedSeq[Row]])
+        val streams = as.fmap(interpret(_, env, args).asInstanceOf[IndexedSeq[Row]])
         if (streams.contains(null))
           null
         else {
@@ -532,7 +532,7 @@ object Interpret {
           builder.result().toFastSeq
         }
       case StreamZipJoin(as, key, curKeyName, curValsName, joinF) =>
-        val streams = as.map(interpret(_, env, args).asInstanceOf[IndexedSeq[Row]])
+        val streams = as.fmap(interpret(_, env, args).asInstanceOf[IndexedSeq[Row]])
         if (streams.contains(null))
           null
         else {
@@ -639,7 +639,7 @@ object Interpret {
         if (aValue == null)
           null
         else {
-          val accVals = accum.map { case (name, value) => (name, interpret(value, env, args)) }
+          val accVals = accum.fmap { case (name, value) => (name, interpret(value, env, args)) }
           var e = env.bindIterable(accVals)
           aValue.asInstanceOf[IndexedSeq[Any]].foreach { elt =>
             e = e.bind(valueName, elt)
@@ -729,22 +729,22 @@ object Interpret {
       case Begin(xs) =>
         xs.foreach(x => interpret(x))
       case MakeStruct(fields) =>
-        Row.fromSeq(fields.map { case (name, fieldIR) => interpret(fieldIR, env, args) })
+        Row.fromSeq(fields.fmap { case (name, fieldIR) => interpret(fieldIR, env, args) })
       case SelectFields(old, fields) =>
         val oldt = tcoerce[TStruct](old.typ)
         val oldRow = interpret(old, env, args).asInstanceOf[Row]
         if (oldRow == null)
           null
         else
-          Row.fromSeq(fields.map(id => oldRow.get(oldt.fieldIdx(id))))
+          Row.fromSeq(fields.fmap(id => oldRow.get(oldt.fieldIdx(id))))
       case x@InsertFields(old, fields, fieldOrder) =>
         var struct = interpret(old, env, args)
         if (struct != null)
           fieldOrder match {
             case Some(fds) =>
               val newValues = fields.toMap.mapValues(interpret(_, env, args))
-              val oldIndices = old.typ.asInstanceOf[TStruct].fields.map(f => f.name -> f.index).toMap
-              Row.fromSeq(fds.map(name => newValues.getOrElse(name, struct.asInstanceOf[Row].get(oldIndices(name)))))
+              val oldIndices = old.typ.asInstanceOf[TStruct].fields.fmap(f => f.name -> f.index).toMap
+              Row.fromSeq(fds.fmap(name => newValues.getOrElse(name, struct.asInstanceOf[Row].get(oldIndices(name)))))
             case None =>
               var t = old.typ
               fields.foreach { case (name, body) =>
@@ -767,7 +767,7 @@ object Interpret {
           oValue.asInstanceOf[Row].get(fieldIndex)
         }
       case MakeTuple(types) =>
-        Row.fromSeq(types.map { case (_, x) => interpret(x, env, args) })
+        Row.fromSeq(types.fmap { case (_, x) => interpret(x, env, args) })
       case GetTupleElement(o, idx) =>
         val oValue = interpret(o, env, args)
         if (oValue == null)
@@ -817,10 +817,10 @@ object Interpret {
           else true
         }
       case ir: AbstractApplyNode[_] =>
-        val argTuple = PType.canonical(TTuple(ir.args.map(_.typ): _*)).setRequired(true).asInstanceOf[PTuple]
+        val argTuple = PType.canonical(TTuple(ir.args.fmap(_.typ): _*)).setRequired(true).asInstanceOf[PTuple]
         ctx.r.pool.scopedRegion { region =>
           val (rt, f) = functionMemo.getOrElseUpdate(ir, {
-            val wrappedArgs: IndexedSeq[BaseIR] = ir.args.zipWithIndex.map { case (x, i) =>
+            val wrappedArgs: IndexedSeq[BaseIR] = ir.args.zipWithIndex.fmap { case (x, i) =>
               GetTupleElement(Ref("in", argTuple.virtualType), i)
             }.toFastSeq
             val newChildren = ir match {
@@ -865,14 +865,14 @@ object Interpret {
         val tv = child.analyzeAndExecute(ctx).asTableValue(ctx)
         Row(tv.rvd.collect(ctx).toFastSeq, tv.globals.safeJavaValue)
       case TableMultiWrite(children, writer) =>
-        val tvs = children.map(_.analyzeAndExecute(ctx).asTableValue(ctx))
+        val tvs = children.fmap(_.analyzeAndExecute(ctx).asTableValue(ctx))
         writer(ctx, tvs)
       case TableWrite(child, writer) =>
         writer(ctx, child.analyzeAndExecute(ctx).asTableValue(ctx))
       case BlockMatrixWrite(child, writer) =>
         writer(ctx, child.execute(ctx))
       case BlockMatrixMultiWrite(blockMatrices, writer) =>
-        writer(ctx, blockMatrices.map(_.execute(ctx)))
+        writer(ctx, blockMatrices.fmap(_.execute(ctx)))
       case TableToValueApply(child, function) =>
         function.execute(ctx, child.analyzeAndExecute(ctx).asTableValue(ctx))
       case BlockMatrixToValueApply(child, function) =>

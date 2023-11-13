@@ -67,14 +67,14 @@ object LoadBgen {
         if (sampleIdSize + bState.headerLength > bState.dataStart - 4)
           fatal("BGEN file is malformed -- offset is smaller than length of header")
 
-        (0 until nSamples).map { i =>
+        (0 until nSamples).fmap { i =>
           is.readLengthAndString(2)
         }.toArray
       }
     } else {
       warn(s"BGEN file '$file' contains no sample ID block and no sample ID file given.\n" +
         s"  Using _0, _1, ..., _N as sample IDs.")
-      (0 until bState.nSamples).map(i => s"_$i").toArray
+      (0 until bState.nSamples).fmap(i => s"_$i").toArray
     }
   }
 
@@ -108,7 +108,7 @@ object LoadBgen {
     val nVariants = is.readInt()
     val nSamples = is.readInt()
 
-    val magicNumber = is.readBytes(4).map(_.toInt).toFastSeq
+    val magicNumber = is.readBytes(4).fmap(_.toInt).toFastSeq
 
     if (magicNumber != FastSeq(0, 0, 0, 0) && magicNumber != FastSeq(98, 103, 101, 110))
       fatal(s"expected magic number [0000] or [bgen], got [${ magicNumber.mkString }]")
@@ -141,7 +141,7 @@ object LoadBgen {
   }
 
   def checkVersionTwo(headers: Array[BgenHeader]) {
-    val notVersionTwo = headers.filter(_.version != 2).map(x => x.path -> x.version)
+    val notVersionTwo = headers.filter(_.version != 2).fmap(x => x.path -> x.version)
     if (notVersionTwo.length > 0)
       fatal(
         s"""The following BGEN files are not BGENv2:
@@ -178,7 +178,7 @@ object LoadBgen {
   }
 
   def getAllFilePaths(fs: FS, files: Array[String]): Array[String] =
-    getAllFileListEntries(fs, files).map(_.getPath.toString)
+    getAllFileListEntries(fs, files).fmap(_.getPath.toString)
 
 
   def getBgenFileMetadata(ctx: ExecuteContext, files: Array[String], indexFiles: Array[String]): Array[BgenFileMetadata] = {
@@ -188,7 +188,7 @@ object LoadBgen {
 
     val cacheByRG: mutable.Map[Option[String], (String, Array[Long]) => Array[AnyRef]] = mutable.Map.empty
 
-    headers.zip(indexFiles).map { case (h, indexFile) =>
+    headers.zip(indexFiles).fmap { case (h, indexFile) =>
       val (keyType, annotationType) = IndexReader.readTypes(fs, indexFile)
       val rg = keyType.asInstanceOf[TStruct].field("locus").typ match {
         case TLocus(rg) => Some(rg)
@@ -237,12 +237,12 @@ object LoadBgen {
         s"""The following index file paths defined by 'index_file_map' are missing a .idx2 file extension:
            |  ${ badExtensions.mkString("\n  ") })""".stripMargin)
 
-    files.map(absolutePath).map(f => fileMapping.getOrElse(f, f + ".idx2"))
+    files.fmap(absolutePath).fmap(f => fileMapping.getOrElse(f, f + ".idx2"))
   }
 
   def getIndexFiles(fs: FS, files: Array[String], indexFileMap: Map[String, String]): Array[String] = {
     val indexFiles = getIndexFileNames(fs, files, indexFileMap)
-    val missingIdxFiles = files.zip(indexFiles).filterNot { case (f, index) => fs.exists(index) && index.endsWith("idx2") }.map(_._1)
+    val missingIdxFiles = files.zip(indexFiles).filterNot { case (f, index) => fs.exists(index) && index.endsWith("idx2") }.fmap(_._1)
     if (missingIdxFiles.nonEmpty)
       fatal(
         s"""The following BGEN files have no .idx2 index file. Use 'index_bgen' to create the index file once before calling 'import_bgen':
@@ -250,23 +250,23 @@ object LoadBgen {
     indexFiles
   }
 
-  def getFileHeaders(fs: FS, files: Seq[String]): Array[BgenHeader] =
-    files.map(LoadBgen.readState(fs, _)).toArray
+  def getFileHeaders(fs: FS, files: IndexedSeq[String]): Array[BgenHeader] =
+    files.fmap(LoadBgen.readState(fs, _))
 
   def getReferenceGenome(fileMetadata: Array[BgenFileMetadata]): Option[String] =
-    getReferenceGenome(fileMetadata.map(_.rg))
+    getReferenceGenome(fileMetadata.fmap(_.rg))
 
   def getReferenceGenome(rgs: Array[Option[String]]): Option[String] = {
     if (rgs.distinct.length != 1)
       fatal(
         s"""Found multiple reference genomes were specified in the BGEN index files:
-           |  ${ rgs.distinct.map(_.getOrElse("None")).mkString("\n  ") }""".stripMargin)
+           |  ${ rgs.distinct.fmap(_.getOrElse("None")).mkString("\n  ") }""".stripMargin)
     rgs.head
   }
 
   def getIndexTypes(fileMetadata: Array[BgenFileMetadata]): (Type, Type) = {
-    val indexKeyTypes = fileMetadata.map(_.indexKeyType).distinct
-    val indexAnnotationTypes = fileMetadata.map(_.indexAnnotationType).distinct
+    val indexKeyTypes = fileMetadata.fmap(_.indexKeyType).distinct
+    val indexAnnotationTypes = fileMetadata.fmap(_.indexAnnotationType).distinct
 
     if (indexKeyTypes.length != 1)
       fatal(
@@ -325,7 +325,7 @@ object MatrixBGENReader {
   }
 
   def apply(ctx: ExecuteContext,
-    files: Seq[String],
+    files: IndexedSeq[String],
     sampleFile: Option[String],
     indexFileMap: Map[String, String],
     nPartitions: Option[Int],
@@ -353,24 +353,24 @@ object MatrixBGENReader {
 
     val nSamples = sampleIds.length
 
-    val unequalSamples = fileMetadata.filter(_.header.nSamples != nSamples).map(x => (x.path, x.header.nSamples))
+    val unequalSamples = fileMetadata.filter(_.header.nSamples != nSamples).fmap(x => (x.path, x.header.nSamples))
     if (unequalSamples.length > 0) {
       val unequalSamplesString =
-        unequalSamples.map(x => s"""(${ x._2 } ${ x._1 }""").mkString("\n  ")
+        unequalSamples.fmap(x => s"""(${ x._2 } ${ x._1 }""").mkString("\n  ")
       fatal(
         s"""The following BGEN files did not contain the expected number of samples $nSamples:
            |  $unequalSamplesString""".stripMargin)
     }
 
-    val noVariants = fileMetadata.filter(_.nVariants == 0).map(_.path)
+    val noVariants = fileMetadata.filter(_.nVariants == 0).fmap(_.path)
     if (noVariants.length > 0)
       fatal(
         s"""The following BGEN files did not contain at least 1 variant:
            |  ${ noVariants.mkString("\n  ") })""".stripMargin)
 
-    LoadBgen.checkVersionTwo(fileMetadata.map(_.header))
+    LoadBgen.checkVersionTwo(fileMetadata.fmap(_.header))
 
-    val nVariants = fileMetadata.map(_.nVariants).sum
+    val nVariants = fileMetadata.fmap(_.nVariants).sum
 
     info(s"Number of BGEN files parsed: ${ fileMetadata.length }")
     info(s"Number of samples in BGEN files: $nSamples")
@@ -410,7 +410,7 @@ object MatrixBGENReaderParameters {
 }
 
 case class MatrixBGENReaderParameters(
-  files: Seq[String],
+  files: IndexedSeq[String],
   sampleFile: Option[String],
   indexFileMap: Map[String, String],
   nPartitions: Option[Int],
@@ -420,7 +420,7 @@ case class MatrixBGENReaderParameters(
   def toJValue: JValue = {
     JObject(List(
       "name" -> JString("MatrixBGENReader"),
-      "files" -> JArray(files.map(JString).toList),
+      "files" -> JArray(files.fmap(JString).toList),
       "sampleFile" -> sampleFile.map(JString).getOrElse(JNull),
       "indexFileMap" -> JObject(indexFileMap.map { case (k, v) =>
         k -> JString(v)
@@ -440,9 +440,9 @@ class MatrixBGENReader(
   sampleIds: Array[String],
   filePartitionInfo: IndexedSeq[FilePartitionInfo],
   variants: Option[String]) extends MatrixHybridReader {
-  def pathsUsed: Seq[String] = filePartitionInfo.map(_.metadata.path)
+  def pathsUsed: Seq[String] = filePartitionInfo.fmap(_.metadata.path)
 
-  lazy val nVariants: Long = filePartitionInfo.map(_.metadata.nVariants).sum
+  lazy val nVariants: Long = filePartitionInfo.fmap(_.metadata.nVariants).sum
 
   def rowUIDType = TTuple(TInt64, TInt64)
 
@@ -488,10 +488,10 @@ class MatrixBGENReader(
           if (colType.hasField("s"))
             arraysToZip += sampleIds
           if (colType.hasField(colUIDFieldName))
-            arraysToZip += sampleIds.indices.map(_.toLong)
+            arraysToZip += sampleIds.indices.fmap(_.toLong)
 
           val fields = arraysToZip.result()
-          Literal(ta, sampleIds.indices.map(i => Row.fromSeq(fields.map(_.apply(i)))))
+          Literal(ta, sampleIds.indices.fmap(i => Row.fromSeq(fields.fmap(_.apply(i)))).toIndexedSeq)
         })))
       case None => MakeStruct(FastSeq())
     }
@@ -534,7 +534,7 @@ class MatrixBGENReader(
         val partitioner = new RVDPartitioner(ctx.stateManager, tcoerce[TStruct](indexKeyType), rangeBounds.result())
 
         val reader = BgenPartitionReaderWithVariantFilter(
-          filePartitionInfo.map(_.metadata).toArray,
+          filePartitionInfo.fmap(_.metadata).toArray,
           referenceGenome,
           PartitionNativeIntervalReader(ctx.stateManager, v, t0.spec, "__dummy"))
 
@@ -548,7 +548,7 @@ class MatrixBGENReader(
 
       case None =>
         val partitioner = new RVDPartitioner(ctx.stateManager, tcoerce[TStruct](indexKeyType), filePartitionInfo.flatMap(_.intervals))
-        val reader = BgenPartitionReader(fileMetadata = filePartitionInfo.map(_.metadata).toArray, referenceGenome)
+        val reader = BgenPartitionReader(fileMetadata = filePartitionInfo.fmap(_.metadata).toArray, referenceGenome)
 
         val contexts = new BoxedArrayBuilder[Row]()
 

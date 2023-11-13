@@ -18,7 +18,7 @@ class SkatSuite extends HailSuite {
     val m = 5 // variants
     val k = 3 // covariates
     
-    val st = Array.tabulate(m){ _ => 
+    val st = FastSeq.tabulate(m){ _ =>
       SkatTuple(rand.nextDouble(),
         DenseVector(Array.fill(n)(rand.nextDouble())),
         DenseVector(Array.fill(k)(rand.nextDouble())))

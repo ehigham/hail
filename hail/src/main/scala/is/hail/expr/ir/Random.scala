@@ -275,7 +275,7 @@ object Threefry {
       val xArray = f.mb.getArg[Array[Long]](1)
       val tArray = f.mb.getArg[Array[Long]](2)
       val t = Array(cb.memoize(tArray(0)), cb.memoize(tArray(1)))
-      val x = Array.tabulate[Settable[Long]](4)(i => cb.newLocal[Long](s"x$i", xArray(i)))
+      val x = FastSeq.tabulate[Settable[Long]](4)(i => cb.newLocal[Long](s"x$i", xArray(i)))
       encrypt(cb, expandKey(k), t, x)
       for (i <- 0 until 4) cb += (xArray(i) = x(i))
       Code._empty

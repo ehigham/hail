@@ -54,7 +54,7 @@ final class ObjectArrayStack[T <: AnyRef](hintSize: Int = 16)(implicit tct: Clas
     a(size_ - i - 1)
   }
 
-  def toArray: Array[T] = (0 until size).map(apply).toArray
+  def toArray: Array[T] = (0 until size).fmap(apply).toArray
 }
 
 final class LongArrayStack(hintSize: Int = 16) {
@@ -109,7 +109,7 @@ final class LongArrayStack(hintSize: Int = 16) {
     a(size_ - i - 1)
   }
 
-  def toArray: Array[Long] = (0 until size).map(apply).toArray
+  def toArray: Array[Long] = (0 until size).fmap(apply).toArray
 }
 
 final class IntArrayStack(hintSize: Int = 16) {
@@ -164,5 +164,5 @@ final class IntArrayStack(hintSize: Int = 16) {
     a(size_ - i - 1)
   }
 
-  def toArray: Array[Int] = (0 until size).map(apply).toArray
+  def toArray: Array[Int] = (0 until size).fmap(apply).toArray
 }

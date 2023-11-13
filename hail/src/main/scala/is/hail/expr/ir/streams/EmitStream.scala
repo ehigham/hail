@@ -240,7 +240,7 @@ object EmitStream {
       close.voidWithBuilder(cb => producer.close(cb))
 
       val obj = cb.memoize(Code.newInstance(ecb.cb, ctor.mb,
-        FastSeq(cb.emb.partitionRegion.get, cb.emb.ecb.literalsArray().get) ++ envParams.map(_.get)))
+        FastSeq(cb.emb.partitionRegion.get, cb.emb.ecb.literalsArray().get) ++ envParams.fmap(_.get)))
 
       val iter = cb.emb.genFieldThisRef[NoBoxLongIterator]("iter")
       cb.assign(iter, Code.checkcast[NoBoxLongIterator](obj))
@@ -305,15 +305,11 @@ object EmitStream {
           }
 
       case Let(bindings, body) =>
-        def go(env: EmitEnv): IndexedSeq[(String, IR)] => IEmitCode = {
-          case (name, value) +: rest =>
-            cb.withScopedMaybeStreamValue(EmitCode.fromI(cb.emb)(cb => emit(value, cb, env = env)), s"let_$name") { ev =>
-              go(env.bind(name, ev))(rest)
-            }
-          case Seq() =>
-            produce(body, cb, env = env)
-        }
-        go(env)(bindings)
+        produce(body, cb, env = bindings.foldLeft(env) { case (env, (name, value)) =>
+          assert(value.typ.isRealizable, f"'$name' was not realizable!")
+          val emitted = cb.memoize(emit(value, cb, env = env), f"let_$name")
+          env.bind(name, emitted)
+        })
 
       case In(n, _) =>
         // this, Code[Region], ...
@@ -367,7 +363,7 @@ object EmitStream {
             val eltField = mb.newEmitField("stream_buff_agg_elt", childProducer.element.emitType)
             val newKeyVType = typeWithReqx(newKey)
             val kb = mb.ecb
-            val nestedStates = aggSignatures.toArray.map(sig => AggStateSig.getState(sig.state, kb))
+            val nestedStates = aggSignatures.toArray.fmap(sig => AggStateSig.getState(sig.state, kb))
             val nested = StateTuple(nestedStates)
             val dictState = new DictState(kb, newKeyVType, nested)
             val maxSize = mb.genFieldThisRef[Int]("stream_buff_agg_max_size")
@@ -375,9 +371,9 @@ object EmitStream {
             val idx = mb.genFieldThisRef[Int]("stream_buff_agg_idx")
             val returnStreamType= x.typ.asInstanceOf[TStream]
             val returnElemType = returnStreamType.elementType
-            val tupleFieldTypes = aggSignatures.map(_ => TBinary)
-            val tupleFields = (0 to tupleFieldTypes.length).zip(tupleFieldTypes).map { case (fieldIdx, fieldType) => TupleField(fieldIdx, fieldType) }
-            val serializedAggSType = SStackStruct(TTuple(tupleFields), tupleFieldTypes.map(_ => EmitType(SBinaryPointer(PCanonicalBinary()), true)).toIndexedSeq)
+            val tupleFieldTypes = aggSignatures.fmap(_ => TBinary)
+            val tupleFields = (0 to tupleFieldTypes.length).zip(tupleFieldTypes).fmap { case (fieldIdx, fieldType) => TupleField(fieldIdx, fieldType) }
+            val serializedAggSType = SStackStruct(TTuple(tupleFields), tupleFieldTypes.fmap(_ => EmitType(SBinaryPointer(PCanonicalBinary()), true)).toIndexedSeq)
             val keyAndAggFields = newKeyVType.canonicalPType.asInstanceOf[PCanonicalStruct].sType.fieldEmitTypes :+ EmitType(serializedAggSType, true)
             val returnElemSType = SStackStruct(returnElemType.asInstanceOf[TBaseStruct], keyAndAggFields)
             val newStreamElem = mb.newEmitField("stream_buff_agg_new_stream_elem", EmitType(returnElemSType, true))
@@ -420,7 +416,7 @@ object EmitStream {
 
                 // Garbage collects old aggregator state if moving onto new group
                 dictState.newState(cb)
-                val initContainer = AggContainer(aggSignatures.toArray.map(sig => sig.state), dictState.initContainer, cleanup = () => ())
+                val initContainer = AggContainer(aggSignatures.toArray.fmap(sig => sig.state), dictState.initContainer, cleanup = () => ())
                 dictState.init(cb, { cb => emitVoid(initAggs, cb, container = Some(initContainer)) })
 
                 cb.define(getElemLabel)
@@ -437,7 +433,7 @@ object EmitStream {
                     region = region)
                 }
                 val resultKeyValue = newKeyResultCode.memoize(cb, "buff_agg_stream_result_key")
-                val keyedContainer = AggContainer(aggSignatures.toArray.map(sig => sig.state), dictState.keyed.container, cleanup = () => ())
+                val keyedContainer = AggContainer(aggSignatures.toArray.fmap(sig => sig.state), dictState.keyed.container, cleanup = () => ())
                 dictState.withContainer(cb, resultKeyValue, { cb =>
                   emitVoid(seqOps, cb, container = Some(keyedContainer), env = env.bind(name, eltField))
                 })
@@ -482,8 +478,8 @@ object EmitStream {
                 val addrOfKeyInRightRegion = dictState.keyed.storageType.store(cb, region, keyInWrongRegion, true)
                 val key = dictState.keyed.storageType.loadCheapSCode(cb, addrOfKeyInRightRegion).loadField(cb, "kt").memoize(cb, "stream_buff_agg_key_right_region")
 
-                val serializedAggValue = keyedContainer.container.states.states.map(state => state.serializeToRegion(cb, PCanonicalBinary(), region))
-                val serializedAggEmitCodes = serializedAggValue.map(aggValue => EmitCode.present(mb, aggValue))
+                val serializedAggValue = keyedContainer.container.states.states.fmap(state => state.serializeToRegion(cb, PCanonicalBinary(), region))
+                val serializedAggEmitCodes = serializedAggValue.fmap(aggValue => EmitCode.present(mb, aggValue))
                 val serializedAggTupleSValue = SStackStruct.constructFromArgs(cb, region, serializedAggSType.virtualType, serializedAggEmitCodes: _*)
                 val keyValue = key.get(cb).asInstanceOf[SBaseStructValue]
                 val sStructToReturn = keyValue.insert(cb, region, returnElemType.asInstanceOf[TStruct], ("agg", EmitCode.present(mb, serializedAggTupleSValue)
@@ -533,7 +529,7 @@ object EmitStream {
               mb.defineAndImplementLabel { cb =>
                 cb.switch(current,
                   cb.goto(LendOfStream),
-                  args.map { a =>
+                  args.fmap { a =>
                     () =>
                       val elem = emit(a, cb, region)
                       cb.assign(eltField, elem.map(cb)(pc => pc.castTo(cb, region, unifiedType.st, false)))
@@ -2273,15 +2269,15 @@ object EmitStream {
         }
 
       case StreamZip(as, names, body, behavior, errorID) =>
-        IEmitCode.multiMapEmitCodes(cb, as.map(a => EmitCode.fromI(cb.emb)(cb => produce(a, cb)))) { childStreams =>
+        IEmitCode.multiMapEmitCodes(cb, as.fmap(a => EmitCode.fromI(cb.emb)(cb => produce(a, cb)))) { childStreams =>
 
-          val producers = childStreams.map(_.asStream.getProducer(mb))
+          val producers = childStreams.fmap(_.asStream.getProducer(mb))
 
           assert(names.length == producers.length)
 
           val producer: StreamProducer = behavior match {
             case behavior@(ArrayZipBehavior.TakeMinLength | ArrayZipBehavior.AssumeSameLength) =>
-              val vars = names.zip(producers).map { case (name, p) => mb.newEmitField(name, p.element.emitType) }
+              val vars = names.zip(producers).fmap { case (name, p) => mb.newEmitField(name, p.element.emitType) }
 
               val eltRegion = mb.genFieldThisRef[Region]("streamzip_eltregion")
               val bodyCode = EmitCode.fromI(mb)(cb => emit(body, cb, region = eltRegion, env = env.bind(names.zip(vars): _*)))
@@ -2300,7 +2296,7 @@ object EmitStream {
                         }
                       }).map { compLens =>
                         (cb: EmitCodeBuilder) => {
-                          compLens.map(_.apply(cb)).reduce(_.min(_))
+                          compLens.fmap(_.apply(cb)).reduce(_.min(_))
                         }
                       }
                   }
@@ -2346,7 +2342,7 @@ object EmitStream {
 
             case ArrayZipBehavior.AssertSameLength =>
 
-              val vars = names.zip(producers).map { case (name, p) => mb.newEmitField(name, p.element.emitType) }
+              val vars = names.zip(producers).fmap { case (name, p) => mb.newEmitField(name, p.element.emitType) }
 
               val eltRegion = mb.genFieldThisRef[Region]("streamzip_eltregion")
               val bodyCode = EmitCode.fromI(mb)(cb => emit(body, cb, region = eltRegion, env = env.bind(names.zip(vars): _*)))
@@ -2358,7 +2354,7 @@ object EmitStream {
               new StreamProducer {
                 override def method: EmitMethodBuilder[_] = mb
                 override val length: Option[EmitCodeBuilder => Code[Int]] = producers.flatMap(_.length) match {
-                  case Seq() => None
+                  case Array() => None
                   case ls =>
                     val len = mb.genFieldThisRef[Int]("zip_asl_len")
                     val lenTemp = mb.genFieldThisRef[Int]("zip_asl_len_temp")
@@ -2426,21 +2422,21 @@ object EmitStream {
 
 
             case ArrayZipBehavior.ExtendNA =>
-              val vars = names.zip(producers).map { case (name, p) => mb.newEmitField(name, p.element.emitType.copy(required = false)) }
+              val vars = names.zip(producers).fmap { case (name, p) => mb.newEmitField(name, p.element.emitType.copy(required = false)) }
 
               val eltRegion = mb.genFieldThisRef[Region]("streamzip_eltregion")
               val bodyCode = EmitCode.fromI(mb)(cb => emit(body, cb, region = eltRegion, env = env.bind(names.zip(vars): _*)))
 
-              val eosPerStream = producers.indices.map(i => mb.genFieldThisRef[Boolean](s"zip_eos_$i"))
+              val eosPerStream = producers.indices.fmap(i => mb.genFieldThisRef[Boolean](s"zip_eos_$i"))
               val nEOS = mb.genFieldThisRef[Int]("zip_n_eos")
 
               new StreamProducer {
                 override def method: EmitMethodBuilder[_] = mb
                 override val length: Option[EmitCodeBuilder => Code[Int]] =
-                  anyFailAllFail(producers.map(_.length))
+                  anyFailAllFail(producers.fmap(_.length))
                     .map  { compLens =>
                       (cb: EmitCodeBuilder) => {
-                        compLens.map(_.apply(cb)).reduce(_.max(_))
+                        compLens.fmap(_.apply(cb)).reduce(_.max(_))
                       }
                     }
 
@@ -2508,10 +2504,10 @@ object EmitStream {
         }
 
       case x@StreamZipJoin(as, key, keyRef, valsRef, joinIR) =>
-        IEmitCode.multiMapEmitCodes(cb, as.map(a => EmitCode.fromI(cb.emb)(cb => emit(a, cb)))) { children =>
-          val producers = children.map(_.asStream.getProducer(mb))
+        IEmitCode.multiMapEmitCodes(cb, as.fmap(a => EmitCode.fromI(cb.emb)(cb => emit(a, cb)))) { children =>
+          val producers = children.fmap(_.asStream.getProducer(mb))
 
-          val eltType = VirtualTypeWithReq.union(as.map(a => typeWithReqx(a))).canonicalEmitType
+          val eltType = VirtualTypeWithReq.union(as.fmap(a => typeWithReqx(a))).canonicalEmitType
             .st
             .asInstanceOf[SStream]
             .elementType
@@ -2526,13 +2522,13 @@ object EmitStream {
           val _elementRegion = mb.genFieldThisRef[Region]("szj_region")
           val regionArray = mb.genFieldThisRef[Array[Region]]("szj_region_array")
 
-          val staticMemManagementArray = producers.map(_.requiresMemoryManagementPerElement).toArray
+          val staticMemManagementArray = producers.fmap(_.requiresMemoryManagementPerElement).toArray
           val allMatch = staticMemManagementArray.toSet.size == 1
           val memoryManagementBooleansArray = if (allMatch) null else mb.genFieldThisRef[Array[Int]]("smm_separate_region_array")
 
           def initMemoryManagementPerElementArray(cb: EmitCodeBuilder): Unit = {
             if (!allMatch)
-              cb.assign(memoryManagementBooleansArray, mb.getObject[Array[Int]](producers.map(_.requiresMemoryManagementPerElement.toInt).toArray))
+              cb.assign(memoryManagementBooleansArray, mb.getObject[Array[Int]](producers.fmap(_.requiresMemoryManagementPerElement.toInt).toArray))
           }
 
           def lookupMemoryManagementByIndex(cb: EmitCodeBuilder, idx: Code[Int]): Code[Boolean] = {
@@ -2725,7 +2721,7 @@ object EmitStream {
               cb.switch(
                 winner,
                 cb.goto(LendOfStream), // can only happen if k=0
-                producers.map { p =>
+                producers.fmap { p =>
                   () => cb.goto(p.LproduceElement)
                 }
               )
@@ -2984,10 +2980,10 @@ object EmitStream {
 
 
       case x@StreamMultiMerge(as, key) =>
-        IEmitCode.multiMapEmitCodes(cb, as.map(a => EmitCode.fromI(mb)(cb => emit(a, cb)))) { children =>
-          val producers = children.map(_.asStream.getProducer(mb))
+        IEmitCode.multiMapEmitCodes(cb, as.fmap(a => EmitCode.fromI(mb)(cb => emit(a, cb)))) { children =>
+          val producers = children.fmap(_.asStream.getProducer(mb))
 
-          val unifiedType = VirtualTypeWithReq.union(as.map(a => typeWithReqx(a))).canonicalEmitType
+          val unifiedType = VirtualTypeWithReq.union(as.fmap(a => typeWithReqx(a))).canonicalEmitType
             .st
             .asInstanceOf[SStream]
             .elementEmitType
@@ -2997,13 +2993,13 @@ object EmitStream {
           val region = mb.genFieldThisRef[Region]("smm_region")
           val regionArray = mb.genFieldThisRef[Array[Region]]("smm_region_array")
 
-          val staticMemManagementArray = producers.map(_.requiresMemoryManagementPerElement).toArray
+          val staticMemManagementArray = producers.fmap(_.requiresMemoryManagementPerElement).toArray
           val allMatch = staticMemManagementArray.toSet.size == 1
           val memoryManagementBooleansArray = if (allMatch) null else mb.genFieldThisRef[Array[Int]]("smm_separate_region_array")
 
           def initMemoryManagementPerElementArray(cb: EmitCodeBuilder): Unit = {
             if (!allMatch)
-              cb.assign(memoryManagementBooleansArray, mb.getObject[Array[Int]](producers.map(_.requiresMemoryManagementPerElement.toInt).toArray))
+              cb.assign(memoryManagementBooleansArray, mb.getObject[Array[Int]](producers.fmap(_.requiresMemoryManagementPerElement.toInt).toArray))
           }
 
           def lookupMemoryManagementByIndex(cb: EmitCodeBuilder, idx: Code[Int]): Code[Boolean] = {
@@ -3017,10 +3013,10 @@ object EmitStream {
             override def method: EmitMethodBuilder[_] = mb
 
             override val length: Option[EmitCodeBuilder => Code[Int]] =
-              anyFailAllFail(producers.map(_.length))
+              anyFailAllFail(producers.fmap(_.length))
                 .map { compLens =>
                   (cb: EmitCodeBuilder) => {
-                    compLens.map(_.apply(cb)).reduce(_ + _)
+                    compLens.fmap(_.apply(cb)).reduce(_ + _)
                   }
                 }
 
@@ -3046,7 +3042,7 @@ object EmitStream {
               cb.define(LpullChild)
               cb.switch(winner,
                 cb.goto(LendOfStream), // can only happen if k=0
-                producers.map { p =>
+                producers.fmap { p =>
                   () => cb.goto(p.LproduceElement)
                 }
               )

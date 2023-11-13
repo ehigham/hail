@@ -49,7 +49,7 @@ case class PCA(entryField: String, k: Int, computeLoadings: Boolean) extends Mat
       val rowKeyTypes = mv.typ.rowKeyStruct.types
 
       mv.rvd.toUnsafeRows.map[Any] { r =>
-        Row.fromSeq(rowKeyIdx.map(i => Annotation.copy(rowKeyTypes(i), r(i))))
+        Row.fromSeq(rowKeyIdx.fmap(i => Annotation.copy(rowKeyTypes(i), r(i))))
       }
         .collect()
     }
@@ -103,16 +103,16 @@ case class PCA(entryField: String, k: Int, computeLoadings: Boolean) extends Mat
     val V = new DenseMatrix[Double](svd.V.numRows, svd.V.numCols, data)
     val S = DenseVector(svd.s.toArray)
 
-    val eigenvalues = svd.s.toArray.map(math.pow(_, 2))
+    val eigenvalues = svd.s.toArray.fmap(math.pow(_, 2))
     val scaledEigenvectors = V(*, ::) *:* S
 
-    val scores = (0 until mv.nCols).iterator.map { i =>
-      (0 until k).iterator.map { j => scaledEigenvectors(i, j) }.toFastSeq
-    }.toFastSeq
+    val scores = (0 until mv.nCols).fmap { i =>
+      (0 until k).fmap { j => scaledEigenvectors(i, j) }.toFastSeq
+    }
 
     val g1 = f1(mv.globals.value, eigenvalues.toFastSeq)
-    val globalScores = mv.colValues.safeJavaValue.zipWithIndex.map { case (cv, i) =>
-      f3(mv.typ.extractColKey(cv.asInstanceOf[Row]), scores(i))
+    val globalScores = mv.colValues.safeJavaValue.zipWithIndex.fmap { case (cv, i) =>
+      f3(mv.typ.extractColKey(cv), scores(i))
     }
     val newGlobal = f2(g1, globalScores)
     

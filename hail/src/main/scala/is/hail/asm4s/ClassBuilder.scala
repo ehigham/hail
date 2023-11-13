@@ -82,9 +82,9 @@ class AsmTuple[C](val cb: ClassBuilder[C], val fields: IndexedSeq[Field[_]], val
 
   def newTuple(elems: IndexedSeq[Code[_]]): Code[C] = Code.newInstance(cb, ctor, elems)
 
-  def loadElementsAny(t: Value[_]): IndexedSeq[Value[_]] = fields.map(_.get(coerce[C](t) ))
+  def loadElementsAny(t: Value[_]): IndexedSeq[Value[_]] = fields.fmap(_.get(coerce[C](t) ))
 
-  def loadElements(t: Value[C]): IndexedSeq[Value[_]] = fields.map(_.get(t))
+  def loadElements(t: Value[C]): IndexedSeq[Value[_]] = fields.fmap(_.get(t))
 }
 
 trait WrappedModuleBuilder {
@@ -113,7 +113,7 @@ class ModuleBuilder() {
   def tupleClass(fieldTypes: IndexedSeq[TypeInfo[_]]): AsmTuple[_] = {
     tuples.getOrElseUpdate(fieldTypes, {
       val kb = genClass[Unit](s"Tuple${fieldTypes.length}")
-      val fields = fieldTypes.zipWithIndex.map { case (ti, i) =>
+      val fields = fieldTypes.zipWithIndex.fmap { case (ti, i) =>
         kb.newField(s"_$i")(ti)
       }
       val ctor = kb.newMethod("<init>", fieldTypes, UnitInfo)
@@ -328,14 +328,14 @@ class ClassBuilder[C](
     maybeGenericParameterTypeInfo: IndexedSeq[MaybeGenericTypeInfo[_]],
     maybeGenericReturnTypeInfo: MaybeGenericTypeInfo[_]): MethodBuilder[C] = {
 
-    val parameterTypeInfo: IndexedSeq[TypeInfo[_]] = maybeGenericParameterTypeInfo.map(_.base)
+    val parameterTypeInfo: IndexedSeq[TypeInfo[_]] = maybeGenericParameterTypeInfo.fmap(_.base)
     val returnTypeInfo: TypeInfo[_] = maybeGenericReturnTypeInfo.base
     val m = newMethod(name, parameterTypeInfo, returnTypeInfo)
     if (maybeGenericParameterTypeInfo.exists(_.isGeneric) || maybeGenericReturnTypeInfo.isGeneric) {
-      val generic = newMethod(name, maybeGenericParameterTypeInfo.map(_.generic), maybeGenericReturnTypeInfo.generic)
+      val generic = newMethod(name, maybeGenericParameterTypeInfo.fmap(_.generic), maybeGenericReturnTypeInfo.generic)
       generic.emitWithBuilder { cb =>
         maybeGenericReturnTypeInfo.castToGeneric(cb,
-          m.invoke(cb, maybeGenericParameterTypeInfo.zipWithIndex.map { case (ti, i) =>
+          m.invoke(cb, maybeGenericParameterTypeInfo.zipWithIndex.fmap { case (ti, i) =>
             ti.castFromGeneric(cb, generic.getArg(i + 1)(ti.generic))
           }: _*))
 }
@@ -587,7 +587,7 @@ class MethodBuilder[C](
   }
 
   def invokeCode[T](args: Value[_]*): Code[T] = {
-    val (start, end, argvs) = Code.sequenceValues(args.toFastSeq.map(_.get))
+    val (start, end, argvs) = Code.sequenceValues(args.toFastSeq.fmap(_.get))
     if (returnTypeInfo eq UnitInfo) {
       if (isStatic) {
         end.append(lir.methodStmt(INVOKESTATIC, lmethod, argvs))
@@ -609,7 +609,7 @@ class MethodBuilder[C](
   }
 
   def invoke[T](codeBuilder: CodeBuilderLike, args: Value[_]*): Value[T] = {
-    val (start, end, argvs) = Code.sequenceValues(args.toFastSeq.map(_.get))
+    val (start, end, argvs) = Code.sequenceValues(args.toFastSeq.fmap(_.get))
     if (returnTypeInfo eq UnitInfo) {
       if (isStatic) {
         end.append(lir.methodStmt(INVOKESTATIC, lmethod, argvs))

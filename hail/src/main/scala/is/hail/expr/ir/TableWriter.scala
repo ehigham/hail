@@ -67,7 +67,7 @@ object TableNativeWriter {
     RelationalWriter.scoped(path, overwrite, Some(ts.tableType))(
       ts.mapContexts { oldCtx =>
         val d = digitsNeeded(ts.numPartitions)
-        val partFiles = Literal(TArray(TString), Array.tabulate(ts.numPartitions)(i => s"${ partFile(d, i) }-").toFastSeq)
+        val partFiles = Literal(TArray(TString), FastSeq.tabulate(ts.numPartitions)(i => s"${ partFile(d, i) }-").toFastSeq)
 
         zip2(oldCtx, ToStream(partFiles), ArrayZipBehavior.AssertSameLength) { (ctxElt, pf) =>
           MakeStruct(FastSeq(
@@ -214,7 +214,7 @@ case class PartitionNativeWriter(spec: AbstractTypedCodecSpec,
       writeIndexInfo.foreach { case (_, indexKeyType, writer) =>
         writer.add(cb, {
           IEmitCode.present(cb, indexKeyType.asInstanceOf[PCanonicalBaseStruct]
-            .constructFromFields(cb, elementRegion, indexKeyType.fields.map { f =>
+            .constructFromFields(cb, elementRegion, indexKeyType.fields.fmap { f =>
               EmitCode.fromI(cb.emb)(cb => row.loadField(cb, f.name))
             },
               deepCopy = true
@@ -226,7 +226,7 @@ case class PartitionNativeWriter(spec: AbstractTypedCodecSpec,
         )
       }
 
-      val key = SStackStruct.constructFromArgs(cb, elementRegion, keyType, keyType.fields.map { f =>
+      val key = SStackStruct.constructFromArgs(cb, elementRegion, keyType, keyType.fields.fmap { f =>
         EmitCode.fromI(cb.emb)(cb => row.loadField(cb, f.name))
       }:_*)
 
@@ -493,7 +493,7 @@ case class TableTextWriter(
 
     ts.mapContexts { oldCtx =>
       val d = digitsNeeded(ts.numPartitions)
-      val partFiles = Literal(TArray(TString), Array.tabulate(ts.numPartitions)(i => s"$folder/${ partFile(d, i) }-").toFastSeq)
+      val partFiles = Literal(TArray(TString), FastSeq.tabulate(ts.numPartitions)(i => s"$folder/${ partFile(d, i) }-").toFastSeq)
 
       zip2(oldCtx, ToStream(partFiles), ArrayZipBehavior.AssertSameLength) { (ctxElt, pf) =>
         MakeStruct(FastSeq(
@@ -511,7 +511,7 @@ case class TableTextWriter(
 }
 
 case class TableTextPartitionWriter(rowType: TStruct, delimiter: String, writeHeader: Boolean) extends SimplePartitionWriter {
-  lazy val headerStr = rowType.fields.map(_.name).mkString(delimiter)
+  lazy val headerStr = rowType.fields.fmap(_.name).mkString(delimiter)
 
   override def preConsume(cb: EmitCodeBuilder, os: Value[OutputStream]): Unit = if (writeHeader) {
     cb += os.invoke[Array[Byte], Unit]("write", const(headerStr).invoke[Array[Byte]]("getBytes"))
@@ -558,8 +558,8 @@ object TableTextFinalizer {
   }
 
   def cleanup(fs: FS, outputPath: String, files: Array[String]): Unit = {
-    val outputFiles = fs.listDirectory(fs.makeQualified(outputPath)).map(_.getPath).toSet
-    val fileSet = files.map(fs.makeQualified(_)).toSet
+    val outputFiles = fs.listDirectory(fs.makeQualified(outputPath)).fmap(_.getPath).toSet
+    val fileSet = files.fmap(fs.makeQualified(_)).toSet
     outputFiles.diff(fileSet).foreach(fs.delete(_, false))
   }
 }
@@ -576,7 +576,7 @@ case class TableTextFinalizer(outputPath: String, rowType: TStruct, delimiter: S
       case ExportType.CONCATENATED =>
         val jFiles = if (header) {
           val headerFilePath = ctx.createTmpPath("header", ext)
-          val headerStr = rowType.fields.map(_.name).mkString(delimiter)
+          val headerStr = rowType.fields.fmap(_.name).mkString(delimiter)
           val os = cb.memoize(cb.emb.create(const(headerFilePath)))
           cb += os.invoke[Array[Byte], Unit]("write", const(headerStr).invoke[Array[Byte]]("getBytes"))
           cb += os.invoke[Int, Unit]("write", '\n')
@@ -608,7 +608,7 @@ case class TableTextFinalizer(outputPath: String, rowType: TStruct, delimiter: S
         cb += Code.invokeScalaObject3[FS, String, Array[String], Unit](TableTextFinalizer.getClass, "cleanup", cb.emb.getFS, outputPath, files)
         val headerPath = if (header) {
           val headerFilePath = const(s"$outputPath/header$ext")
-          val headerStr = rowType.fields.map(_.name).mkString(delimiter)
+          val headerStr = rowType.fields.fmap(_.name).mkString(delimiter)
           val os = cb.memoize(cb.emb.create(headerFilePath))
           cb += os.invoke[Array[Byte], Unit]("write", const(headerStr).invoke[Array[Byte]]("getBytes"))
           cb += os.invoke[Int, Unit]("write", '\n')
@@ -650,7 +650,7 @@ case class TableNativeFanoutWriter(
       val keyType = partitioner.kType
       val keyFields = keyType.fieldNames
 
-      fields.map { field =>
+      fields.fmap { field =>
         val targetPath = path + "/" + field
         val fieldAndKey = (field +: keyFields)
         val targetRowType = rowType.typeAfterSelectNames(fieldAndKey)
@@ -672,7 +672,7 @@ case class TableNativeFanoutWriter(
 
     val writeTables = ts.mapContexts { oldCtx =>
       val d = digitsNeeded(ts.numPartitions)
-      val partFiles = Literal(TArray(TString), Array.tabulate(ts.numPartitions)(i => s"${ partFile(d, i) }-").toFastSeq)
+      val partFiles = Literal(TArray(TString), FastSeq.tabulate(ts.numPartitions)(i => s"${ partFile(d, i) }-").toFastSeq)
 
       zip2(oldCtx, ToStream(partFiles), ArrayZipBehavior.AssertSameLength) { (ctxElt, pf) =>
         MakeStruct(FastSeq(
@@ -687,7 +687,7 @@ case class TableNativeFanoutWriter(
       WritePartition(rows, file + UUID4(), new PartitionNativeFanoutWriter(targets))
     } { (parts, globals) =>
       bindIR(parts) { fileCountAndDistinct =>
-        Begin(targets.zipWithIndex.map { case (target, index) =>
+        Begin(targets.zipWithIndex.fmap { case (target, index) =>
           Begin(FastSeq(
             WriteMetadata(
               MakeArray(
@@ -748,7 +748,7 @@ class PartitionNativeFanoutWriter(
     region: Value[Region]
   ): IEmitCode = {
     val ctx = context.toI(cb).get(cb)
-    val consumers = targets.map { target =>
+    val consumers = targets.fmap { target =>
       new target.rowWriter.StreamConsumer(ctx, cb, region)
     }
 
@@ -769,7 +769,7 @@ class PartitionNativeFanoutWriter(
         cb,
         region,
         returnType,
-        consumers.map(consumer => EmitCode.present(cb.emb, consumer.result())): _*
+        consumers.fmap(consumer => EmitCode.present(cb.emb, consumer.result())): _*
       )
     )
   }
@@ -777,10 +777,10 @@ class PartitionNativeFanoutWriter(
   def ctxType = TString
 
   def returnType: TTuple =
-    TTuple(targets.map(target => target.rowWriter.returnType):_*)
+    TTuple(targets.fmap(target => target.rowWriter.returnType):_*)
 
   def unionTypeRequiredness(returnType: TypeWithRequiredness, ctxType: TypeWithRequiredness, streamType: RIterable): Unit = {
-    val targetReturnTypes = returnType.asInstanceOf[RTuple].fields.map(_.typ)
+    val targetReturnTypes = returnType.asInstanceOf[RTuple].fields.fmap(_.typ)
 
     ((targetReturnTypes) zip targets).foreach { case (returnType, target) =>
       target.rowWriter.unionTypeRequiredness(returnType, ctxType, streamType)
@@ -799,10 +799,10 @@ case class WrappedMatrixNativeMultiWriter(
   colKey: IndexedSeq[String]
 ) {
   def lower(ctx: ExecuteContext, ts: IndexedSeq[(TableStage, RTable)]): IR =
-    writer.lower(ctx, ts.map { case (ts, rt) =>
+    writer.lower(ctx, ts.fmap { case (ts, rt) =>
       (LowerMatrixIR.colsFieldName, LowerMatrixIR.entriesFieldName, colKey, ts, rt)
     })
 
   def apply(ctx: ExecuteContext, mvs: IndexedSeq[TableValue]): Unit = writer.apply(
-    ctx, mvs.map(_.toMatrixValue(colKey)))
+    ctx, mvs.fmap(_.toMatrixValue(colKey)))
 }

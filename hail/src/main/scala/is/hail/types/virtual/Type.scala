@@ -26,7 +26,7 @@ object Type {
       TFloat64, TString, TCall)
 
   def genComplexType(): Gen[Type] = {
-    val rgDependents = ReferenceGenome.hailReferences.toArray.map(TLocus(_))
+    val rgDependents = ReferenceGenome.hailReferences.toArray.fmap(TLocus(_))
     val others = Array(TCall)
     Gen.oneOfSeq(rgDependents ++ others)
   }
@@ -34,12 +34,8 @@ object Type {
   def genFields(genFieldType: Gen[Type]): Gen[Array[Field]] = {
     Gen.buildableOf[Array](
       Gen.zip(Gen.identifier, genFieldType))
-      .filter(fields => fields.map(_._1).areDistinct())
-      .map(fields => fields
-        .iterator
-        .zipWithIndex
-        .map { case ((k, t), i) => Field(k, t, i) }
-        .toArray)
+      .filter(fields => fields.fmap(_._1).areDistinct())
+      .map(_.zipWithIndex.fmap { case ((k, t), i) => Field(k, t, i) })
   }
 
   def preGenStruct(genFieldType: Gen[Type]): Gen[TStruct] = {
@@ -50,7 +46,7 @@ object Type {
 
   def preGenTuple(genFieldType: Gen[Type]): Gen[TTuple] = {
     for (fields <- genFields(genFieldType)) yield {
-      TTuple(fields.map(_.typ): _*)
+      TTuple(fields.fmap(_.typ): _*)
     }
   }
 

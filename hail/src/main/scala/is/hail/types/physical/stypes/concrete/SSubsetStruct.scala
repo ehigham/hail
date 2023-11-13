@@ -7,6 +7,7 @@ import is.hail.types.physical.stypes.interfaces.{SBaseStruct, SBaseStructSettabl
 import is.hail.types.physical.stypes.{EmitType, SCode, SType, SValue}
 import is.hail.types.physical.{PCanonicalStruct, PType}
 import is.hail.types.virtual.{TStruct, Type}
+import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq}
 
 final case class SSubsetStruct(parent: SBaseStruct, fieldNames: IndexedSeq[String]) extends SBaseStruct {
 
@@ -16,12 +17,14 @@ final case class SSubsetStruct(parent: SBaseStruct, fieldNames: IndexedSeq[Strin
   val newToOldFieldMapping: Map[Int, Int] = _fieldIdx
     .map { case (f, i) => (i, parent.virtualType.asInstanceOf[TStruct].fieldIdx(f)) }
 
-  override val fieldTypes: IndexedSeq[SType] = Array.tabulate(size)(i => parent.fieldTypes(newToOldFieldMapping(i)))
-  override val fieldEmitTypes: IndexedSeq[EmitType] = Array.tabulate(size)(i => parent.fieldEmitTypes(newToOldFieldMapping(i)))
+  override val fieldTypes: IndexedSeq[SType] =
+    FastSeq.tabulate(size)(i => parent.fieldTypes(newToOldFieldMapping(i)))
+  override val fieldEmitTypes: IndexedSeq[EmitType] =
+    FastSeq.tabulate(size)(i => parent.fieldEmitTypes(newToOldFieldMapping(i)))
 
   override lazy val virtualType: TStruct = {
     val vparent = parent.virtualType.asInstanceOf[TStruct]
-    TStruct(fieldNames.map(f => (f, vparent.field(f).typ)): _*)
+    TStruct(fieldNames.fmap(f => (f, vparent.field(f).typ)): _*)
   }
 
   override def fieldIdx(fieldName: String): Int = _fieldIdx(fieldName)
@@ -31,7 +34,7 @@ final case class SSubsetStruct(parent: SBaseStruct, fieldNames: IndexedSeq[Strin
     val newNames = renamedVType.fieldNames
     val subsetPrevVirtualType = virtualType
     val vparent = parent.virtualType.asInstanceOf[TStruct]
-    val newParent = TStruct(vparent.fieldNames.map(f => subsetPrevVirtualType.fieldIdx.get(f) match {
+    val newParent = TStruct(vparent.fieldNames.fmap(f => subsetPrevVirtualType.fieldIdx.get(f) match {
       case Some(idxInSelectedFields) =>
         val renamed = renamedVType.fields(idxInSelectedFields)
         (renamed.name, renamed.typ)
@@ -63,16 +66,16 @@ final case class SSubsetStruct(parent: SBaseStruct, fieldNames: IndexedSeq[Strin
 
   override def copiedType: SType = {
     if (virtualType.size < 64)
-      SStackStruct(virtualType, fieldEmitTypes.map(_.copiedType))
+      SStackStruct(virtualType, fieldEmitTypes.fmap(_.copiedType))
     else {
-      val ct = SBaseStructPointer(PCanonicalStruct(false, virtualType.fieldNames.zip(fieldEmitTypes.map(_.copiedType.storageType)): _*))
+      val ct = SBaseStructPointer(PCanonicalStruct(false, virtualType.fieldNames.zip(fieldEmitTypes.fmap(_.copiedType.storageType)): _*))
       assert(ct.virtualType == virtualType, s"ct=$ct, this=$this")
       ct
     }
   }
 
   def storageType(): PType = {
-    val pt = PCanonicalStruct(false, virtualType.fieldNames.zip(fieldEmitTypes.map(_.copiedType.storageType)): _*)
+    val pt = PCanonicalStruct(false, virtualType.fieldNames.zip(fieldEmitTypes.fmap(_.copiedType.storageType)): _*)
     assert(pt.virtualType == virtualType, s"pt=$pt, this=$this")
     pt
   }

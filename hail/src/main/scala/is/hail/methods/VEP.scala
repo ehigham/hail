@@ -137,7 +137,7 @@ class VEP(val params: VEPParameters, conf: VEPConfiguration) extends TableToTabl
     val localVepSignature = vepSignature
 
     val csq = params.csq
-    val cmd = localConf.command.map(s =>
+    val cmd = localConf.command.fmap(s =>
       if (s == "__OUTPUT_FORMAT_FLAG__")
         if (csq) "--vcf" else "--json"
       else
@@ -180,12 +180,12 @@ class VEP(val params: VEPParameters, conf: VEPConfiguration) extends TableToTabl
               printElement,
               _ => ())
 
-            val nonStarToOriginalVariant = block.map { case v@(locus, alleles) =>
+            val nonStarToOriginalVariant = block.toFastSeq.fmap { case v@(locus, alleles) =>
               (locus, alleles.filter(_ != "*")) -> v
             }.toMap
 
             val kt: Map[Annotation, Annotation] = jt
-              .filter(s => !s.isEmpty && s(0) != '#')
+              .filter(s => s.nonEmpty && s(0) != '#')
               .flatMap { s =>
                 if (csq) {
                   val vepv@(vepLocus, vepAlleles) = variantFromInput(s)
@@ -230,7 +230,7 @@ class VEP(val params: VEPParameters, conf: VEPConfiguration) extends TableToTabl
 
             waitFor(proc, err, cmd)
 
-            block.map { case (locus, alleles) =>
+            block.toFastSeq.fmap { case (locus, alleles) =>
               val variant = Annotation(locus, alleles)
               val vepAnnotation = kt.get(variant).orNull
               (variant, vepAnnotation, procID)

@@ -38,12 +38,13 @@ class TakeByAggregatorSuite extends HailSuite {
         }
 
         val o = fb.resultWithIndex()(theHailClassLoader, ctx.fs, ctx.taskContext, r)(r)
-        val result = SafeRow.read(rt, o)
+        val result = SafeRow.read(rt, o).asInstanceOf[IndexedSeq[String]]
         assert(result == ((n - 1) to 0 by -1)
-          .iterator
-          .map(i => s"str$i")
+          .fmap(i => s"str$i")
           .take(size)
-          .toFastSeq, s"size=$size, n=$n")
+          .toFastSeq,
+          s"size=$size, n=$n"
+        )
       }
     }
   }

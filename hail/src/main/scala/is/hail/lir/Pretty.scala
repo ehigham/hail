@@ -151,7 +151,7 @@ object Pretty {
         label(x.L)
       else
         "null"
-    case x: SwitchX => s"${ label(x.Ldefault) } (${ x.Lcases.map(label).mkString(" ") })"
+    case x: SwitchX => s"${ label(x.Ldefault) } (${ x.Lcases.view.map(label).mkString(" ") })"
     case x: LdcX =>
       val lit = x.a match {
         case s: String => s""""${escapeString(s)}""""

@@ -120,7 +120,7 @@ class RichRDD[T](val r: RDD[T]) extends AnyVal {
   }
 
   def collectOrdered()(implicit tct: ClassTag[T]): Array[T] =
-    r.zipWithIndex().collect().sortBy(_._2).map(_._1)
+    r.zipWithIndex().collect().sortBy(_._2).fmap(_._1)
 
   def find(f: T => Boolean): Option[T] = r.filter(f).take(1) match {
     case Array(elem) => Some(elem)
@@ -144,7 +144,7 @@ class RichRDD[T](val r: RDD[T]) extends AnyVal {
     new RDD[T](r.sparkContext, FastSeq(new NarrowDependency[T](r) {
       def getParents(partitionId: Int): Seq[Int] = FastSeq(keep(partitionId))
     })) {
-      def getPartitions: Array[Partition] = keep.indices.map { i =>
+      def getPartitions: Array[Partition] = keep.indices.fmap { i =>
         SubsetRDDPartition(i, parentPartitions(keep(i)))
       }.toArray
 
@@ -174,9 +174,10 @@ class RichRDD[T](val r: RDD[T]) extends AnyVal {
         case None => Array.empty[Int]
       }
     })) {
-      def getPartitions: Array[Partition] = Array.tabulate(newNPartitions) { i =>
-        SupersetRDDPartition(i, newToOldPI.get(i).map(parentPartitions))
-      }
+      def getPartitions: Array[Partition] =
+        (0 until newNPartitions).fmap { i =>
+          SupersetRDDPartition(i, newToOldPI.get(i).map(parentPartitions))
+        }
 
       def compute(split: Partition, context: TaskContext): Iterator[T] = {
         split.asInstanceOf[SupersetRDDPartition].maybeParentPartition match {

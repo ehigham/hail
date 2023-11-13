@@ -173,7 +173,7 @@ object Call extends Serializable {
         val p = Call.allelePair(c)
         Call2(if (AllelePair.j(p) == i) 1 else 0, if (AllelePair.k(p) == i) 1 else 0, Call.isPhased(c))
       case _ =>
-        CallN(Call.alleles(c).map(a => if (a == i) 1 else 0), Call.isPhased(c))
+        CallN(Call.alleles(c).fmap(a => if (a == i) 1 else 0), Call.isPhased(c))
     }
   }
 

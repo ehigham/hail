@@ -16,7 +16,7 @@ class AggregatorsSuite extends HailSuite {
   def runAggregator(op: AggOp, aggType: TStruct, agg: IndexedSeq[Row], expected: Any, initOpArgs: IndexedSeq[IR],
     seqOpArgs: IndexedSeq[IR]) {
 
-    val aggSig = AggSignature(op, initOpArgs.map(_.typ), seqOpArgs.map(_.typ))
+    val aggSig = AggSignature(op, initOpArgs.fmap(_.typ), seqOpArgs.fmap(_.typ))
     assertEvalsTo(
       ApplyAggOp(initOpArgs, seqOpArgs, aggSig),
       (agg, aggType),
@@ -27,14 +27,14 @@ class AggregatorsSuite extends HailSuite {
     initOpArgs: IndexedSeq[IR] = FastSeq()) {
     runAggregator(op,
       TStruct("x" -> t),
-      a.map(i => Row(i)),
+      a.fmap(i => Row(i)),
       expected,
       initOpArgs,
       seqOpArgs = FastSeq(Ref("x", t)))
   }
 
   @Test def sumFloat64() {
-    runAggregator(Sum(), TFloat64, (0 to 100).map(_.toDouble), 5050.0)
+    runAggregator(Sum(), TFloat64, (0 to 100).fmap(_.toDouble), 5050.0)
     runAggregator(Sum(), TFloat64, FastSeq(), 0.0)
     runAggregator(Sum(), TFloat64, FastSeq(42.0), 42.0)
     runAggregator(Sum(), TFloat64, FastSeq(null, 42.0, null), 42.0)
@@ -194,7 +194,7 @@ class AggregatorsSuite extends HailSuite {
   ): Unit = {
     val aggSig = AggSignature(Sum(), FastSeq(), FastSeq(eltType))
 
-    val aggregable = a.map(Row(_))
+    val aggregable = a.fmap(Row(_)).toFastSeq
     val structType = TStruct("foo" -> TArray(eltType))
 
     assertEvalsTo(
@@ -534,7 +534,7 @@ class AggregatorsSuite extends HailSuite {
         ApplyAggOp(
           initOpArgs,
           seqOpArgs,
-          AggSignature(op, initOpArgs.map(_.typ), seqOpArgs.map(_.typ))),
+          AggSignature(op, initOpArgs.fmap(_.typ), seqOpArgs.fmap(_.typ))),
         false),
       (agg, aggType),
       expected)
@@ -761,7 +761,7 @@ class AggregatorsSuite extends HailSuite {
       )
     }
 
-    assertEvalsTo(getAgg(10, 10), IndexedSeq.range(0, 10).map(_ * 10L))
+    assertEvalsTo(getAgg(10, 10), IndexedSeq.range(0, 10).fmap(_ * 10L))
   }
 
   @Test def testArrayElementsAggregatorEmpty(): Unit = {

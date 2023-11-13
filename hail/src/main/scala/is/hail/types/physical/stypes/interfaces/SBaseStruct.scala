@@ -26,7 +26,7 @@ object SBaseStruct {
       case (s1: SStackStructValue, s2) =>
         s2._insert(resultVType, lt.fieldNames.zip(s1.values): _*)
       case _ =>
-        val newVals = (0 until st2.size).map(i => cb.memoize(s2.loadField(cb, i), "InsertFieldsStruct_merge"))
+        val newVals = (0 until st2.size).fmap(i => cb.memoize(s2.loadField(cb, i), "InsertFieldsStruct_merge"))
         s1._insert(resultVType, rt.fieldNames.zip(newVals): _*)
     }
   }
@@ -44,10 +44,10 @@ trait SBaseStruct extends SType {
 
   def _typeWithRequiredness: TypeWithRequiredness = {
     virtualType match {
-      case ts: TStruct => RStruct.fromNamesAndTypes(ts.fieldNames.zip(fieldEmitTypes).map {
+      case ts: TStruct => RStruct.fromNamesAndTypes(ts.fieldNames.zip(fieldEmitTypes).fmap {
         case (name, et) => (name, et.typeWithRequiredness.r)
       })
-      case tt: TTuple => RTuple.fromNamesAndTypes(tt._types.zip(fieldEmitTypes).map {
+      case tt: TTuple => RTuple.fromNamesAndTypes(tt._types.zip(fieldEmitTypes).fmap {
         case (f, et) => (f.index.toString, et.typeWithRequiredness.r)
       })
     }
@@ -102,14 +102,14 @@ trait SBaseStructValue extends SValue {
   def toStackStruct(cb: EmitCodeBuilder): SStackStructValue = {
     new SStackStructValue(
       SStackStruct(st.virtualType, st.fieldEmitTypes),
-      Array.tabulate(st.size)( i => cb.memoize(loadField(cb, i))))
+      (0 until st.size).fmap(i => cb.memoize(loadField(cb, i))))
   }
 
   def _insert(newType: TStruct, fields: (String, EmitValue)*): SBaseStructValue = {
     new SInsertFieldsStructValue(
-      SInsertFieldsStruct(newType, st, fields.map { case (name, ec) => (name, ec.emitType) }.toFastSeq),
+      SInsertFieldsStruct(newType, st, fields.toFastSeq.fmap { case (name, ec) => (name, ec.emitType) }),
       this,
-      fields.map(_._2).toFastSeq
+      fields.toFastSeq.fmap(_._2)
     )
   }
 
@@ -118,10 +118,10 @@ trait SBaseStructValue extends SValue {
       return _insert(newType, fields: _*)
 
     val newFieldMap = fields.toMap
-    val allFields = newType.fieldNames.map { f =>
+    val allFields = newType.fieldNames.fmap { f =>
       (f, newFieldMap.getOrElse(f, cb.memoize(EmitCode.fromI(cb.emb)(cb => loadField(cb, f)), "insert"))) }
 
-    val pcs = PCanonicalStruct(false, allFields.map { case (f, ec) => (f, ec.emitType.storageType) }: _*)
-    pcs.constructFromFields(cb, region, allFields.map(_._2.load), false)
+    val pcs = PCanonicalStruct(false, allFields.fmap { case (f, ec) => (f, ec.emitType.storageType) }: _*)
+    pcs.constructFromFields(cb, region, allFields.fmap(_._2.load), false)
   }
 }

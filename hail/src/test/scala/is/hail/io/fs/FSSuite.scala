@@ -33,7 +33,7 @@ trait FSSuite extends TestNGSuite {
   def t(extension: String = null): String = ExecuteContext.createTmpPathNoCleanup(tmpdir, "fs-suite-tmp", extension)
 
   def pathsRelRoot(root: String, statuses: Array[FileListEntry]): Set[String] = {
-    statuses.map { status =>
+    statuses.fmap { status =>
       var p = status.getPath
       assert(p.startsWith(root), s"$p $root")
       p.drop(root.length)
@@ -410,7 +410,7 @@ trait FSSuite extends TestNGSuite {
       // NB: TestNGSuite.assert does not have a lazy message argument so we must use an if to protect this list
       //
       // see: https://www.scalatest.org/scaladoc/1.7.2/org/scalatest/testng/TestNGSuite.html
-      assert(false, s"files not deleted:\n${ fs.listDirectory(prefix).map(_.getPath).mkString("\n") }")
+      assert(false, s"files not deleted:\n${ fs.listDirectory(prefix).fmap(_.getPath).mkString("\n") }")
     }
   }
 

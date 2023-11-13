@@ -128,9 +128,8 @@ final class StreamInputBuffer(in: InputStream) extends InputBuffer {
     Region.storeBytes(toOff, readBytesArray(n))
   }
 
-  def readBytesArray(n: Int): Array[Byte] = {
-    Array.tabulate(n)(_ => readByte())
-  }
+  def readBytesArray(n: Int): Array[Byte] =
+    (0 until n).fmap(_ => readByte())
 
   def skipByte(): Unit = {
     val bytesRead = in.skip(1)
@@ -327,7 +326,7 @@ final class TracingInputBuffer(
   }
 
   def readBytesArray(n: Int): Array[Byte] = {
-    Array.tabulate(n)(_ => readByte())
+    (0 until n).fmap(_ => readByte())
   }
 
   override def skipBoolean(): Unit = skipByte()

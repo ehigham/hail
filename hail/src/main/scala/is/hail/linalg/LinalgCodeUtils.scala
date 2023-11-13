@@ -6,6 +6,7 @@ import is.hail.expr.ir.{EmitCodeBuilder, EmitMethodBuilder}
 import is.hail.types.physical.PCanonicalNDArray
 import is.hail.types.physical.stypes.concrete.SUnreachableNDArray
 import is.hail.types.physical.stypes.interfaces.{SNDArraySettable, SNDArrayValue}
+import is.hail.utils.toRichIndexedSeq
 
 object LinalgCodeUtils {
   def checkColumnMajor(pndv: SNDArrayValue, cb: EmitCodeBuilder): Value[Boolean] = {
@@ -101,7 +102,7 @@ object LinalgCodeUtils {
 
   def unlinearizeIndexRowMajor(index: Code[Long], shapeArray: IndexedSeq[Value[Long]], mb: EmitMethodBuilder[_]): (Code[Unit], IndexedSeq[Value[Long]]) = {
     val nDim = shapeArray.length
-    val newIndices = (0 until nDim).map(_ => mb.genFieldThisRef[Long]())
+    val newIndices = (0 until nDim).fmap(_ => mb.genFieldThisRef[Long]())
     val elementsInProcessedDimensions = mb.genFieldThisRef[Long]()
     val workRemaining = mb.genFieldThisRef[Long]()
 

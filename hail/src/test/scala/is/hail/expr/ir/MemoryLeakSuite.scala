@@ -14,8 +14,8 @@ class MemoryLeakSuite extends HailSuite {
     val litSize = 32000
 
    def run(size: Int): Long = {
-      val lit = Literal(TSet(TString), (0 until litSize).map(_.toString).toSet)
-      val queries = Literal(TArray(TString), (0 until size).map(_.toString).toFastSeq)
+      val lit = Literal(TSet(TString), (0 until litSize).fmap(_.toString).toSet)
+      val queries = Literal(TArray(TString), (0 until size).fmap(_.toString).toFastSeq)
       ExecuteContext.scoped() { ctx =>
         val r = eval(
           ToArray(

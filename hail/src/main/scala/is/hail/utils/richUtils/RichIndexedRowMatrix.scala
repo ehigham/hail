@@ -91,7 +91,7 @@ private class EmptyPartitionIsAZeroMatrixRDD(blocks: RDD[((Int, Int), BDM[Double
   }
 
   protected def getPartitions: Array[Partition] =
-    blocks.partitions.map { p =>
+    blocks.partitions.fmap { p =>
       new BlockPartition(p.index, gp.blockCoordinates(p.index), gp.blockDims(p.index))
     }.toArray
 

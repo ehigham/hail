@@ -446,7 +446,7 @@ class ExtractIntervalFilters(ctx: ExecuteContext, keyType: TStruct) {
 
     private case class ConstantStruct(value: Row, t: TStruct) extends StructValue with ConstantValue {
       def apply(field: String): Value = this(t.field(field))
-      def values: Iterable[Value] = t.fields.map(apply)
+      def values: Iterable[Value] = t.fields.fmap(apply)
       private def apply(field: Field): ConstantValue = ConstantValue(value(field.index), field.typ)
       def isKeyPrefix: Boolean = false
     }
@@ -639,7 +639,7 @@ class ExtractIntervalFilters(ctx: ExecuteContext, keyType: TStruct) {
   private def intervalsFromCollection(lit: Traversable[Any], ordering: Ordering[Any], wrapped: Boolean): KeySet =
     KeySet.reduce(
       lit.toArray.distinct.filter(x => wrapped || x != null).sorted(ordering)
-        .map(elt => Interval(endpoint(elt, -1, wrapped), endpoint(elt, 1, wrapped)))
+        .fmap(elt => Interval(endpoint(elt, -1, wrapped), endpoint(elt, 1, wrapped)))
         .toFastSeq)
 
   private def intervalsFromLiteralContigs(contigs: Any, rg: ReferenceGenome): KeySet = {
@@ -673,7 +673,7 @@ class ExtractIntervalFilters(ctx: ExecuteContext, keyType: TStruct) {
     MAX_LITERAL_SIZE
 
   private def wrapInRow(intervals: IndexedSeq[Interval]): IndexedSeq[Interval] = intervals
-    .map { interval =>
+    .fmap { interval =>
       Interval(
         IntervalEndpoint(Row(interval.left.point), interval.left.sign),
         IntervalEndpoint(Row(interval.right.point), interval.right.sign))
@@ -697,7 +697,7 @@ class ExtractIntervalFilters(ctx: ExecuteContext, keyType: TStruct) {
     val env = Env.empty[AbstractValue].bind(
       rowName,
       StructValue(
-        Map(keyType.fieldNames.zipWithIndex.map(t => t._1 -> KeyField(t._2)): _*)))
+        Map(keyType.fieldNames.zipWithIndex.fmap(t => t._1 -> KeyField(t._2)): _*)))
     val bool = _analyze(x, AbstractEnv(constraint, env), rw).asInstanceOf[BoolValue]
     bool.trueBound
   }
@@ -821,12 +821,12 @@ class ExtractIntervalFilters(ctx: ExecuteContext, keyType: TStruct) {
         })
       case Ref(name, _) => env(name)
       case GetField(o, name) => recur(o).asInstanceOf[StructValue](name)
-      case MakeStruct(fields) => StructValue(fields.view.map { case (name, field) =>
+      case MakeStruct(fields) => StructValue(fields.fmap { case (name, field) =>
         name -> recur(field)
       })
       case SelectFields(old, fields) =>
         val oldVal = recur(old)
-        StructValue(fields.view.map(name => name -> oldVal.asInstanceOf[StructValue](name)))
+        StructValue(fields.fmap(name => name -> oldVal.asInstanceOf[StructValue](name)))
       case If(cond, cnsq, altr) =>
         val c = recur(cond).asInstanceOf[BoolValue]
         val res = AbstractLattice.join(
@@ -858,7 +858,7 @@ class ExtractIntervalFilters(ctx: ExecuteContext, keyType: TStruct) {
           case _ => AbstractLattice.top
         }
       case x@Coalesce(values) =>
-        val aVals = values.map(recur(_))
+        val aVals = values.fmap(recur(_))
         if (x.typ == TBoolean) {
           aVals.asInstanceOf[Seq[BoolValue]].reduce(BoolValue.coalesce)
         } else {
@@ -869,7 +869,7 @@ class ExtractIntervalFilters(ctx: ExecuteContext, keyType: TStruct) {
     }
 
     res = if (res == null) {
-      val children = x.children.map(child => recur(child.asInstanceOf[IR])).toFastSeq
+      val children = x.children.toFastSeq.fmap(child => recur(child.asInstanceOf[IR]))
       val keyOrConstVal = computeKeyOrConst(x, children)
       if (x.typ == TBoolean) {
         if (keyOrConstVal == AbstractLattice.top)

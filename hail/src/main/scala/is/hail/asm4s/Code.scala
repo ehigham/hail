@@ -84,7 +84,7 @@ object Code {
       end.append(lir.goto(c.start))
       c.end
     }
-    val r = (start, end, cs.map(_.v))
+    val r = (start, end, cs.fmap(_.v).toFastSeq)
     cs.foreach(_.clear())
     r
   }
@@ -149,7 +149,7 @@ object Code {
     val c = tcls.getDeclaredConstructor(parameterTypes: _*)
     assert(c != null,
       s"no such method ${ tcls.getName }(${
-        parameterTypes.map(_.getName).mkString(", ")
+        parameterTypes.fmap(_.getName).mkString(", ")
       })")
 
     val (start, end, argvs) = Code.sequenceValues(args)
@@ -515,7 +515,7 @@ object Code {
     new LocalRef[T](new lir.Local(null, name, tti))
 
   def newTuple(mb: MethodBuilder[_], elems: IndexedSeq[Code[_]]): Code[_] = {
-    val t = mb.modb.tupleClass(elems.map(_.ti))
+    val t = mb.modb.tupleClass(elems.fmap(_.ti))
     t.newTuple(elems)
   }
 
@@ -838,7 +838,7 @@ class CodeInt(val lhs: Code[Int]) extends AnyVal {
   }
 
   def switch(default: CodeLabel, cases: IndexedSeq[CodeLabel]): Code[Unit] = {
-    lhs.end.append(lir.switch(lhs.v, default.start, cases.map(_.start)))
+    lhs.end.append(lir.switch(lhs.v, default.start, cases.fmap(_.start)))
     val newC = new VCode[Unit](lhs.start, new Block(), lhs.v)
     lhs.clear()
     newC
@@ -1186,7 +1186,7 @@ object Invokeable {
     val m = cls.getMethod(method, parameterTypes: _*)
     assert(m != null,
       s"no such method ${ cls.getName }.$method(${
-        parameterTypes.map(_.getName).mkString(", ")
+        parameterTypes.fmap(_.getName).mkString(", ")
       })")
 
     // generic type parameters return java.lang.Object instead of the correct class

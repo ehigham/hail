@@ -377,12 +377,12 @@ object Simplify {
     case GetField(SelectFields(old, fields), name) => GetField(old, name)
 
     case outer@InsertFields(InsertFields(base, fields1, fieldOrder1), fields2, fieldOrder2) =>
-      val fields2Set = fields2.map(_._1).toSet
+      val fields2Set = fields2.fmap(_._1).toSet
       val newFields = fields1.filter { case (name, _) => !fields2Set.contains(name) } ++ fields2
       (fieldOrder1, fieldOrder2) match {
         case (Some(fo1), None) =>
           val fields1Set = fo1.toSet
-          val fieldOrder = fo1 ++ fields2.map(_._1).filter(!fields1Set.contains(_))
+          val fieldOrder = fo1 ++ fields2.fmap(_._1).filter(!fields1Set.contains(_))
           InsertFields(base, newFields, Some(fieldOrder))
         case (_, Some(_)) =>
           InsertFields(base, newFields, fieldOrder2)
@@ -397,9 +397,9 @@ object Simplify {
 
       fieldOrder match {
         case Some(fo) =>
-          MakeStruct(fo.map(f => f -> fields2Map.getOrElse(f, fields1Map(f))))
+          MakeStruct(fo.fmap(f => f -> fields2Map.getOrElse(f, fields1Map(f))))
         case None =>
-          val finalFields = fields1.map { case (name, fieldIR) => name -> fields2Map.getOrElse(name, fieldIR) } ++
+          val finalFields = fields1.fmap { case (name, fieldIR) => name -> fields2Map.getOrElse(name, fieldIR) } ++
             fields2.filter { case (name, _) => !fields1Map.contains(name) }
           MakeStruct(finalFields)
       }
@@ -442,7 +442,7 @@ object Simplify {
 
     case Let(Let.Insert(before, (name, x@InsertFields(old, newFields, _)) +: after), body) if x.typ.size < 500  && {
       val r = Ref(name, x.typ)
-      val nfSet = newFields.map(_._1).toSet
+      val nfSet = newFields.fmap(_._1).toSet
 
       def allRefsCanBePassedThrough(ir1: IR): Boolean = ir1 match {
         case GetField(`r`, _) => true
@@ -462,14 +462,14 @@ object Simplify {
       allRefsCanBePassedThrough(Let(after.toFastSeq, body))
     } =>
       val r = Ref(name, x.typ)
-      val fieldNames = newFields.map(_._1).toArray
+      val fieldNames = newFields.fmap(_._1).toArray
       val newFieldMap = newFields.toMap
       val newFieldRefs = newFieldMap.map { case (k, ir) =>
         (k, Ref(genUID(), ir.typ))
       } // cannot be mapValues, or genUID() gets run for every usage!
 
       def copiedNewFieldRefs(): IndexedSeq[(String, IR)] =
-        fieldNames.map(name => (name, newFieldRefs(name).deepCopy())).toFastSeq
+        fieldNames.fmap(name => (name, newFieldRefs(name).deepCopy())).toFastSeq
 
       def rewrite(ir1: IR): IR = ir1 match {
         case GetField(Ref(`name`, _), fd) => newFieldRefs.get(fd) match {
@@ -477,10 +477,10 @@ object Simplify {
           case None => GetField(Ref(name, old.typ), fd)
         }
         case ins@InsertFields(Ref(`name`, _), fields, _) =>
-          val newFieldSet = fields.map(_._1).toSet
+          val newFieldSet = fields.fmap(_._1).toSet
           InsertFields(Ref(name, old.typ),
             copiedNewFieldRefs().filter { case (name, _) => !newFieldSet.contains(name) }
-              ++ fields.map { case (name, ir) => (name, rewrite(ir)) },
+              ++ fields.fmap { case (name, ir) => (name, rewrite(ir)) },
             Some(ins.typ.fieldNames.toFastSeq))
 
         case SelectFields(Ref(`name`, _), fds) =>
@@ -494,7 +494,7 @@ object Simplify {
       }
 
       Let(
-        before.toFastSeq ++ fieldNames.map(f => newFieldRefs(f).name -> newFieldMap(f)) ++ FastSeq(name -> old),
+        before.toFastSeq ++ fieldNames.fmap(f => newFieldRefs(f).name -> newFieldMap(f)) ++ FastSeq(name -> old),
         rewrite(Let(after.toFastSeq, body))
       )
 
@@ -506,7 +506,7 @@ object Simplify {
 
     case SelectFields(MakeStruct(fields), fieldNames) =>
       val makeStructFields = fields.toMap
-      MakeStruct(fieldNames.map(f => f -> makeStructFields(f)))
+      MakeStruct(fieldNames.fmap(f => f -> makeStructFields(f)))
 
     case x@SelectFields(InsertFields(struct, insertFields, _), selectFields) =>
       val selectSet = selectFields.toSet
@@ -520,10 +520,10 @@ object Simplify {
     case x@InsertFields(SelectFields(struct, selectFields), insertFields, _) if
     insertFields.exists { case (name, f) => f == GetField(struct, name) } =>
       val fields = x.typ.fieldNames
-      val insertNames = insertFields.map(_._1).toSet
+      val insertNames = insertFields.fmap(_._1).toSet
       val (oldFields, newFields) =
         insertFields.partition {  case (name, f) => f == GetField(struct, name) }
-      val preservedFields = selectFields.filter(f => !insertNames.contains(f)) ++ oldFields.map(_._1)
+      val preservedFields = selectFields.filter(f => !insertNames.contains(f)) ++ oldFields.fmap(_._1)
       InsertFields(SelectFields(struct, preservedFields), newFields, Some(fields.toFastSeq))
 
     case GetTupleElement(MakeTuple(xs), idx) => xs.find(_._1 == idx).get._2
@@ -536,7 +536,7 @@ object Simplify {
     case TableCount(TableMapRows(child, _)) => TableCount(child)
     case TableCount(TableRepartition(child, _, _)) => TableCount(child)
     case TableCount(TableUnion(children)) =>
-      children.map(TableCount(_): IR).treeReduce(ApplyBinaryPrimOp(Add(), _, _))
+      children.fmap(TableCount(_): IR).treeReduce(ApplyBinaryPrimOp(Add(), _, _))
     case TableCount(TableKeyBy(child, _, _)) => TableCount(child)
     case TableCount(TableOrderBy(child, _)) => TableCount(child)
     case TableCount(TableLeftJoinRightDistinct(child, _, _)) => TableCount(child)
@@ -582,13 +582,13 @@ object Simplify {
     case TableGetGlobals(TableJoin(child1, child2, _, _)) =>
       bindIRs(TableGetGlobals(child1), TableGetGlobals(child2)) { case Seq(g1, g2) =>
         MakeStruct(
-          g1.typ.asInstanceOf[TStruct].fields.map(f => f.name -> GetField(g1, f.name)) ++
-            g2.typ.asInstanceOf[TStruct].fields.map(f => f.name -> GetField(g2, f.name))
+          g1.typ.asInstanceOf[TStruct].fields.fmap(f => f.name -> GetField(g1, f.name)) ++
+            g2.typ.asInstanceOf[TStruct].fields.fmap(f => f.name -> GetField(g2, f.name))
         )
       }
 
     case TableGetGlobals(x@TableMultiWayZipJoin(children, _, globalName)) =>
-      MakeStruct(FastSeq(globalName -> MakeArray(children.map(TableGetGlobals), TArray(children.head.typ.globalType))))
+      MakeStruct(FastSeq(globalName -> MakeArray(children.fmap(TableGetGlobals), TArray(children.head.typ.globalType))))
     case TableGetGlobals(TableLeftJoinRightDistinct(child, _, _)) => TableGetGlobals(child)
     case TableGetGlobals(TableMapRows(child, _)) => TableGetGlobals(child)
     case TableGetGlobals(TableMapGlobals(child, newGlobals)) =>
@@ -606,23 +606,23 @@ object Simplify {
         TableGetGlobals(child)
       else
         bindIR(TableGetGlobals(child)) { ref =>
-          MakeStruct(child.typ.globalType.fieldNames.map { f =>
+          MakeStruct(child.typ.globalType.fieldNames.fmap { f =>
             globalMap.getOrElse(f, f) -> GetField(ref, f)
           })
         }
 
     case TableCollect(TableParallelize(x, _)) => x
     case x@TableCollect(TableOrderBy(child, sortFields)) if sortFields.forall(_.sortOrder == Ascending)
-      && !child.typ.key.startsWith(sortFields.map(_.field)) =>
+      && !child.typ.key.startsWith(sortFields.fmap(_.field)) =>
       val uid = genUID()
       val uid2 = genUID()
       val left = genUID()
       val right = genUID()
       val uid3 = genUID()
-      val sortType = child.typ.rowType.select(sortFields.map(_.field))._1
+      val sortType = child.typ.rowType.select(sortFields.fmap(_.field))._1
 
       val kvElement = MakeStruct(FastSeq(
-        ("key", SelectFields(Ref(uid2, child.typ.rowType), sortFields.map(_.field))),
+        ("key", SelectFields(Ref(uid2, child.typ.rowType), sortFields.fmap(_.field))),
         ("value", Ref(uid2, child.typ.rowType))))
       val sorted = ArraySort(
         StreamMap(
@@ -725,7 +725,7 @@ object Simplify {
 
     // TODO: Write more rules like this to bubble 'TableRename' nodes towards the root.
     case t@TableRename(TableKeyBy(child, keys, isSorted), rowMap, globalMap) =>
-      TableKeyBy(TableRename(child, rowMap, globalMap), keys.map(t.rowF), isSorted)
+      TableKeyBy(TableRename(child, rowMap, globalMap), keys.fmap(t.rowF), isSorted)
 
     case TableFilter(t, True()) => t
 
@@ -806,7 +806,7 @@ object Simplify {
       })
 
     case MatrixRowsTable(MatrixUnionRows(children)) =>
-      TableUnion(children.map(MatrixRowsTable))
+      TableUnion(children.fmap(MatrixRowsTable))
 
     case MatrixColsTable(MatrixUnionRows(children)) =>
       MatrixColsTable(children(0))
@@ -882,7 +882,7 @@ object Simplify {
         && n < 256 =>
       // n < 256 is arbitrary for memory concerns
       val row = Ref("row", child.typ.rowType)
-      val keyStruct = MakeStruct(sortFields.map(f => f.field -> GetField(row, f.field)))
+      val keyStruct = MakeStruct(sortFields.fmap(f => f.field -> GetField(row, f.field)))
       val aggSig = AggSignature(TakeBy(), FastSeq(TInt32),  FastSeq(row.typ, keyStruct.typ))
       val te =
         TableExplode(
@@ -907,13 +907,13 @@ object Simplify {
       TableDistinct(TableKeyBy(TableMapRows(TableKeyBy(child, FastSeq()), k), k.typ.asInstanceOf[TStruct].fieldNames))
 
     case TableKeyByAndAggregate(child, expr, newKey, _, _)
-      if (newKey == MakeStruct(child.typ.key.map(k => k -> GetField(Ref("row", child.typ.rowType), k))) ||
+      if (newKey == MakeStruct(child.typ.key.fmap(k => k -> GetField(Ref("row", child.typ.rowType), k))) ||
         newKey == SelectFields(Ref("row", child.typ.rowType), child.typ.key))
         && child.typ.key.nonEmpty =>
       TableAggregateByKey(child, expr)
 
     case TableAggregateByKey(x@TableKeyBy(child, keys, false), expr) if !x.definitelyDoesNotShuffle =>
-      TableKeyByAndAggregate(child, expr, MakeStruct(keys.map(k => k -> GetField(Ref("row", child.typ.rowType), k))), bufferSize = ctx.getFlag("grouped_aggregate_buffer_size").toInt)
+      TableKeyByAndAggregate(child, expr, MakeStruct(keys.fmap(k => k -> GetField(Ref("row", child.typ.rowType), k))), bufferSize = ctx.getFlag("grouped_aggregate_buffer_size").toInt)
 
     case TableParallelize(TableCollect(child), _) => child
 
@@ -963,7 +963,7 @@ object Simplify {
       //   val pred = maybeFlip(invoke("sortedNonOverlappingIntervalsContain",
       //     TBoolean,
       //     Literal(TArray(TInterval(k.typ.keyType)), Interval.union(intervals.toArray, ord).toFastIndexedSeq),
-      //     MakeStruct(k.typ.keyType.fieldNames.map { keyField =>
+      //     MakeStruct(k.typ.keyType.fieldNames.fmap { keyField =>
       //       (keyField, GetField(Ref("row", child.typ.rowType), keyField))
       //     })))
       //   TableKeyBy(TableFilter(child, pred), keys, isSorted)
@@ -1099,7 +1099,7 @@ object Simplify {
     case MatrixColsHead(MatrixExplodeRows(child, path), n) => MatrixExplodeRows(MatrixColsHead(child, n), path)
     case MatrixColsHead(MatrixUnionRows(children), n) =>
       // could prevent a dimension mismatch error, but we view errors as undefined behavior, so this seems OK.
-      MatrixUnionRows(children.map(MatrixColsHead(_, n)))
+      MatrixUnionRows(children.fmap(MatrixColsHead(_, n)))
     case MatrixColsHead(MatrixDistinctByRow(child), n) => MatrixDistinctByRow(MatrixColsHead(child, n))
     case MatrixColsHead(MatrixRename(child, glob, col, row, entry), n) => MatrixRename(MatrixColsHead(child, n), glob, col, row, entry)
   }

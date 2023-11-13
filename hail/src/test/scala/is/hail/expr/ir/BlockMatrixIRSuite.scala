@@ -126,11 +126,11 @@ class BlockMatrixIRSuite extends HailSuite {
     val keepCols = Array(0L, 2L, 7L)
 
     assertBMEvalsTo(BlockMatrixFilter(unfiltered, Array(keepRows, Array())),
-      original(keepRows.map(_.toInt).toFastSeq, ::).toDenseMatrix)
+      original(keepRows.fmap(_.toInt).toFastSeq, ::).toDenseMatrix)
     assertBMEvalsTo(BlockMatrixFilter(unfiltered, Array(Array(), keepCols)),
-      original(::, keepCols.map(_.toInt).toFastSeq).toDenseMatrix)
+      original(::, keepCols.fmap(_.toInt).toFastSeq).toDenseMatrix)
     assertBMEvalsTo(BlockMatrixFilter(unfiltered, Array(keepRows, keepCols)),
-      original(keepRows.map(_.toInt).toFastSeq, keepCols.map(_.toInt).toFastSeq).toDenseMatrix)
+      original(keepRows.fmap(_.toInt).toFastSeq, keepCols.fmap(_.toInt).toFastSeq).toDenseMatrix)
   }
 
   @Test def testBlockMatrixSlice() {
@@ -166,7 +166,7 @@ class BlockMatrixIRSuite extends HailSuite {
     val etype = EBlockMatrixNDArray(EFloat64Required, required = true)
     val path = "src/test/resources/blockmatrix_example/0/parts/part-0-28-0-0-0feb7ac2-ab02-6cd4-5547-bfcb94dacb33"
     val matrix = BlockMatrix.read(fs, "src/test/resources/blockmatrix_example/0").toBreezeMatrix()
-    val expected = Array.tabulate(2)(i => Array.tabulate(2)(j => matrix(i, j)).toFastSeq).toFastSeq
+    val expected = FastSeq.tabulate(2)(i => FastSeq.tabulate(2)(j => matrix(i, j)).toFastSeq).toFastSeq
 
     val typ = TNDArray(TFloat64, Nat(2))
     val spec = TypedCodecSpec(etype, typ, BlockMatrix.bufferSpec)

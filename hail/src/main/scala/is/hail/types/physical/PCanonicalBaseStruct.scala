@@ -16,10 +16,10 @@ abstract class PCanonicalBaseStruct(val types: Array[PType]) extends PBaseStruct
       s"found non realizable type(s) ${ types.filter(!_.isRealizable).mkString(", ") } in ${ types.mkString(", ") }")
   }
 
-  override val (missingIdx: Array[Int], nMissing: Int) = BaseStruct.getMissingIndexAndCount(types.map(_.required))
+  override val (missingIdx: Array[Int], nMissing: Int) = BaseStruct.getMissingIndexAndCount(types.fmap(_.required))
   val nMissingBytes: Int = UnsafeUtils.packBitsToBytes(nMissing)
   val byteOffsets: Array[Long] = new Array[Long](size)
-  override val byteSize: Long = getByteSizeAndOffsets(types.map(_.byteSize), types.map(_.alignment), nMissingBytes, byteOffsets)
+  override val byteSize: Long = getByteSizeAndOffsets(types.fmap(_.byteSize), types.fmap(_.alignment), nMissingBytes, byteOffsets)
   override val alignment: Long = PBaseStruct.alignment(types)
 
 

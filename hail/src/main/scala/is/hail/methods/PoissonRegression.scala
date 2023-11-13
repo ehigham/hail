@@ -16,15 +16,15 @@ case class PoissonRegression(
   test: String,
   yField: String,
   xField: String,
-  covFields: Seq[String],
-  passThrough: Seq[String],
+  covFields: IndexedSeq[String],
+  passThrough: IndexedSeq[String],
   maxIterations: Int,
   tolerance: Double
 ) extends MatrixToTableFunction {
 
   override def typ(childType: MatrixType): TableType = {
     val poisRegTest = PoissonRegressionTest.tests(test)
-    val passThroughType = TStruct(passThrough.map(f => f -> childType.rowType.field(f).typ): _*)
+    val passThroughType = TStruct(passThrough.fmap(f => f -> childType.rowType.field(f).typ): _*)
     TableType(childType.rowKeyStruct ++ passThroughType ++ poisRegTest.schema, childType.rowKey, TStruct.empty)
   }
 
@@ -80,7 +80,7 @@ case class PoissonRegression(
     val entryArrayIdx = mv.entriesIdx
     val fieldIdx = entryType.fieldIdx(xField)
 
-    val copiedFieldIndices = (mv.typ.rowKey ++ passThrough).map(mv.rvRowType.fieldIdx(_)).toArray
+    val copiedFieldIndices = (mv.typ.rowKey ++ passThrough).fmap(mv.rvRowType.fieldIdx(_)).toArray
 
     val newRVD = mv.rvd.mapPartitions(newRVDType) { (ctx, it) =>
       val rvb = ctx.rvb

@@ -3,7 +3,7 @@ package is.hail.expr.ir
 import is.hail.HailSuite
 import is.hail.asm4s._
 import is.hail.types.physical.stypes.concrete.{SCanonicalRNGStateSettable, SCanonicalRNGStateValue, SRNGState, SRNGStateStaticSizeValue}
-import is.hail.utils.FastSeq
+import is.hail.utils.{FastSeq, arrayToRichIndexedSeq}
 import org.apache.commons.math3.distribution.ChiSquaredDistribution
 import org.testng.annotations.Test
 
@@ -199,7 +199,7 @@ class RandomSuite extends HailSuite {
     while (geometricMean >= failThreshold && geometricMean < passThreshold) {
       val counts = Array.ofDim[Int](buckets)
       for (_ <- 0 until samples) counts(sample) += 1
-      val chisquare = counts.map(observed => math.pow(observed - expected, 2) / expected).sum
+      val chisquare = counts.fmap(observed => math.pow(observed - expected, 2) / expected).sum
       val pvalue = 1 - chiSquareDist.cumulativeProbability(chisquare)
       numRuns += 1
       geometricMean = math.pow(geometricMean, (numRuns - 1).toDouble / numRuns) * math.pow(pvalue, 1.0 / numRuns)

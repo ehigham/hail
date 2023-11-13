@@ -36,10 +36,15 @@ package object ir {
       ir.If(ir.IsNA(pred), ir.False(), pred)
     }
 
-  def invoke(name: String, rt: Type, typeArgs: Array[Type], errorID: Int, args: IR*): IR = IRFunctionRegistry.lookupUnseeded(name, rt, typeArgs, args.map(_.typ)) match {
-    case Some(f) => f(typeArgs, args, errorID)
-    case None => fatal(s"no conversion found for $name(${typeArgs.mkString(", ")}, ${args.map(_.typ).mkString(", ")}) => $rt")
+  def invoke(name: String, rt: Type, typeArgs: Array[Type], errorID: Int, args: IR*): IR = {
+    val argsArray = args.toFastSeq
+    val argTypes = argsArray.fmap(_.typ)
+    IRFunctionRegistry.lookupUnseeded(name, rt, typeArgs, argTypes) match {
+      case Some(f) => f(typeArgs, argsArray, errorID)
+      case None => fatal(s"no conversion found for $name(${typeArgs.mkString(", ")}, ${argTypes.mkString(", ")}) => $rt")
+    }
   }
+
   def invoke(name: String, rt: Type, typeArgs: Array[Type], args: IR*): IR =
     invoke(name, rt, typeArgs, ErrorIDs.NO_ERROR, args:_*)
 
@@ -49,11 +54,14 @@ package object ir {
   def invoke(name: String, rt: Type, errorID: Int, args: IR*): IR =
     invoke(name, rt, Array.empty[Type], errorID, args:_*)
 
-  def invokeSeeded(name: String, staticUID: Long, rt: Type, rngState: IR, args: IR*): IR =
-    IRFunctionRegistry.lookupSeeded(name, staticUID, rt, args.map(_.typ)) match {
-      case Some(f) => f(args, rngState)
-      case None => fatal(s"no seeded function found for $name(${args.map(_.typ).mkString(", ")}) => $rt")
+  def invokeSeeded(name: String, staticUID: Long, rt: Type, rngState: IR, args: IR*): IR = {
+    val argsArray = args.toFastSeq
+    val argTypes = argsArray.fmap(_.typ)
+    IRFunctionRegistry.lookupSeeded(name, staticUID, rt, argTypes) match {
+      case Some(f) => f(argsArray, rngState)
+      case None => fatal(s"no seeded function found for $name(${argTypes.mkString(", ")}) => $rt")
     }
+  }
 
   implicit def irToPrimitiveIR(ir: IR): PrimitiveIR = new PrimitiveIR(ir)
 
@@ -75,8 +83,8 @@ package object ir {
   }
 
   def bindIRs(values: IR*)(body: Seq[Ref] => IR): IR = {
-    val bindings = values.toFastSeq.map(genUID() -> _)
-    Let(bindings, body(bindings.map(b => Ref(b._1, b._2.typ))))
+    val bindings = values.toFastSeq.fmap(genUID() -> _)
+    Let(bindings, body(bindings.fmap(b => Ref(b._1, b._2.typ))))
   }
 
   def bindIR(v: IR)(body: Ref => IR): IR =
@@ -192,12 +200,12 @@ package object ir {
   }
 
   def zipIR(ss: IndexedSeq[IR], behavior: ArrayZipBehavior.ArrayZipBehavior, errorId: Int = ErrorIDs.NO_ERROR)(f: IndexedSeq[Ref] => IR): IR = {
-    val refs = ss.map(s => Ref(genUID(), tcoerce[TStream](s.typ).elementType))
-    StreamZip(ss, refs.map(_.name), f(refs), behavior, errorId)
+    val refs = ss.fmap(s => Ref(genUID(), tcoerce[TStream](s.typ).elementType))
+    StreamZip(ss, refs.fmap(_.name), f(refs), behavior, errorId)
   }
 
   def makestruct(fields: (String, IR)*): MakeStruct = MakeStruct(fields.toArray[(String, IR)])
-  def maketuple(fields: IR*): MakeTuple = MakeTuple(fields.toArray.zipWithIndex.map { case (field, idx) => (idx, field) })
+  def maketuple(fields: IR*): MakeTuple = MakeTuple(fields.toArray.zipWithIndex.fmap { case (field, idx) => (idx, field) })
 
   def aggBindIR(v: IR, isScan: Boolean = false)(body: Ref => IR): IR = {
     val ref = Ref(genUID(), v.typ)

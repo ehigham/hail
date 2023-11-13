@@ -33,7 +33,7 @@ object PType {
   val genRequiredScalar: Gen[PType] = genScalar(true)
 
   def genComplexType(required: Boolean): Gen[PType] = {
-    val rgDependents = ReferenceGenome.hailReferences.toArray.map(PCanonicalLocus(_, required))
+    val rgDependents = ReferenceGenome.hailReferences.toArray.fmap(PCanonicalLocus(_, required))
     val others = Array(PCanonicalCall(required))
     Gen.oneOfSeq(rgDependents ++ others)
   }
@@ -41,12 +41,8 @@ object PType {
   def genFields(required: Boolean, genFieldType: Gen[PType]): Gen[Array[PField]] = {
     Gen.buildableOf[Array](
       Gen.zip(Gen.identifier, genFieldType))
-      .filter(fields => fields.map(_._1).areDistinct())
-      .map(fields => fields
-        .iterator
-        .zipWithIndex
-        .map { case ((k, t), i) => PField(k, t, i) }
-        .toArray)
+      .filter(fields => fields.fmap(_._1).areDistinct())
+      .map(_.zipWithIndex.fmap { case ((k, t), i) => PField(k, t, i) })
   }
 
   def preGenStruct(required: Boolean, genFieldType: Gen[PType]): Gen[PStruct] = {
@@ -56,7 +52,7 @@ object PType {
 
   def preGenTuple(required: Boolean, genFieldType: Gen[PType]): Gen[PTuple] = {
     for (fields <- genFields(required, genFieldType)) yield
-      PCanonicalTuple(required, fields.map(_.typ): _*)
+      PCanonicalTuple(required, fields.fmap(_.typ): _*)
   }
 
   private val defaultRequiredGenRatio = 0.2
@@ -125,8 +121,8 @@ object PType {
       case t: TArray => PCanonicalArray(canonical(t.elementType, innerRequired, innerRequired), required)
       case t: TSet => PCanonicalSet(canonical(t.elementType, innerRequired, innerRequired), required)
       case t: TDict => PCanonicalDict(canonical(t.keyType, innerRequired, innerRequired), canonical(t.valueType, innerRequired, innerRequired), required)
-      case t: TTuple => PCanonicalTuple(t._types.map(tf => PTupleField(tf.index, canonical(tf.typ, innerRequired, innerRequired))), required)
-      case t: TStruct => PCanonicalStruct(t.fields.map(f => PField(f.name, canonical(f.typ, innerRequired, innerRequired), f.index)), required)
+      case t: TTuple => PCanonicalTuple(t._types.fmap(tf => PTupleField(tf.index, canonical(tf.typ, innerRequired, innerRequired))), required)
+      case t: TStruct => PCanonicalStruct(t.fields.fmap(f => PField(f.name, canonical(f.typ, innerRequired, innerRequired), f.index)), required)
       case t: TNDArray => PCanonicalNDArray(canonical(t.elementType, innerRequired, innerRequired).setRequired(true), t.nDims, required)
       case TVoid => PVoid
     }
@@ -151,8 +147,8 @@ object PType {
       case t: PInterval => PCanonicalInterval(canonical(t.pointType), t.required)
       case t: PArray => PCanonicalArray(canonical(t.elementType), t.required)
       case t: PSet => PCanonicalSet(canonical(t.elementType), t.required)
-      case t: PTuple => PCanonicalTuple(t._types.map(pf => PTupleField(pf.index, canonical(pf.typ))), t.required)
-      case t: PStruct => PCanonicalStruct(t.fields.map(f => PField(f.name, canonical(f.typ), f.index)), t.required)
+      case t: PTuple => PCanonicalTuple(t._types.fmap(pf => PTupleField(pf.index, canonical(pf.typ))), t.required)
+      case t: PStruct => PCanonicalStruct(t.fields.fmap(f => PField(f.name, canonical(f.typ), f.index)), t.required)
       case t: PNDArray => PCanonicalNDArray(canonical(t.elementType), t.nDims, t.required)
       case t: PDict => PCanonicalDict(canonical(t.keyType), canonical(t.valueType), t.required)
       case PVoid => PVoid
@@ -287,12 +283,12 @@ object PType {
         case TString => PCanonicalString(requiredVector(ri))
         case t: TStruct =>
           PCanonicalStruct(requiredVector(ri),
-            t.fields.zipWithIndex.map { case (f, j) =>
+            t.fields.zipWithIndex.fmap { case (f, j) =>
               f.name -> canonical(f.typ, childRequiredIndex(ci + j), childIndex(ci + j))
             }: _*)
         case t: TTuple =>
           PCanonicalTuple(requiredVector(ri),
-            t.types.zipWithIndex.map { case (ft, j) =>
+            t.types.zipWithIndex.fmap { case (ft, j) =>
               canonical(ft, childRequiredIndex(ci + j), childIndex(ci + j))
             }: _*)
       }
@@ -311,7 +307,7 @@ object PType {
       pt match {
         case t@PCanonicalStruct(fields, required) =>
           assert(t.hasField(head))
-          PCanonicalStruct(fields.map(f => if (f.name == head) f.copy(typ = canonicalPath(f.typ, tail)) else f), required)
+          PCanonicalStruct(fields.fmap(f => if (f.name == head) f.copy(typ = canonicalPath(f.typ, tail)) else f), required)
         case PCanonicalArray(element, required) =>
           assert(head == "element")
           PCanonicalArray(canonicalPath(element, tail), required)

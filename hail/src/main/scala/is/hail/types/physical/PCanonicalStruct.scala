@@ -15,10 +15,9 @@ object PCanonicalStruct {
 
   def apply(required: Boolean, args: (String, PType)*): PCanonicalStruct =
     PCanonicalStruct(args
-      .iterator
+      .toFastSeq
       .zipWithIndex
-      .map { case ((n, t), i) => PField(n, t, i) }
-      .toFastSeq,
+      .fmap { case ((n, t), i) => PField(n, t, i) },
       required)
 
   def apply(names: java.util.List[String], types: java.util.List[PType], required: Boolean): PCanonicalStruct = {
@@ -37,13 +36,13 @@ object PCanonicalStruct {
   def canonical(t: PType): PCanonicalStruct = PType.canonical(t).asInstanceOf[PCanonicalStruct]
 }
 
-final case class PCanonicalStruct(fields: IndexedSeq[PField], required: Boolean = false) extends PCanonicalBaseStruct(fields.map(_.typ).toArray) with PStruct {
+final case class PCanonicalStruct(fields: IndexedSeq[PField], required: Boolean = false) extends PCanonicalBaseStruct(fields.fmap(_.typ).toArray) with PStruct {
   assert(fields.zipWithIndex.forall  { case (f, i) => f.index == i })
 
   if (!fieldNames.areDistinct()) {
     val duplicates = fieldNames.duplicates()
     fatal(s"cannot create struct with duplicate ${plural(duplicates.size, "field")}: " +
-      s"${fieldNames.map(prettyIdentifier).mkString(", ")}", fieldNames.duplicates())
+      s"${fieldNames.fmap(prettyIdentifier).mkString(", ")}", fieldNames.duplicates())
   }
 
   override def setRequired(required: Boolean): PCanonicalStruct = if(required == this.required) this else PCanonicalStruct(fields, required)
@@ -113,18 +112,18 @@ final case class PCanonicalStruct(fields: IndexedSeq[PField], required: Boolean 
   override def deepRename(t: Type): PType = deepRenameStruct(t.asInstanceOf[TStruct])
 
   private def deepRenameStruct(t: TStruct): PStruct = {
-    PCanonicalStruct((t.fields, this.fields).zipped.map( (tfield, pfield) => {
+    PCanonicalStruct(t.fields.zip(this.fields).fmap { case (tfield, pfield) =>
       assert(tfield.index == pfield.index)
       PField(tfield.name, pfield.typ.deepRename(tfield.typ), pfield.index)
-    }), this.required)
+    }, this.required)
   }
 
   override def copiedType: PType = {
-    val copiedTypes = types.map(_.copiedType)
+    val copiedTypes = types.fmap(_.copiedType)
     if (types.indices.forall(i => types(i).eq(copiedTypes(i))))
       this
     else {
-      PCanonicalStruct(copiedTypes.indices.map(i => fields(i).copy(typ = copiedTypes(i))), required)
+      PCanonicalStruct(copiedTypes.indices.fmap(i => fields(i).copy(typ = copiedTypes(i))), required)
     }
   }
 }

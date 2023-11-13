@@ -4,6 +4,7 @@ import is.hail.HailSuite
 import is.hail.check.Gen._
 import is.hail.check.Prop._
 import is.hail.check.Properties
+import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq}
 import org.testng.annotations.Test
 
 import scala.language.implicitConversions
@@ -43,7 +44,7 @@ class IndexBTreeSuite extends HailSuite {
 
         val indexSize = fs.getFileSize(index)
         val padding = 1024 - (arraySize % 1024)
-        val numEntries = arraySize + padding + (1 until depth).map {
+        val numEntries = arraySize + padding + (1 until depth).fmap {
           math.pow(1024, _).toInt
         }.sum
 
@@ -59,7 +60,7 @@ class IndexBTreeSuite extends HailSuite {
           arrayRandomStarts.forall { case (l) => btree.queryIndex(l - 1).contains(l) }
         else {
           val randomIndices = Array(0) ++ Array.fill(100)(choose(0, arraySize - 1).sample())
-          randomIndices.map(arrayRandomStarts).forall { case (l) => btree.queryIndex(l - 1).contains(l) }
+          randomIndices.fmap(arrayRandomStarts).forall { case (l) => btree.queryIndex(l - 1).contains(l) }
         }
 
         if (!depthCorrect || !indexCorrectSize || !queryCorrect)
@@ -123,7 +124,7 @@ class IndexBTreeSuite extends HailSuite {
   @Test def writeReadMultipleOfBranchingFactorDoesNotError() {
     val idxFile = ctx.createTmpPath("btree")
     IndexBTree.write(
-      Array.tabulate(1024)(i => i),
+      FastSeq.tabulate(1024)(i => i.toLong),
       idxFile,
       fs)
     val index = new IndexBTree(idxFile, fs)
@@ -151,7 +152,7 @@ class IndexBTreeSuite extends HailSuite {
   @Test def queryArrayPositionAndFileOffsetIsCorrectTwoLevelsArray() {
     def sqr(x: Long) = x * x
     val f = ctx.createTmpPath("btree")
-    val v = Array.tabulate(1025)(x => sqr(x))
+    val v = FastSeq.tabulate(1025)(x => sqr(x))
     val branchingFactor = 1024
     IndexBTree.write(v, f, fs, branchingFactor = branchingFactor)
     val bt = new IndexBTree(f, fs, branchingFactor = branchingFactor)
@@ -178,7 +179,7 @@ class IndexBTreeSuite extends HailSuite {
   @Test def queryArrayPositionAndFileOffsetIsCorrectThreeLevelsArray() {
     def sqr(x: Long) = x * x
     val f = ctx.createTmpPath("btree")
-    val v = Array.tabulate(1024 * 1024 + 1)(x => sqr(x))
+    val v = FastSeq.tabulate(1024 * 1024 + 1)(x => sqr(x))
     val branchingFactor = 1024
     IndexBTree.write(v, f, fs, branchingFactor = branchingFactor)
     val bt = new IndexBTree(f, fs, branchingFactor = branchingFactor)
@@ -220,9 +221,9 @@ class IndexBTreeSuite extends HailSuite {
       assert(bt.positionOfVariants(Array()) sameElements Array[Long]())
       assert(bt.positionOfVariants(Array(5)) sameElements Array(6L))
 
-      val indices = Seq(0, 5, 1, 6)
-      val actual = bt.positionOfVariants(indices.toArray)
-      val expected = indices.sorted.map(v)
+      val indices = Array(0, 5, 1, 6)
+      val actual = bt.positionOfVariants(indices)
+      val expected = indices.sorted.fmap(v)
       assert(actual sameElements expected,
         s"${ actual.toSeq } not same elements as expected ${ expected.toSeq }")
     } catch {
@@ -245,7 +246,7 @@ class IndexBTreeSuite extends HailSuite {
         IndexBTree.write(longs, f, fs, branchingFactor)
         val bt = new OnDiskBTreeIndexToValue(f, fs, branchingFactor)
         val actual = bt.positionOfVariants(indices.toArray)
-        val expected = indices.sorted.map(longs)
+        val expected = indices.sorted.fmap(longs)
         assert(actual sameElements expected,
           s"${ actual.toSeq } not same elements as expected ${ expected.toSeq }")
       } catch {
@@ -259,14 +260,14 @@ class IndexBTreeSuite extends HailSuite {
   }
 
   @Test def onDiskBTreeIndexToValueFourLayers() {
-    val longs = Array.tabulate(3 * 3 * 3 * 3)(x => x.toLong)
+    val longs = FastSeq.tabulate(3 * 3 * 3 * 3)(x => x.toLong)
     val indices = Array(0, 3, 10, 20, 26, 27, 34, 55, 79, 80)
     val f = ctx.createTmpPath("btree")
     val branchingFactor = 3
     try {
       IndexBTree.write(longs, f, fs, branchingFactor)
       val bt = new OnDiskBTreeIndexToValue(f, fs, branchingFactor)
-      val expected = indices.sorted.map(longs)
+      val expected = indices.sorted.fmap(longs)
       val actual = bt.positionOfVariants(indices.toArray)
       assert(actual sameElements expected,
         s"${ actual.toSeq } not same elements as expected ${ expected.toSeq }")

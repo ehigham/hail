@@ -52,7 +52,7 @@ abstract class NDArrayProducer {
 
     initAll(cb)
     val idxGenerator = if (rowMajor) SNDArray.forEachIndexWithInitAndIncRowMajor _ else SNDArray.forEachIndexWithInitAndIncColMajor _
-    idxGenerator(cb, shape, initAxis, stepAxis.map(stepper => (cb: EmitCodeBuilder) => stepper(cb, 1L)), "ndarray_producer_toSCode"){ (cb, indices) =>
+    idxGenerator(cb, shape, initAxis, stepAxis.fmap(stepper => (cb: EmitCodeBuilder) => stepper(cb, 1L)), "ndarray_producer_toSCode"){ (cb, indices) =>
       targetType.elementType.storeAtAddress(cb, currentWriteAddr, region, loadElementAtCurrentAddr(cb), true)
       cb.assign(currentWriteAddr, currentWriteAddr + targetType.elementType.byteSize)
     }
@@ -147,12 +147,12 @@ object EmitNDArray {
                       rightBroadcasted.initAll(cb)
                     }
                   }
-                  override val initAxis: IndexedSeq[EmitCodeBuilder => Unit] = shape.indices.map { idx => { cb: EmitCodeBuilder =>
+                  override val initAxis: IndexedSeq[EmitCodeBuilder => Unit] = shape.indices.fmap { idx => { cb: EmitCodeBuilder =>
                     leftBroadcasted.initAxis(idx)(cb)
                     rightBroadcasted.initAxis(idx)(cb)
                   }
                   }
-                  override val stepAxis: IndexedSeq[(EmitCodeBuilder, Value[Long]) => Unit] = shape.indices.map { idx => { (cb: EmitCodeBuilder, axis: Value[Long]) =>
+                  override val stepAxis: IndexedSeq[(EmitCodeBuilder, Value[Long]) => Unit] = shape.indices.fmap { idx => { (cb: EmitCodeBuilder, axis: Value[Long]) =>
                     leftBroadcasted.stepAxis(idx)(cb, axis)
                     rightBroadcasted.stepAxis(idx)(cb, axis)
                   }
@@ -174,7 +174,7 @@ object EmitNDArray {
               new NDArrayProducer {
                 override def elementType: PType = childProducer.elementType
 
-                override val shape: IndexedSeq[Value[Long]] = indexExpr.map { childIndex =>
+                override val shape: IndexedSeq[Value[Long]] = indexExpr.fmap { childIndex =>
                   if (childIndex < childProducer.nDims)
                     childProducer.shape(childIndex)
                   else
@@ -182,7 +182,7 @@ object EmitNDArray {
                 }
                 override val initAll: EmitCodeBuilder => Unit = childProducer.initAll
                 override val initAxis: IndexedSeq[EmitCodeBuilder => Unit] = {
-                  indexExpr.map { childIndex =>
+                  indexExpr.fmap { childIndex =>
                     (cb: EmitCodeBuilder) =>
                       if (childIndex < childProducer.nDims) {
                         childProducer.initAxis(childIndex)(cb)
@@ -190,7 +190,7 @@ object EmitNDArray {
                   }
                 }
                 override val stepAxis: IndexedSeq[(EmitCodeBuilder, Value[Long]) => Unit] = {
-                  indexExpr.map { childIndex =>
+                  indexExpr.fmap { childIndex =>
                     (cb: EmitCodeBuilder, step: Value[Long]) =>
                       if (childIndex < childProducer.nDims) {
                         childProducer.stepAxis(childIndex)(cb, step)
@@ -208,7 +208,7 @@ object EmitNDArray {
               val childShapeValues = childND.shapes
               val outputNDims = x.typ.nDims
 
-              val requestedShapeValues = Array.tabulate(outputNDims)(i => cb.newLocal[Long](s"ndarray_reindex_request_shape_$i")).toIndexedSeq
+              val requestedShapeValues = FastSeq.tabulate(outputNDims)(i => cb.newLocal[Long](s"ndarray_reindex_request_shape_$i")).toIndexedSeq
 
               emitI(shape, cb, env = env).map(cb) { case tupleValue: SBaseStructValue =>
                 val hasNegativeOne = cb.newLocal[Boolean]("ndarray_reshape_has_neg_one")
@@ -317,7 +317,7 @@ object EmitNDArray {
                 }
 
                 // compute shape of result
-                val newShape = (0 until x.typ.nDims).map { i =>
+                val newShape = (0 until x.typ.nDims).fmap { i =>
                   if (i == axis) concatAxisSize else firstND.shapes(i)
                 }
 
@@ -326,7 +326,7 @@ object EmitNDArray {
 
                   override val shape: IndexedSeq[Value[Long]] = newShape
 
-                  val idxVars = shape.indices.map(i => cb.newLocal[Long](s"ndarray_produceer_fall_through_idx_${i}"))
+                  val idxVars = shape.indices.fmap(i => cb.newLocal[Long](s"ndarray_produceer_fall_through_idx_${i}"))
                   // Need to keep track of the current ndarray being read from.
                   val currentNDArrayIdx = cb.newLocal[Int]("ndarray_concat_current_active_ndarray_idx")
 
@@ -335,7 +335,7 @@ object EmitNDArray {
                     cb.assign(currentNDArrayIdx, firstNonEmpty)
                   }
                   override val initAxis: IndexedSeq[EmitCodeBuilder => Unit] =
-                    shape.indices.map(i => (cb: EmitCodeBuilder) => {
+                    shape.indices.fmap(i => (cb: EmitCodeBuilder) => {
                       cb.assign(idxVars(i), 0L)
                       if (i == axis) {
                         cb.assign(currentNDArrayIdx, firstNonEmpty)
@@ -344,7 +344,7 @@ object EmitNDArray {
                   override val stepAxis: IndexedSeq[(EmitCodeBuilder, Value[Long]) => Unit] = {
                     // For all boring axes, just add to corresponding indexVar. For the single interesting axis,
                     // also consider updating the currently tracked ndarray.
-                    shape.indices.map(idx => (cb: EmitCodeBuilder, step: Value[Long]) => {
+                    shape.indices.fmap(idx => (cb: EmitCodeBuilder, step: Value[Long]) => {
                       // Start by updating the idxVar by the step
                       val curIdxVar = idxVars(idx)
                       cb.assign(curIdxVar, curIdxVar + step)
@@ -379,11 +379,11 @@ object EmitNDArray {
                 val (indexingIndices, slicingIndices) = slicesValue.st.fieldTypes.zipWithIndex.partition { case (pFieldType, idx) =>
                   pFieldType.isPrimitive
                 } match {
-                  case (a, b) => (a.map(_._2), b.map(_._2))
+                  case (a, b) => (a.fmap(_._2), b.fmap(_._2))
                 }
 
                 IEmitCode.multiFlatMap[Int, SValue, NDArrayProducer](indexingIndices, indexingIndex => slicesValue.loadField(cb, indexingIndex), cb) { indexingSCodes =>
-                  val indexingValues = indexingSCodes.map(sCode => cb.newLocal("ndarray_slice_indexer", sCode.asInt64.value))
+                  val indexingValues = indexingSCodes.fmap(sCode => cb.newLocal("ndarray_slice_indexer", sCode.asInt64.value))
                   val slicingValueTriplesBuilder = new BoxedArrayBuilder[(Value[Long], Value[Long], Value[Long])]()
                   val outputShape = {
                     IEmitCode.multiFlatMap[Int, SValue, IndexedSeq[Value[Long]]](slicingIndices,
@@ -435,13 +435,13 @@ object EmitNDArray {
                         }
                       }
 
-                      override val initAxis: IndexedSeq[EmitCodeBuilder => Unit] = shape.indices.map(idx => { (cb: EmitCodeBuilder) =>
+                      override val initAxis: IndexedSeq[EmitCodeBuilder => Unit] = shape.indices.fmap(idx => { (cb: EmitCodeBuilder) =>
                         val whichSlicingAxis = slicingIndices(idx)
                         val slicingValue = slicingValueTriples(idx)
                         childProducer.initAxis(whichSlicingAxis)(cb)
                         childProducer.stepAxis(whichSlicingAxis)(cb, slicingValue._1)
                       })
-                      override val stepAxis: IndexedSeq[(EmitCodeBuilder, Value[Long]) => Unit] = shape.indices.map(idx => { (cb: EmitCodeBuilder, outerStep: Value[Long]) =>
+                      override val stepAxis: IndexedSeq[(EmitCodeBuilder, Value[Long]) => Unit] = shape.indices.fmap(idx => { (cb: EmitCodeBuilder, outerStep: Value[Long]) =>
                         // SlicingIndices is a map from my coordinates to my child's coordinates.
                         val whichSlicingAxis = slicingIndices(idx)
                         val (start, stop, sliceStep) = slicingValueTriples(idx)
@@ -459,9 +459,9 @@ object EmitNDArray {
           case NDArrayFilter(child, filters) =>
             deforestRecur(child, cb).map(cb) { childProducer: NDArrayProducer =>
 
-              val filterWasMissing = (0 until filters.size).map(i => cb.newField[Boolean](s"ndarray_filter_${i}_was_missing"))
+              val filterWasMissing = (0 until filters.size).fmap(i => cb.newField[Boolean](s"ndarray_filter_${i}_was_missing"))
               val filtPValues = new Array[SIndexableValue](filters.size)
-              val outputShape = childProducer.shape.indices.map(idx => cb.newField[Long](s"ndarray_filter_output_shapes_${idx}"))
+              val outputShape = childProducer.shape.indices.fmap(idx => cb.newField[Long](s"ndarray_filter_output_shapes_${idx}"))
 
               filters.zipWithIndex.foreach { case (filt, i) =>
                 // Each filt is a sequence that may be missing with elements that may not be missing.
@@ -487,13 +487,13 @@ object EmitNDArray {
 
                 // Plan: Keep track of current indices on each axis, use them to step through filtered
                 // dimensions accordingly.
-                val idxVars = shape.indices.map(idx => cb.newLocal[Long](s"ndarray_producer_filter_index_${idx}"))
+                val idxVars = shape.indices.fmap(idx => cb.newLocal[Long](s"ndarray_producer_filter_index_${idx}"))
 
                 override val initAll: EmitCodeBuilder => Unit = cb => {
                   idxVars.foreach(idxVar => cb.assign(idxVar, 0L))
                   childProducer.initAll(cb)
                 }
-                override val initAxis: IndexedSeq[EmitCodeBuilder => Unit] = shape.indices.map { idx =>
+                override val initAxis: IndexedSeq[EmitCodeBuilder => Unit] = shape.indices.fmap { idx =>
                   (cb: EmitCodeBuilder) => {
                     cb.assign(idxVars(idx), 0L)
                     childProducer.initAxis(idx)(cb)
@@ -506,7 +506,7 @@ object EmitNDArray {
                     })
                   }
                 }
-                override val stepAxis: IndexedSeq[(EmitCodeBuilder, Value[Long]) => Unit] = shape.indices.map { idx =>
+                override val stepAxis: IndexedSeq[(EmitCodeBuilder, Value[Long]) => Unit] = shape.indices.fmap { idx =>
                   (cb: EmitCodeBuilder, step: Value[Long]) => {
                     cb.if_(filterWasMissing(idx), {
                       childProducer.stepAxis(idx)(cb, step)
@@ -529,8 +529,8 @@ object EmitNDArray {
             deforestRecur(child, cb).map(cb) { childProducer: NDArrayProducer =>
               val childDims = child.typ.asInstanceOf[TNDArray].nDims
               val axesToKeep = (0 until childDims).filter(axis => !axesToSumOut.contains(axis))
-              val newOutputShape = axesToKeep.map(idx => childProducer.shape(idx))
-              val newOutputShapeComplement = axesToSumOut.map(idx => childProducer.shape(idx))
+              val newOutputShape = axesToKeep.fmap(idx => childProducer.shape(idx))
+              val newOutputShapeComplement = axesToSumOut.fmap(idx => childProducer.shape(idx))
 
               val newElementType: PType = child.typ.asInstanceOf[TNDArray].elementType match {
                 case TInt32 => PInt32Required
@@ -547,11 +547,11 @@ object EmitNDArray {
                 // Important part here is that NDArrayAgg has less axes then its child. We need to map
                 // between them.
                 override val initAxis: IndexedSeq[EmitCodeBuilder => Unit] = {
-                  axesToKeep.map(idx => childProducer.initAxis(idx))
+                  axesToKeep.fmap(idx => childProducer.initAxis(idx))
                 }
 
                 override val stepAxis: IndexedSeq[(EmitCodeBuilder, Value[Long]) => Unit] = {
-                  axesToKeep.map(idx => childProducer.stepAxis(idx))
+                  axesToKeep.fmap(idx => childProducer.stepAxis(idx))
                 }
 
                 override def loadElementAtCurrentAddr(cb: EmitCodeBuilder): SValue = {
@@ -560,8 +560,8 @@ object EmitNDArray {
                   val runningSum = NumericPrimitives.newLocal(cb, "ndarray_agg_running_sum", numericElementType.virtualType)
                   cb.assign(runningSum, numericElementType.zero)
 
-                  val initsToSumOut = axesToSumOut.map(idx => childProducer.initAxis(idx))
-                  val stepsToSumOut = axesToSumOut.map(idx => (cb: EmitCodeBuilder) => childProducer.stepAxis(idx)(cb, 1L))
+                  val initsToSumOut = axesToSumOut.fmap(idx => childProducer.initAxis(idx))
+                  val stepsToSumOut = axesToSumOut.fmap(idx => (cb: EmitCodeBuilder) => childProducer.stepAxis(idx)(cb, 1L))
 
                   SNDArray.forEachIndexWithInitAndIncColMajor(cb, newOutputShapeComplement, initsToSumOut, stepsToSumOut, "ndarray_producer_ndarray_agg") { (cb, _) =>
                     cb.assign(runningSum, numericElementType.add(runningSum, SType.extractPrimValue(cb, childProducer.loadElementAtCurrentAddr(cb))))
@@ -593,7 +593,7 @@ object EmitNDArray {
   }
 
   def fromShapeStridesFirstAddress(newElementType: PType, ndSvShape: IndexedSeq[Value[Long]], strides: IndexedSeq[Value[Long]], firstDataAddress: Value[Long], cb: EmitCodeBuilder): NDArrayProducer = {
-    val counters = ndSvShape.indices.map(i => cb.newLocal[Long](s"ndarray_producer_fall_through_idx_${i}"))
+    val counters = ndSvShape.indices.fmap(i => cb.newLocal[Long](s"ndarray_producer_fall_through_idx_${i}"))
 
     assert(ndSvShape.size == strides.size, s"shape.size = ${ndSvShape.size} != strides.size = ${strides.size}")
 
@@ -605,12 +605,12 @@ object EmitNDArray {
         counters.foreach(ctr => cb.assign(ctr, 0L))
       }
       override val initAxis: IndexedSeq[EmitCodeBuilder => Unit] = {
-        shape.indices.map(i => (cb: EmitCodeBuilder) => {
+        shape.indices.fmap(i => (cb: EmitCodeBuilder) => {
           cb.assign(counters(i), 0L)
         })
       }
       override val stepAxis: IndexedSeq[(EmitCodeBuilder, Value[Long]) => Unit] = {
-        shape.indices.map{ i =>
+        shape.indices.fmap{ i =>
           (cb: EmitCodeBuilder, step: Value[Long]) => {
             cb.assign(counters(i), counters(i) + step * strides(i))
           }
@@ -627,14 +627,14 @@ object EmitNDArray {
 
   def createBroadcastMask(cb: EmitCodeBuilder, shape: IndexedSeq[Value[Long]]): IndexedSeq[Value[Long]] = {
     val ffff = 0xFFFFFFFFFFFFFFFFL
-    shape.indices.map { idx =>
+    shape.indices.fmap { idx =>
       cb.newLocal[Long](s"ndarray_producer_broadcast_mask_${idx}", (shape(idx) ceq 1L).mux(0L, ffff))
     }
   }
 
   def broadcast(cb: EmitCodeBuilder, prod: NDArrayProducer,ctx: String): NDArrayProducer = {
     val broadcastMask = createBroadcastMask(cb, prod.shape)
-    val newSteps = prod.stepAxis.indices.map { idx =>
+    val newSteps = prod.stepAxis.indices.fmap { idx =>
       (cb: EmitCodeBuilder, step: Value[Long]) => {
         val maskedStep = cb.newLocal[Long]("ndarray_producer_masked_step", step & broadcastMask(idx))
         prod.stepAxis(idx)(cb, maskedStep)

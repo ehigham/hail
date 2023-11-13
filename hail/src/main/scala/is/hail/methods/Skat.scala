@@ -54,7 +54,7 @@ the eigenvalues of the latter, and the p-value with the Davies algorithm.
 case class SkatTuple(q: Double, a: BDV[Double], b: BDV[Double])
 
 object Skat {
-  def computeGramianSmallN(st: Array[SkatTuple]): (Double, BDM[Double]) = {
+  def computeGramianSmallN(st: IndexedSeq[SkatTuple]): (Double, BDM[Double]) = {
     require(st.nonEmpty)
     val st0 = st(0)
 
@@ -87,7 +87,7 @@ object Skat {
     (q, A.t * A - B.t * B)
   }
 
-  def computeGramianLargeN(st: Array[SkatTuple]): (Double, BDM[Double]) = {
+  def computeGramianLargeN(st: IndexedSeq[SkatTuple]): (Double, BDM[Double]) = {
     require(st.nonEmpty)
 
     val m = st.length
@@ -234,7 +234,7 @@ case class Skat(
           val vsArray = vs.toArray
           val size = vsArray.length
           if (size <= maxSize) {
-            val skatTuples = vsArray.map((linearTuple _).tupled)
+            val skatTuples = vsArray.fmap((linearTuple _).tupled)
             val (q, gramian) = Skat.computeGramian(skatTuples, size.toLong * n <= maxEntriesForSmallN)
 
             // using q / sigmaSq since Z.t * Z = gramian / sigmaSq

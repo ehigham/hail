@@ -148,7 +148,7 @@ object TypeCheck {
         }
       case x@MakeArray(args, typ) =>
         assert(typ != null)
-        args.map(_.typ).zipWithIndex.foreach { case (x, i) =>
+        args.fmap(_.typ).zipWithIndex.foreach { case (x, i) =>
           assert(x == typ.elementType && x.isRealizable,
             s"at position $i type mismatch: ${ typ.parsableString() } ${ x.parsableString() }")
         }
@@ -156,7 +156,7 @@ object TypeCheck {
         assert(typ != null)
         assert(typ.elementType.isRealizable)
 
-        args.map(_.typ).zipWithIndex.foreach { case (x, i) => assert(x == typ.elementType,
+        args.fmap(_.typ).zipWithIndex.foreach { case (x, i) => assert(x == typ.elementType,
           s"at position $i type mismatch: ${ typ.elementType.parsableString() } ${ x.parsableString() }")
         }
       case x@ArrayRef(a, i, _) =>
@@ -454,9 +454,9 @@ object TypeCheck {
         assert(x.typ == TArray(aggBody.typ))
         assert(knownLength.forall(_.typ == TInt32))
       case x@InitOp(_, args, aggSig) =>
-        assert(args.map(_.typ) == aggSig.initOpTypes, s"${args.map(_.typ)} !=  ${aggSig.initOpTypes}")
+        assert(args.fmap(_.typ) == aggSig.initOpTypes, s"${args.fmap(_.typ)} !=  ${aggSig.initOpTypes}")
       case x@SeqOp(_, args, aggSig) =>
-        assert(args.map(_.typ) == aggSig.seqOpTypes)
+        assert(args.fmap(_.typ) == aggSig.seqOpTypes)
       case _: CombOp =>
       case _: ResultOp =>
       case AggStateValue(i, sig) =>
@@ -470,17 +470,17 @@ object TypeCheck {
         }
       case x@ApplyAggOp(initOpArgs, seqOpArgs, aggSig) =>
         assert(x.typ == aggSig.returnType)
-        assert(initOpArgs.map(_.typ).zip(aggSig.initOpArgs).forall { case (l, r) => l == r })
-        assert(seqOpArgs.map(_.typ).zip(aggSig.seqOpArgs).forall { case (l, r) => l == r })
+        assert(initOpArgs.fmap(_.typ).zip(aggSig.initOpArgs).forall { case (l, r) => l == r })
+        assert(seqOpArgs.fmap(_.typ).zip(aggSig.seqOpArgs).forall { case (l, r) => l == r })
       case x@ApplyScanOp(initOpArgs, seqOpArgs, aggSig) =>
         assert(x.typ == aggSig.returnType)
-        assert(initOpArgs.map(_.typ).zip(aggSig.initOpArgs).forall { case (l, r) => l == r })
-        assert(seqOpArgs.map(_.typ).zip(aggSig.seqOpArgs).forall { case (l, r) => l == r })
+        assert(initOpArgs.fmap(_.typ).zip(aggSig.initOpArgs).forall { case (l, r) => l == r })
+        assert(seqOpArgs.fmap(_.typ).zip(aggSig.seqOpArgs).forall { case (l, r) => l == r })
       case x@AggFold(zero, seqOp, combOp, elementName, accumName, _) =>
         assert(zero.typ == seqOp.typ)
         assert(zero.typ == combOp.typ)
       case x@MakeStruct(fields) =>
-        assert(x.typ == TStruct(fields.map { case (name, a) =>
+        assert(x.typ == TStruct(fields.fmap { case (name, a) =>
           (name, a.typ)
         }: _*))
       case x@SelectFields(old, fields) =>
@@ -490,7 +490,7 @@ object TypeCheck {
         }
       case x@InsertFields(old, fields, fieldOrder) =>
         fieldOrder.foreach { fds =>
-          val newFieldSet = fields.map(_._1).toSet
+          val newFieldSet = fields.fmap(_._1).toSet
           val oldFieldNames = old.typ.asInstanceOf[TStruct].fieldNames
           val oldFieldNameSet = oldFieldNames.toSet
           assert(fds.length == x.typ.size)
@@ -502,10 +502,10 @@ object TypeCheck {
         assert(t.index(name).nonEmpty, s"$name not in $t")
         assert(x.typ == t.field(name).typ)
       case x@MakeTuple(fields) =>
-        val indices = fields.map(_._1)
+        val indices = fields.fmap(_._1)
         assert(indices.areDistinct())
         assert(indices.isSorted)
-        assert(x.typ == TTuple(fields.map { case (idx, f) => TupleField(idx, f.typ)}.toFastSeq))
+        assert(x.typ == TTuple(fields.fmap { case (idx, f) => TupleField(idx, f.typ)}.toFastSeq))
       case x@GetTupleElement(o, idx) =>
         val t = tcoerce[TTuple](o.typ)
         val fd = t.fields(t.fieldIndex(idx))
@@ -522,7 +522,7 @@ object TypeCheck {
       case ConsoleLog(msg, _) => assert(msg.typ == TString)
       case x@ApplyIR(fn, typeArgs, args, _) =>
       case x: AbstractApplyNode[_] =>
-        assert(x.implementation.unify(x.typeArgs, x.args.map(_.typ), x.returnType))
+        assert(x.implementation.unify(x.typeArgs, x.args.fmap(_.typ), x.returnType))
       case MatrixWrite(_, _) =>
       case MatrixMultiWrite(_, _) => // do nothing
       case x@TableAggregate(child, query) =>

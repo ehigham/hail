@@ -31,7 +31,7 @@ case class ENDArrayColumnMajor(elementType: EType, nDims: Int, required: Boolean
     val pnd = st.pType
     val readElemF = elementType.buildInplaceDecoder(pnd.elementType, cb.emb.ecb)
 
-    val shapeVars = (0 until nDims).map(i => cb.newLocal[Long](s"ndarray_decoder_shape_$i", in.readLong()))
+    val shapeVars = (0 until nDims).fmap(i => cb.newLocal[Long](s"ndarray_decoder_shape_$i", in.readLong()))
     val totalNumElements = cb.newLocal[Long]("ndarray_decoder_total_num_elements", 1L)
     shapeVars.foreach { s =>
       cb.assign(totalNumElements, totalNumElements * s)

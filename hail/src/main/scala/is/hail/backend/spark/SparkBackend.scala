@@ -588,14 +588,14 @@ class SparkBackend(
       case json4s.JObject(values) => values.toMap
     }
 
-    val paths = kvs("paths").asInstanceOf[json4s.JArray].arr.toArray.map { case json4s.JString(s) => s }
+    val paths = kvs("paths").asInstanceOf[json4s.JArray].arr.toArray.fmap { case json4s.JString(s) => s }
 
     val intervalPointType = parseType(kvs("intervalPointType").asInstanceOf[json4s.JString].s)
     val intervalObjects = JSONAnnotationImpex.importAnnotation(kvs("intervals"), TArray(TInterval(intervalPointType)))
       .asInstanceOf[IndexedSeq[Interval]]
 
     val opts = NativeReaderOptions(intervalObjects, intervalPointType, filterIntervals = false)
-    val matrixReaders: IndexedSeq[MatrixIR] = paths.map { p =>
+    val matrixReaders: IndexedSeq[MatrixIR] = paths.fmap { p =>
       log.info(s"creating MatrixRead node for $p")
       val mnr = MatrixNativeReader(fs, p, Some(opts))
       MatrixRead(mnr.fullMatrixTypeWithoutUIDs, false, false, mnr): MatrixIR
@@ -713,11 +713,11 @@ class SparkBackend(
     val globalsLit = globals.toEncodedLiteral(ctx.theHailClassLoader)
 
     if (sortFields.forall(_.sortOrder == Ascending)) {
-      return RVDTableReader(rvd.changeKey(ctx, sortFields.map(_.field)), globalsLit, rt)
+      return RVDTableReader(rvd.changeKey(ctx, sortFields.fmap(_.field)), globalsLit, rt)
     }
 
     val rowType = rvd.rowType
-    val sortColIndexOrd = sortFields.map { case SortField(n, so) =>
+    val sortColIndexOrd = sortFields.fmap { case SortField(n, so) =>
       val i = rowType.fieldIdx(n)
       val f = rowType.fields(i)
       val fo = f.typ.ordering(ctx.stateManager)
@@ -729,7 +729,7 @@ class SparkBackend(
     val act = implicitly[ClassTag[Annotation]]
 
     val codec = TypedCodecSpec(rvd.rowPType, BufferSpec.wireSpec)
-    val rdd = rvd.keyedEncodedRDD(ctx, codec, sortFields.map(_.field)).sortBy(_._1, numPartitions = nPartitions.getOrElse(rvd.getNumPartitions))(ord, act)
+    val rdd = rvd.keyedEncodedRDD(ctx, codec, sortFields.fmap(_.field)).sortBy(_._1, numPartitions = nPartitions.getOrElse(rvd.getNumPartitions))(ord, act)
     val (rowPType: PStruct, orderedCRDD) = codec.decodeRDD(ctx, rowType, rdd.map(_._2))
     RVDTableReader(RVD.unkeyed(rowPType, orderedCRDD), globalsLit, rt)
   }

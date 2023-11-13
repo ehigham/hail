@@ -87,7 +87,7 @@ object BgenWriter {
 
   def writeSampleFile(fs: FS, path: String, sampleIds: Array[String]) {
     fs.writeTable(path + ".sample",
-      "ID_1 ID_2 missing" :: "0 0 0" :: sampleIds.map(s => s"$s $s 0").toList)
+      "ID_1 ID_2 missing" :: "0 0 0" :: sampleIds.fmap(s => s"$s $s 0").toList)
   }
 
   def roundWithConstantSum(input: Array[Double], fractional: Array[Double], index: Array[Int],

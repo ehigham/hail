@@ -7,7 +7,7 @@ import is.hail.expr.ir._
 import is.hail.expr.ir.lowering.{DArrayLowering, LowerTableIR}
 import is.hail.rvd.RVDPartitioner
 import is.hail.types.virtual._
-import is.hail.utils.{FastSeq, HailException, Interval}
+import is.hail.utils.{FastSeq, HailException, Interval, toRichIndexedSeq}
 import is.hail.{ExecStrategy, HailSuite}
 import org.apache.spark.sql.Row
 import org.scalatest.Matchers._
@@ -86,7 +86,7 @@ class TableGenSuite extends HailSuite {
   def testLowering: Unit = {
     val table = TestUtils.collect(mkTableGen())
     val lowered = LowerTableIR(table, DArrayLowering.All, ctx, LoweringAnalyses(table, ctx))
-    assertEvalsTo(lowered, Row(FastSeq(0, 0).map(Row(_)), Row(0)))
+    assertEvalsTo(lowered, Row(FastSeq(0, 0).fmap(Row(_)), Row(0)))
   }
 
   @Test(groups = Array("lowering"))

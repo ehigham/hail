@@ -21,10 +21,10 @@ final case class RVDType(rowType: PStruct, key: IndexedSeq[String])
 
   val keySet: Set[String] = key.toSet
 
-  val kType: PStruct = rowType.typeAfterSelect(key.map(rowType.fieldIdx))
+  val kType: PStruct = rowType.typeAfterSelect(key.fmap(rowType.fieldIdx))
   val valueType: PStruct = rowType.dropFields(keySet)
 
-  val kFieldIdx: Array[Int] = key.map(n => rowType.fieldIdx(n)).toArray
+  val kFieldIdx: Array[Int] = key.fmap(n => rowType.fieldIdx(n)).toArray
   val valueFieldIdx: Array[Int] = (0 until rowType.size)
     .filter(i => !keySet.contains(rowType.fields(i).name))
     .toArray
@@ -124,8 +124,8 @@ final case class RVDType(rowType: PStruct, key: IndexedSeq[String])
 
   def toJSON: JValue =
     JObject(List(
-      "partitionKey" -> JArray(key.map(JString).toList),
-      "key" -> JArray(key.map(JString).toList),
+      "partitionKey" -> JArray(key.fmap(JString).toList),
+      "key" -> JArray(key.fmap(JString).toList),
       "rowType" -> JString(rowType.toString)))
 
   override def toString: String = {
@@ -148,7 +148,7 @@ object RVDType {
     t2: PStruct, fields2: Array[Int],
     missingEqual: Boolean=true
   ): UnsafeOrdering = {
-    val fieldOrderings = Range(0, fields1.length).map { i =>
+    val fieldOrderings = Range(0, fields1.length).fmap { i =>
       t1.types(fields1(i)).unsafeOrdering(sm, t2.types(fields2(i)))
     }.toArray
 

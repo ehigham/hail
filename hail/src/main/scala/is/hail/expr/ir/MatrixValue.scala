@@ -28,7 +28,7 @@ case class MatrixValue(
     rvb.start(newT)
     rvb.startStruct()
     rvb.addFields(prevGlobals.t, prevGlobals.value,
-      prevGlobals.t.fields.filter(_.name != LowerMatrixIR.colsFieldName).map(_.index).toArray)
+      prevGlobals.t.fields.filter(_.name != LowerMatrixIR.colsFieldName).fmap(_.index).toArray)
     rvb.endStruct()
     BroadcastRow(tv.ctx, RegionValue(prevGlobals.value.region, rvb.end()), newT)
   }
@@ -66,20 +66,20 @@ case class MatrixValue(
     val colKeyTypes = typ.colKeyStruct.types
     assert(colKeyTypes.length == 1 && colKeyTypes(0) == TString, colKeyTypes.toSeq)
     val querier = typ.colType.query(typ.colKey(0))
-    colValues.javaValue.map(querier(_).asInstanceOf[String])
+    colValues.javaValue.fmap(querier(_).asInstanceOf[String])
   }
 
   def requireUniqueSamples(method: String) {
     val dups = stringSampleIds.counter().filter(_._2 > 1).toArray
     if (dups.nonEmpty)
       fatal(s"Method '$method' does not support duplicate column keys. Duplicates:" +
-        s"\n  @1", dups.sortBy(-_._2).map { case (id, count) => s"""($count) "$id"""" }.truncatable("\n  "))
+        s"\n  @1", dups.sortBy(-_._2).fmap { case (id, count) => s"""($count) "$id"""" }.truncatable("\n  "))
   }
 
   private def writeCols(ctx: ExecuteContext, path: String, bufferSpec: BufferSpec): Long = {
     val fs = ctx.fs
     val fileData = AbstractRVDSpec.writeSingle(ctx, path + "/rows", colValues.t.elementType.asInstanceOf[PStruct], bufferSpec, colValues.javaValue)
-    val partitionCounts = fileData.map(_.rowsWritten)
+    val partitionCounts = fileData.fmap(_.rowsWritten)
 
     val colsSpec = TableSpecParameters(
       FileFormat.version.rep,
@@ -93,13 +93,13 @@ case class MatrixValue(
 
     using(fs.create(path + "/_SUCCESS"))(out => ())
 
-    fileData.map(_.bytesWritten).sum
+    fileData.fmap(_.bytesWritten).sum
   }
 
   private def writeGlobals(ctx: ExecuteContext, path: String, bufferSpec: BufferSpec): Long = {
     val fs = ctx.fs
     val fileData = AbstractRVDSpec.writeSingle(ctx, path + "/rows", globals.t, bufferSpec, Array(globals.javaValue))
-    val partitionCounts = fileData.map(_.rowsWritten)
+    val partitionCounts = fileData.fmap(_.rowsWritten)
 
     AbstractRVDSpec.writeSingle(ctx, path + "/globals", PCanonicalStruct.empty(required = true), bufferSpec, Array[Annotation](Row()))
 
@@ -114,7 +114,7 @@ case class MatrixValue(
     globalsSpec.write(fs, path)
 
     using(fs.create(path + "/_SUCCESS"))(out => ())
-    fileData.map(_.bytesWritten).sum
+    fileData.fmap(_.bytesWritten).sum
   }
 
   private def finalizeWrite(
@@ -129,7 +129,7 @@ case class MatrixValue(
     fs.mkDir(globalsPath)
     val globalBytesWritten = writeGlobals(ctx, globalsPath, bufferSpec)
 
-    val partitionCounts = fileData.map(_.rowsWritten)
+    val partitionCounts = fileData.fmap(_.rowsWritten)
 
     val rowsSpec = TableSpecParameters(
       FileFormat.version.rep,
@@ -183,7 +183,7 @@ case class MatrixValue(
     val nRows = partitionCounts.sum
     val printer: String => Unit = if (consoleInfo) info else log.info
 
-    val partitionBytesWritten = fileData.map(_.bytesWritten)
+    val partitionBytesWritten = fileData.fmap(_.bytesWritten)
     val totalRowsEntriesBytes = partitionBytesWritten.sum
     val totalBytesWritten: Long = totalRowsEntriesBytes + colBytesWritten + globalBytesWritten
     val (smallestStr, largestStr) = if (fileData.isEmpty) ("N/A", "N/A") else {
@@ -282,7 +282,7 @@ object MatrixValue {
       fs.mkDir(path)
     }
 
-    val fileData = RVD.writeRowsSplitFiles(ctx, mvs.map(_.rvd), paths, bufferSpec, stageLocally)
+    val fileData = RVD.writeRowsSplitFiles(ctx, mvs.fmap(_.rvd), paths, bufferSpec, stageLocally)
     (mvs, paths, fileData).zipped.foreach { case (mv, path, fd) =>
       mv.finalizeWrite(ctx, path, bufferSpec, fd, consoleInfo = false)
     }

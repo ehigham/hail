@@ -67,7 +67,7 @@ case class BlockMatrixNativeMetadataWriter(path: String, stageLocally: Boolean, 
 
   case class BMMetadataHelper(path: String, blockSize: Int, nRows: Long, nCols: Long, partIdxToBlockIdx: Option[IndexedSeq[Int]]) {
     def write(fs: FS, rawPartFiles: Array[String]): Unit = {
-      val partFiles = rawPartFiles.map(_.split('/').last)
+      val partFiles = rawPartFiles.fmap(_.split('/').last)
       using(new DataOutputStream(fs.create(s"$path/metadata.json"))) { os =>
         implicit val formats = defaultJSONFormats
         jackson.Serialization.write(

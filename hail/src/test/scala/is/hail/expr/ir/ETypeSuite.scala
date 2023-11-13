@@ -33,7 +33,7 @@ class ETypeSuite extends HailSuite {
       EBaseStruct(FastSeq(), required = true),
       EBaseStruct(FastSeq(EField("x", EBinaryRequired, 0), EField("y", EFloat64Optional, 1)), required = true),
       ENDArrayColumnMajor(EFloat64Required , 3)
-    ).map(t => Array(t: Any))
+    ).fmap(t => Array(t: Any))
   }
 
   @Test def testDataProvider(): Unit = {
@@ -123,7 +123,7 @@ class ETypeSuite extends HailSuite {
 
     val pTypeFloat1 = PCanonicalNDArray(PFloat32Required, 1, true)
     val eTypeFloat1 = ENDArrayColumnMajor(EFloat32Required, 1, true)
-    val dataFloat1 = new SafeNDArray(IndexedSeq(5L), (0 until 5).map(_.toFloat))
+    val dataFloat1 = new SafeNDArray(IndexedSeq(5L), (0 until 5).fmap(_.toFloat))
 
     assertEqualEncodeDecode(pTypeFloat1, eTypeFloat1, pTypeFloat1, dataFloat1)
 
@@ -165,7 +165,7 @@ class ETypeSuite extends HailSuite {
     val etype = EArray(EBinary(false), false)
     val toEncode = PCanonicalArray(PCanonicalStringRequired, false)
     val toDecode = PCanonicalArray(PCanonicalStringOptional, false)
-    val longListOfStrings = (0 until 36).map(idx => s"foo_name_sample_${idx}")
+    val longListOfStrings = (0 until 36).fmap(idx => s"foo_name_sample_${idx}")
     val data = longListOfStrings
 
     assert(encodeDecode(toEncode, etype, toDecode, data) == data)

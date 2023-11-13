@@ -3,7 +3,7 @@ package is.hail.check
 import breeze.linalg.DenseMatrix
 import breeze.storage.Zero
 import is.hail.check.Arbitrary.arbitrary
-import is.hail.utils.roundWithConstantSum
+import is.hail.utils.{arrayToRichIndexedSeq, roundWithConstantSum, toRichIndexedSeq}
 import org.apache.commons.math3.random._
 
 import scala.collection.generic.CanBuildFrom
@@ -41,7 +41,7 @@ object Gen {
     Gen { (p: Parameters) => nCubeOfVolumeAtMost(p.rng, n, p.size) }
 
   def nonEmptyNCubeOfVolumeAtMostSize(n: Int): Gen[Array[Int]] =
-    Gen { (p: Parameters) => nCubeOfVolumeAtMost(p.rng, n, p.size).map(x => if (x == 0) 1 else x).toArray }
+    Gen { (p: Parameters) => nCubeOfVolumeAtMost(p.rng, n, p.size).map(x => if (x == 0) 1 else x) }
 
   def partition[T](rng: RandomDataGenerator, size: T, parts: Int, f: (RandomDataGenerator, T) => T)(implicit tn: Numeric[T], tct: ClassTag[T]): Array[T] = {
     import tn.mkOrderingOps
@@ -89,20 +89,20 @@ object Gen {
     **/
   def partitionDirichlet(rng: RandomDataGenerator, size: Int, parts: Int): Array[Int] = {
     val simplexVector = sampleDirichlet(rng, Array.fill(parts)(parts.toDouble))
-    roundWithConstantSum(simplexVector.map((x: Double) => x * size).toArray)
+    roundWithConstantSum(simplexVector.fmap((x: Double) => x * size))
   }
 
   def nCubeOfVolumeAtMost(rng: RandomDataGenerator, n: Int, size: Int, alpha: Int = 1): Array[Int] = {
     val sizeOfSum = math.log(size)
     val simplexVector = sampleDirichlet(rng, Array.fill(n)(alpha.toDouble))
-    roundWithConstantSum(simplexVector.map((x: Double) => x * sizeOfSum).toArray)
-      .map(x => math.exp(x).toInt).toArray
+    roundWithConstantSum(simplexVector.fmap((x: Double) => x * sizeOfSum))
+      .fmap(x => math.exp(x).toInt)
   }
 
   private def sampleDirichlet(rng: RandomDataGenerator, alpha: Array[Double]): Array[Double] = {
-    val draws = alpha.map(rng.nextGamma(_, 1))
+    val draws = alpha.fmap(rng.nextGamma(_, 1))
     val sum = draws.sum
-    draws.map((x: Double) => x / sum).toArray
+    draws.fmap((x: Double) => x / sum)
   }
 
   def partition(parts: Int, sum: Int): Gen[Array[Int]] =
@@ -119,14 +119,14 @@ object Gen {
 
   def size: Gen[Int] = Gen { p => p.size }
 
-  val printableChars = (0 to 127).map(_.toChar).filter(!_.isControl).toArray
-  val identifierLeadingChars = (0 to 127).map(_.toChar)
+  val printableChars = (0 to 127).fmap(_.toChar).filter(!_.isControl)
+  val identifierLeadingChars = (0 to 127).fmap(_.toChar)
     .filter(c => c == '_' || c.isLetter)
-  val identifierChars = (0 to 127).map(_.toChar)
+  val identifierChars = (0 to 127).fmap(_.toChar)
     .filter(c => c == '_' || c.isLetterOrDigit)
-  val plinkSafeStartOfIdentifierChars = (0 to 127).map(_.toChar)
+  val plinkSafeStartOfIdentifierChars = (0 to 127).fmap(_.toChar)
     .filter(c => c.isLetter)
-  val plinkSafeChars = (0 to 127).map(_.toChar)
+  val plinkSafeChars = (0 to 127).fmap(_.toChar)
     .filter(c => c.isLetterOrDigit)
 
   def apply[T](gen: (Parameters) => T): Gen[T] = new Gen[T](gen)
@@ -201,7 +201,7 @@ object Gen {
   }
 
   def chooseWithWeights(weights: Array[Double]): Gen[Int] =
-    frequency(weights.zipWithIndex.map { case (w, i) => (w, Gen.const(i)) }: _*)
+    frequency(weights.zipWithIndex.fmap { case (w, i) => (w, Gen.const(i)) }: _*)
 
   def frequency[T, U](wxs: (T, Gen[U])*)(implicit ev: scala.math.Numeric[T]): Gen[U] = {
     import Numeric.Implicits._

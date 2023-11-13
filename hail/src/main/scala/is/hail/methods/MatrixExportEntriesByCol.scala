@@ -32,9 +32,9 @@ case class MatrixExportEntriesByCol(parallelism: Int, path: String, bgzip: Boole
         fatal("export_entries_by_col cannot export with 'use_string_key_as_file_name' with duplicate keys")
       ids
     } else
-      Array.tabulate(mv.nCols)(i => partFile(padding, i))
+      FastSeq.tabulate(mv.nCols)(i => partFile(padding, i))
 
-    val allColValuesJSON = mv.colValues.javaValue.map(TableAnnotationImpex.exportAnnotation(_, mv.typ.colType)).toArray
+    val allColValuesJSON = mv.colValues.javaValue.fmap(TableAnnotationImpex.exportAnnotation(_, mv.typ.colType)).toArray
 
     val tempFolders = new BoxedArrayBuilder[String]
 
@@ -62,7 +62,7 @@ case class MatrixExportEntriesByCol(parallelism: Int, path: String, bgzip: Boole
 
       val colValuesJSON = HailContext.backend.broadcast(
         (startIdx until endIdx)
-          .map(allColValuesJSON)
+          .fmap(allColValuesJSON)
           .toArray)
 
       val fsBc = fs.broadcast
@@ -71,13 +71,13 @@ case class MatrixExportEntriesByCol(parallelism: Int, path: String, bgzip: Boole
 
         val partFolder = partFileBase + partFile(d, i, TaskContext.get())
 
-        val filePaths = Array.tabulate(endIdx - startIdx) { j =>
+        val filePaths = FastSeq.tabulate(endIdx - startIdx) { j =>
           val finalPath = partFolder + "/" + j.toString + extension
           val tempPath = ExecuteContext.createTmpPathNoCleanup(localTempDir, "EEBC", extension = extension)
           (tempPath, finalPath)
         }
 
-        val fileHandles = filePaths.map { case (tmp, _) =>
+        val fileHandles = filePaths.fmap { case (tmp, _) =>
           new OutputStreamWriter(new BufferedOutputStream(fsBc.value.create(tmp)), "UTF-8")
         }
 
@@ -106,7 +106,7 @@ case class MatrixExportEntriesByCol(parallelism: Int, path: String, bgzip: Boole
 
           val rowFieldStrs = (0 until rvType.size)
             .filter(_ != entriesIdx)
-            .map { rowFieldIdx =>
+            .fmap { rowFieldIdx =>
               TableAnnotationImpex.exportAnnotation(fullRow(rowFieldIdx), rvType.types(rowFieldIdx).virtualType)
             }.toArray
 
@@ -150,7 +150,7 @@ case class MatrixExportEntriesByCol(parallelism: Int, path: String, bgzip: Boole
       val newFiles = mv.sparkContext.parallelize(0 until ns, numSlices = ns)
         .map { sampleIdx =>
           val partFilePath = path + "/" + partFile(digitsNeeded(nCols), sampleIdx, TaskContext.get)
-          val fileListEntries = partFolders.map(pf => fsBc.value.fileListEntry(pf + s"/$sampleIdx" + extension))
+          val fileListEntries = partFolders.fmap(pf => fsBc.value.fileListEntry(pf + s"/$sampleIdx" + extension))
           fsBc.value.copyMergeList(fileListEntries, partFilePath, deleteSource = false)
           partFilePath
         }.collect()
@@ -171,7 +171,7 @@ case class MatrixExportEntriesByCol(parallelism: Int, path: String, bgzip: Boole
     }
     fs.delete(path + "/tmp", recursive = true)
 
-    fs.writeTable(path + "/index.tsv", allColValuesJSON.zipWithIndex.map { case (json, i) =>
+    fs.writeTable(path + "/index.tsv", allColValuesJSON.zipWithIndex.fmap { case (json, i) =>
       s"${ finalPath(i) }\t$json"
     })
 

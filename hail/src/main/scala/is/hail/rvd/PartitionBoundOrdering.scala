@@ -14,7 +14,7 @@ object PartitionBoundOrdering {
 
   def apply(sm: HailStateManager, _kType: Type): ExtendedOrdering = {
     val kType = _kType.asInstanceOf[TBaseStruct]
-    val fieldOrd = kType.types.map(_.ordering(sm))
+    val fieldOrd = kType.types.fmap(_.ordering(sm))
 
     new ExtendedOrdering {
       outer =>

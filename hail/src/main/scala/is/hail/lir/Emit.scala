@@ -19,7 +19,7 @@ object Emit {
     val mv = cv.visitMethod(ACC_PUBLIC | static, m.name, m.desc, null, null)
     mv.visitCode()
 
-    val labels = blocks.map(L => L -> new Label).toMap
+    val labels = blocks.fmap(L => L -> new Label).toMap
 
     val localIndex: mutable.Map[Local, Int] = mutable.Map[Local, Int]()
 
@@ -114,7 +114,7 @@ object Emit {
           mv.visitJumpInsn(GOTO, labels(x.L))
         case x: SwitchX =>
           assert(x.Lcases.nonEmpty)
-          mv.visitTableSwitchInsn(0, x.Lcases.length - 1, labels(x.Ldefault), x.Lcases.map(labels): _*)
+          mv.visitTableSwitchInsn(0, x.Lcases.length - 1, labels(x.Ldefault), x.Lcases.fmap(labels): _*)
         case x: ReturnX =>
           if (x.children.length == 0)
             mv.visitInsn(RETURN)

@@ -261,7 +261,7 @@ object GenericLines {
     filePerPartition: Boolean = false
   ): GenericLines = {
     val fileListEntries = fileListEntries0.zipWithIndex.filter(_._1.getLen > 0)
-    val totalSize = fileListEntries.map(_._1.getLen).sum
+    val totalSize = fileListEntries.fmap(_._1.getLen).sum
 
     var totalPartitions = nPartitions match {
       case Some(nPartitions) => nPartitions
@@ -288,14 +288,13 @@ object GenericLines {
 
         val parts = partition(size, fileNParts)
         val partScan = parts.scanLeft(0L)(_ + _)
-        Iterator.range(0, fileNParts)
-          .map { i =>
-            val start = partScan(i)
-            var end = partScan(i + 1)
-            if (codec != null)
-              end = makeVirtualOffset(end, 0)
-            Row(i, fileNum, fileListEntry.getPath, start, end, true)
-          }
+        (0 until fileNParts).fmap { i =>
+          val start = partScan(i)
+          var end = partScan(i + 1)
+          if (codec != null)
+            end = makeVirtualOffset(end, 0)
+          Row(i, fileNum, fileListEntry.getPath, start, end, true)
+        }
       } else {
         if (!allowSerialRead && !filePerPartition)
           fatal(s"Cowardly refusing to read file serially: ${ fileListEntry.getPath }.")
@@ -317,10 +316,10 @@ object GenericLines {
           if (mappings.length > 1)
             fatal(s"contig_recoding may not map multiple contigs to the same target contig, " +
               s"due to ambiguity when querying the tabix index." +
-            s"\n  Duplicate mappings: ${ mappings.map(_._1).mkString(",") } all map to ${ target }")
+            s"\n  Duplicate mappings: ${ mappings.fmap(_._1).mkString(",") } all map to ${ target }")
             (target, mappings.head._1)
-        }.toMap
-    val contexts = partitions.zipWithIndex.map { case (interval, i) =>
+        }
+    val contexts = partitions.zipWithIndex.fmap { case (interval, i) =>
       val start = interval.start.asInstanceOf[Row].getAs[Locus](0)
       val end = interval.end.asInstanceOf[Row].getAs[Locus](0)
       val contig = reverseContigMapping.getOrElse(start.contig, start.contig)
@@ -443,9 +442,9 @@ class GenericLinesRDD(
 ) extends RDD[GenericLine](SparkBackend.sparkContext("GenericLinesRDD"), Seq()) {
 
   protected def getPartitions: Array[Partition] =
-    contexts.iterator.zipWithIndex.map { case (c, i) =>
+    contexts.zipWithIndex.fmap { case (c, i) =>
       new GenericLinesRDDPartition(i, c)
-    }.toArray
+    }
 
   def compute(split: Partition, context: TaskContext): Iterator[GenericLine] = {
     val it = body(split.asInstanceOf[GenericLinesRDDPartition].context)

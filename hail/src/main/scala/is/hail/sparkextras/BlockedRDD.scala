@@ -13,7 +13,7 @@ case class BlockedRDDPartition(@transient rdd: RDD[_],
   last: Int) extends Partition {
   require(first <= last)
 
-  val parentPartitions: Array[Partition] = range.map(rdd.partitions).toArray
+  val parentPartitions: Array[Partition] = range.fmap(rdd.partitions).toArray
 
   def range: Range = first to last
 }
@@ -24,10 +24,10 @@ class BlockedRDD[T](@transient var prev: RDD[T],
 )(implicit tct: ClassTag[T]) extends RDD[T](prev.sparkContext, Nil) {
   assert(partFirst.length == partLast.length)
 
-  override def getPartitions: Array[Partition] = {
-    Array.tabulate[Partition](partFirst.length)(i =>
-      BlockedRDDPartition(prev, i, partFirst(i), partLast(i)))
-  }
+  override protected def getPartitions: Array[Partition] =
+    partFirst.indices fmap[Partition] { i =>
+      BlockedRDDPartition(prev, i, partFirst(i), partLast(i))
+    }
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
     val parent = dependencies.head.rdd.asInstanceOf[RDD[T]]

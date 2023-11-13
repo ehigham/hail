@@ -7,7 +7,7 @@ import is.hail.linalg.BlockMatrixMetadata
 import is.hail.rvd.AbstractRVDSpec
 import is.hail.types.virtual._
 import is.hail.types.{MatrixType, TableType}
-import is.hail.utils.{FastSeq, using}
+import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq, using}
 import is.hail.{HAIL_PRETTY_VERSION, HailSuite}
 import org.json4s.JValue
 import org.testng.annotations.{DataProvider, Test}
@@ -123,7 +123,7 @@ class SemanticHashSuite extends HailSuite {
       ), {
 
         def f(mkType: Int => Type, get: (IR, Int) => IR, isSame: Boolean, reason: String) =
-          Array.tabulate(2) { idx => bindIR(NA(mkType(idx)))(get(_, idx)) } ++ Array(isSame, reason)
+          (0 until 2 fmap { idx => bindIR(NA(mkType(idx)))(get(_, idx)) }) ++ Array(isSame, reason)
 
         Array(
           f(
@@ -200,7 +200,7 @@ class SemanticHashSuite extends HailSuite {
         path => TableNativeZippedReader(path + ".left", path + ".right", None, mkFakeTableSpec(ttype), mkFakeTableSpec(ttypeb)),
 
       )
-        .map(mkTableRead _ compose _)
+        .fmap(mkTableRead _ compose _)
         .flatMap { reader =>
           Array(
             Array(reader("/fake/table"), reader("/fake/table"), true, "read same table"),
@@ -219,7 +219,7 @@ class SemanticHashSuite extends HailSuite {
         TableMapGlobals(_, MakeStruct(IndexedSeq.empty)),
         TableMapRows(_, MakeStruct(FastSeq("a" -> I32(0)))),
         TableRename(_, Map.empty, Map.empty),
-      ).map { wrap =>
+      ).fmap { wrap =>
         Array(wrap(tir), wrap(tir), true, "")
       }
     )
@@ -230,7 +230,7 @@ class SemanticHashSuite extends HailSuite {
       path => BlockMatrixBinaryReader(path, Array(1L, 1L), 1),
       path => new BlockMatrixNativeReader(BlockMatrixNativeReaderParameters(path), BlockMatrixMetadata(1, 1, 1, None, IndexedSeq.empty))
     )
-      .map(BlockMatrixRead compose _)
+      .fmap(BlockMatrixRead compose _)
       .flatMap { reader =>
         Array(
           Array(reader("/fake/block-matrix"), reader("/fake/block-matrix"), true, "Read same block matrix"),

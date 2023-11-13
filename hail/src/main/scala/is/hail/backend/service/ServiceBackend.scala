@@ -199,7 +199,7 @@ class ServiceBackend(
     uploadFunction.get()
     uploadContexts.get()
 
-    val jobs = collection.map { case (_, i) =>
+    val jobs = collection.fmap { case (_, i) =>
       var resources = JObject("preemptible" -> JBool(true))
       if (backendContext.workerCores != "None") {
         resources = resources.merge(JObject("cpu" -> JString(backendContext.workerCores)))
@@ -234,8 +234,8 @@ class ServiceBackend(
         ),
         "mount_tokens" -> JBool(true),
         "resources" -> resources,
-        "regions" -> JArray(backendContext.regions.map(JString).toList),
-        "cloudfuse" -> JArray(backendContext.cloudfuseConfig.map { config =>
+        "regions" -> JArray(backendContext.regions.fmap(JString).toList),
+        "cloudfuse" -> JArray(backendContext.cloudfuseConfig.fmap { config =>
           JObject(
             "bucket" -> JString(config.bucket),
             "mount_path" -> JString(config.mount_path),
@@ -278,7 +278,7 @@ class ServiceBackend(
     val startTime = System.nanoTime()
 
     val r@(_, results) = runAllKeepFirstError(executor) {
-      collection.map { case (_, i) =>
+      collection.fmap { case (_, i) =>
         (
           () => {
             val bytes = fs.readNoCompression(s"$root/result.$i")
@@ -300,7 +300,7 @@ class ServiceBackend(
 
     val resultsReadingSeconds = (System.nanoTime() - startTime) / 1000000000.0
     val rate = results.length / resultsReadingSeconds
-    val byterate = results.map(_._1.length).sum / resultsReadingSeconds / 1024 / 1024
+    val byterate = results.fmap(_._1.length).sum / resultsReadingSeconds / 1024 / 1024
     log.info(s"all results read. $resultsReadingSeconds s. $rate result/s. $byterate MiB/s.")
     r
   }

@@ -128,17 +128,17 @@ final class RegionPool private(strictMemoryCheck: Boolean, threadName: String, t
 
   def numFreeRegions(): Int = freeRegions.size
 
-  def numFreeBlocks(): Int = freeBlocks.map(_.size).sum
+  def numFreeBlocks(): Int = freeBlocks.fmap(_.size).sum
 
-  def bytesInBlocks(): Long = Region.SIZES.zip(blocks).map { case (size, block) => size * block }.sum[Long]
+  def bytesInBlocks(): Long = Region.SIZES.zip(blocks).fmap { case (size, block) => size * block }.sum[Long]
 
   def logStats(context: String): Unit = {
     val nFree = this.numFreeRegions()
     val nRegions = this.numRegions()
     val nBlocks = this.numFreeBlocks()
 
-    val freeBlockCounts = freeBlocks.map(_.size)
-    val usedBlockCounts = blocks.zip(freeBlockCounts).map { case (tot, free) => tot - free }
+    val freeBlockCounts = freeBlocks.fmap(_.size)
+    val usedBlockCounts = blocks.zip(freeBlockCounts).fmap { case (tot, free) => tot - free }
     info(
       s"""Region count for $context
          |    regions: $nRegions active, $nFree free
@@ -154,7 +154,7 @@ final class RegionPool private(strictMemoryCheck: Boolean, threadName: String, t
       s"${readableBytes(totalAllocatedBytes - inBlocks)} chunks), regions.size = ${regions.size}, " +
       s"$numJavaObjects current java objects, thread $threadID: $threadName")
 //    log.info("-----------STACK_TRACES---------")
-//    val stacks: String = regions.result().toIndexedSeq.flatMap(r => r.stackTrace.map((r.getTotalChunkMemory(), _))).foldLeft("")((a: String, b) => a + "\n" + b.toString())
+//    val stacks: String = regions.result().toIndexedSeq.flatMap(r => r.stackTrace.fmap((r.getTotalChunkMemory(), _))).foldLeft("")((a: String, b) => a + "\n" + b.toString())
 //    log.info(stacks)
 //    log.info("---------------END--------------")
   }

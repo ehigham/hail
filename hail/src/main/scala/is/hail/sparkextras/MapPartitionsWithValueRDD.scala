@@ -1,5 +1,6 @@
 package is.hail.sparkextras
 
+import is.hail.utils.arrayToRichIndexedSeq
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, TaskContext}
 
@@ -20,9 +21,8 @@ class MapPartitionsWithValueRDD[T: ClassTag, U: ClassTag, V](
 
   @transient override val partitioner = if (preservesPartitioning) firstParent[T].partitioner else None
 
-  override def getPartitions: Array[Partition] = {
-    firstParent[T].partitions.map(p => MapPartitionsWithValueRDDPartition(p, values(p.index)))
-  }
+  override def getPartitions: Array[Partition] =
+    firstParent[T].partitions.fmap(p => MapPartitionsWithValueRDDPartition(p, values(p.index)))
 
   override def compute(split: Partition, context: TaskContext): Iterator[U] = {
     val p = split.asInstanceOf[MapPartitionsWithValueRDDPartition[V]]

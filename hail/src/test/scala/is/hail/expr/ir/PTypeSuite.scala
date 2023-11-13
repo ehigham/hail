@@ -32,7 +32,7 @@ class PTypeSuite extends HailSuite {
       PCanonicalInterval(PInt32Optional, false),
       PCanonicalTuple(FastSeq(PTupleField(1, PInt32Required), PTupleField(3, PCanonicalString(false))), true),
       PCanonicalStruct(FastSeq(PField("foo", PInt32Required, 0), PField("bar", PCanonicalString(false), 1)), true)
-    ).map(t => Array(t: Any))
+    ).fmap(t => Array(t: Any))
   }
 
   @Test def testPTypesDataProvider(): Unit = {

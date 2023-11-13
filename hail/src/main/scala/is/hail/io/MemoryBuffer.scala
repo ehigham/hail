@@ -1,8 +1,8 @@
 package is.hail.io
 
 import java.util
-
 import is.hail.annotations.{Memory, Region}
+import is.hail.utils.toRichIndexedSeq
 
 final class MemoryBuffer extends Serializable {
   var mem: Array[Byte] = new Array[Byte](8)
@@ -166,13 +166,13 @@ final class MemoryBuffer extends Serializable {
   }
 
   def dumpHexBytes(from: Int = 0, to: Int = end): Unit = {
-    val bytes = (from until to).map { i =>
+    val bytes = (from until to).fmap { i =>
       val x = (mem(i).toInt & 0xff).toHexString
       if (x.length == 1) "0" + x
       else x
     } .mkString(" ")
 
-    val index = (from until to by 4).map(i => String.format("%1$-12s", i.toString)).mkString("")
+    val index = (from until to by 4).fmap(i => String.format("%1$-12s", i.toString)).mkString("")
     println(s"bytes: $bytes")
     println(s"index: $index")
   }

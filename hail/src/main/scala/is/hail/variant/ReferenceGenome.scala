@@ -82,7 +82,7 @@ case class ReferenceGenome(name: String, contigs: Array[String], lengths: Map[St
 
   private val jLengths: java.util.HashMap[String, java.lang.Integer] = makeJavaMap(lengths.iterator.map { case (c, i) => (c, box(i))})
 
-  val lengthsByIndex: Array[Int] = contigs.map(lengths)
+  val lengthsByIndex: Array[Int] = contigs.fmap(lengths)
 
   lengths.foreach { case (n, l) =>
     if (l <= 0)
@@ -128,7 +128,7 @@ case class ReferenceGenome(name: String, contigs: Array[String], lengths: Map[St
     _locusType
   }
 
-  val par = parInput.map { case (start, end) =>
+  val par = parInput.fmap { case (start, end) =>
     if (start.contig != end.contig)
       fatal(s"The contigs for the 'start' and 'end' of a PAR interval must be the same. Found '$start-$end'.")
 
@@ -147,7 +147,7 @@ case class ReferenceGenome(name: String, contigs: Array[String], lengths: Map[St
 
   val globalPosContigStarts = {
     var pos = 0L
-    contigs.map { c =>
+    contigs.fmap { c =>
       val x = (c, pos)
       pos += contigLength(c)
       x
@@ -158,7 +158,7 @@ case class ReferenceGenome(name: String, contigs: Array[String], lengths: Map[St
 
   @transient private var globalContigEnds: Array[Long] = _
 
-  def getGlobalContigEnds: Array[Long] = contigs.map(contigLength(_).toLong).scan(0L)(_ + _).tail
+  def getGlobalContigEnds: Array[Long] = contigs.fmap(contigLength(_).toLong).scan(0L)(_ + _).tail
 
   def locusToGlobalPos(contig: String, pos: Int): Long =
     globalPosContigStarts(contig) + (pos - 1)
@@ -498,17 +498,17 @@ case class ReferenceGenome(name: String, contigs: Array[String], lengths: Map[St
   def write(fs: is.hail.io.fs.FS, file: String): Unit =
     using(fs.create(file)) { out =>
       val jrg = JSONExtractReferenceGenome(name,
-        contigs.map(contig => JSONExtractContig(contig, contigLength(contig))),
+        contigs.fmap(contig => JSONExtractContig(contig, contigLength(contig))),
         xContigs, yContigs, mtContigs,
-        par.map(i => JSONExtractIntervalLocus(i.start.asInstanceOf[Locus], i.end.asInstanceOf[Locus])))
+        par.fmap(i => JSONExtractIntervalLocus(i.start.asInstanceOf[Locus], i.end.asInstanceOf[Locus])))
       implicit val formats: Formats = defaultJSONFormats
       Serialization.write(jrg, out)
     }
 
   def toJSON: JSONExtractReferenceGenome = JSONExtractReferenceGenome(name,
-    contigs.map(contig => JSONExtractContig(contig, contigLength(contig))),
+    contigs.fmap(contig => JSONExtractContig(contig, contigLength(contig))),
     xContigs, yContigs, mtContigs,
-    par.map(i => JSONExtractIntervalLocus(i.start.asInstanceOf[Locus], i.end.asInstanceOf[Locus])))
+    par.fmap(i => JSONExtractIntervalLocus(i.start.asInstanceOf[Locus], i.end.asInstanceOf[Locus])))
 
   def toJSONString: String = {
     implicit val formats: Formats = defaultJSONFormats
@@ -663,7 +663,7 @@ object ReferenceGenome {
     mtContigs: Array[String], parInput: Array[String]): ReferenceGenome = {
     val parRegex = """(\w+):(\d+)-(\d+)""".r
 
-    val par = parInput.map {
+    val par = parInput.fmap {
       case parRegex(contig, start, end) => (Locus(contig.toString, start.toInt), Locus(contig.toString, end.toInt))
       case _ => fatal("expected PAR input of form contig:start-end")
     }
@@ -677,5 +677,5 @@ object ReferenceGenome {
     ReferenceGenome(name, contigs.asScala.toArray, lengths.asScala.toMap, xContigs.asScala.toArray, yContigs.asScala.toArray,
       mtContigs.asScala.toArray, parInput.asScala.toArray)
 
-  def getMapFromArray(arr: Array[ReferenceGenome]): Map[String, ReferenceGenome] = arr.map(rg => (rg.name, rg)).toMap
+  def getMapFromArray(arr: Array[ReferenceGenome]): Map[String, ReferenceGenome] = arr.fmap(rg => (rg.name, rg)).toMap
 }

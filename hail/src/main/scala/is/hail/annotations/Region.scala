@@ -236,7 +236,7 @@ object Region {
     val linewidth = 4
     s"$header\n" +
     Region.loadBytes(off, n)
-      .map(b => "%02x".format(b)).grouped(8).map(_.mkString(" "))
+      .fmap(b => "%02x".format(b)).grouped(8).map(_.mkString(" "))
       .grouped(linewidth).zipWithIndex
       .map { case (s, i) => "    %016x  ".format(off + (8 * 8 * linewidth * i)) + s.mkString("  ") }
       .mkString("\n")
@@ -430,7 +430,7 @@ object RegionUtils {
   def printBytes(off: Long, n: Int, header: String): String =
     Region.loadBytes(off, n).zipWithIndex
       .grouped(16)
-      .map(bs => bs.map { case (b, _) => "%02x".format(b) }.mkString("  %016x: ".format(off + bs(0)._2), " ", ""))
+      .map(bs => bs.fmap { case (b, _) => "%02x".format(b) }.mkString("  %016x: ".format(off + bs(0)._2), " ", ""))
       .mkString(if (header != null) s"$header\n" else "\n", "\n", "")
 
   def printBytes(off: Code[Long], n: Int, header: String): Code[String] =

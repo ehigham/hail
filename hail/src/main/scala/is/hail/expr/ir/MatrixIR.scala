@@ -192,9 +192,8 @@ abstract class MatrixHybridReader extends TableReaderWithExtraUID with MatrixRea
         val containedFields = ct.fieldNames.toSet
         val colValueIndices = fullMatrixType.colType.fields
           .filter(f => containedFields.contains(f.name))
-          .map(_.index)
-          .toArray
-        val arr = values.map(r => Row.fromSeq(colValueIndices.map(r.get))).toFastSeq
+          .fmap(_.index)
+        val arr = values.fmap(r => Row.fromSeq(colValueIndices.fmap(r.get))).toFastSeq
         BroadcastRow(ctx, Row(arr), requestedType)
       case None =>
         assert(requestedType == TStruct.empty)
@@ -301,7 +300,7 @@ class MatrixNativeReader(
       } else {
         val contextType = TStruct("partitionIndex" -> TInt64, "partitionPath" -> TString)
         val partNames = MakeArray(
-          partFiles.zipWithIndex.map { case (path, idx) =>
+          partFiles.zipWithIndex.fmap { case (path, idx) =>
             MakeStruct(Array("partitionIndex" -> I64(idx), "partitionPath" -> Str(path)))
           }, TArray(contextType))
         val elt = Ref(genUID(), contextType)
@@ -373,7 +372,7 @@ case class MatrixRangeReader(
 
   val columnCount: Option[Int] = Some(params.nCols)
 
-  lazy val partitionCounts: Option[IndexedSeq[Long]] = Some(partition(params.nRows, nPartitionsAdj).map(_.toLong))
+  lazy val partitionCounts: Option[IndexedSeq[Long]] = Some(partition(params.nRows, nPartitionsAdj).fmap(_.toLong))
 
   override def lower(requestedType: MatrixType, dropCols: Boolean, dropRows: Boolean): TableIR = {
     val nRowsAdj = if (dropRows) 0 else params.nRows
@@ -531,9 +530,9 @@ case class MatrixCollectColsByKey(child: MatrixIR) extends MatrixIR {
   }
 
   val typ: MatrixType = {
-    val newColValueType = TStruct(child.typ.colValueStruct.fields.map(f => f.copy(typ = TArray(f.typ))))
+    val newColValueType = TStruct(child.typ.colValueStruct.fields.fmap(f => f.copy(typ = TArray(f.typ))))
     val newColType = child.typ.colKeyStruct ++ newColValueType
-    val newEntryType = TStruct(child.typ.entryType.fields.map(f => f.copy(typ = TArray(f.typ))))
+    val newEntryType = TStruct(child.typ.entryType.fields.fmap(f => f.copy(typ = TArray(f.typ))))
 
     child.typ.copy(colType = newColType, entryType = newEntryType)
   }
@@ -610,11 +609,12 @@ case class MatrixUnionCols(left: MatrixIR, right: MatrixIR, joinType: String) ex
   else
     left.typ.copy(
       rowType = newRowType,
-      colType = TStruct(left.typ.colType.fields.map(f => f.copy(typ = f.typ))),
-      entryType = TStruct(left.typ.entryType.fields.map(f => f.copy(typ = f.typ))))
+      colType = TStruct(left.typ.colType.fields.fmap(f => f.copy(typ = f.typ))),
+      entryType = TStruct(left.typ.entryType.fields.fmap(f => f.copy(typ = f.typ))))
 
   override def columnCount: Option[Int] =
-    left.columnCount.flatMap(leftCount => right.columnCount.map(rightCount => leftCount + rightCount))
+    for {l <- left.columnCount; r <- right.columnCount}
+      yield l + r
 
   lazy val rowCountUpperBound: Option[Long] = (left.rowCountUpperBound, right.rowCountUpperBound) match {
     case (Some(l), Some(r)) => if (joinType == "inner") Some(l.min(r)) else Some(l + r)
@@ -846,7 +846,7 @@ case class MatrixRepartition(child: MatrixIR, n: Int, strategy: Int) extends Mat
 
 case class MatrixUnionRows(childrenSeq: IndexedSeq[MatrixIR]) extends MatrixIR {
   require(childrenSeq.length > 1)
-  require(childrenSeq.tail.forall(c => compatible(c.typ, childrenSeq.head.typ)), childrenSeq.map(_.typ))
+  require(childrenSeq.tail.forall(c => compatible(c.typ, childrenSeq.head.typ)), childrenSeq.fmap(_.typ))
   val typ: MatrixType = childrenSeq.head.typ
 
   def compatible(t1: MatrixType, t2: MatrixType): Boolean = {
@@ -860,7 +860,7 @@ case class MatrixUnionRows(childrenSeq: IndexedSeq[MatrixIR]) extends MatrixIR {
     MatrixUnionRows(newChildren.asInstanceOf[IndexedSeq[MatrixIR]])
 
   override def columnCount: Option[Int] =
-    childrenSeq.map(_.columnCount).reduce { (c1, c2) =>
+    childrenSeq.fmap(_.columnCount).reduce { (c1, c2) =>
       require(c1.forall { i1 => c2.forall(i1 == _) })
       c1.orElse(c2)
     }
@@ -1057,9 +1057,9 @@ case class MatrixRename(child: MatrixIR,
 
   lazy val typ: MatrixType = MatrixType(
     globalType = child.typ.globalType.rename(globalMap),
-    colKey = child.typ.colKey.map(k => colMap.getOrElse(k, k)),
+    colKey = child.typ.colKey.fmap(k => colMap.getOrElse(k, k)),
     colType = child.typ.colType.rename(colMap),
-    rowKey = child.typ.rowKey.map(k => rowMap.getOrElse(k, k)),
+    rowKey = child.typ.rowKey.fmap(k => rowMap.getOrElse(k, k)),
     rowType = child.typ.rowType.rename(rowMap),
     entryType = child.typ.entryType.rename(entryMap))
 

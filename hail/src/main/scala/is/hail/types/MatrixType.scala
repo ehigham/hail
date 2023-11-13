@@ -70,17 +70,17 @@ case class MatrixType(
 
   lazy val (rowKeyStruct, _) = rowType.select(rowKey)
   def extractRowKey: Row => Row = rowType.select(rowKey)._2
-  lazy val rowKeyFieldIdx: Array[Int] = rowKey.toArray.map(rowType.fieldIdx)
+  lazy val rowKeyFieldIdx: Array[Int] = rowKey.toArray.fmap(rowType.fieldIdx)
   lazy val (rowValueStruct, _) = rowType.filterSet(rowKey.toSet, include = false)
   def extractRowValue: Annotation => Annotation = rowType.filterSet(rowKey.toSet, include = false)._2
-  lazy val rowValueFieldIdx: Array[Int] = rowValueStruct.fieldNames.map(rowType.fieldIdx)
+  lazy val rowValueFieldIdx: Array[Int] = rowValueStruct.fieldNames.fmap(rowType.fieldIdx)
 
   lazy val (colKeyStruct, _) = colType.select(colKey)
   def extractColKey: Row => Row = colType.select(colKey)._2
-  lazy val colKeyFieldIdx: Array[Int] = colKey.toArray.map(colType.fieldIdx)
+  lazy val colKeyFieldIdx: Array[Int] = colKey.toArray.fmap(colType.fieldIdx)
   lazy val (colValueStruct, _) = colType.filterSet(colKey.toSet, include = false)
   def extractColValue: Annotation => Annotation = colType.filterSet(colKey.toSet, include = false)._2
-  lazy val colValueFieldIdx: Array[Int] = colValueStruct.fieldNames.map(colType.fieldIdx)
+  lazy val colValueFieldIdx: Array[Int] = colValueStruct.fieldNames.fmap(colType.fieldIdx)
 
   lazy val colsTableType: TableType =
     TableType(colType, colKey, globalType)
@@ -89,7 +89,7 @@ case class MatrixType(
     TableType(rowType, rowKey, globalType)
 
   lazy val entriesTableType: TableType = {
-    val resultStruct = TStruct((rowType.fields ++ colType.fields ++ entryType.fields).map(f => f.name -> f.typ): _*)
+    val resultStruct = TStruct((rowType.fields ++ colType.fields ++ entryType.fields).fmap(f => f.name -> f.typ): _*)
     TableType(resultStruct, rowKey ++ colKey, globalType)
   }
 
@@ -206,9 +206,9 @@ case class MatrixType(
   def pyJson: JObject = {
     JObject(
       "row_type" -> JString(rowType.toString),
-      "row_key" -> JArray(rowKey.toList.map(JString(_))),
+      "row_key" -> JArray(rowKey.fmap(JString).toList),
       "col_type" -> JString(colType.toString),
-      "col_key" -> JArray(colKey.toList.map(JString(_))),
+      "col_key" -> JArray(colKey.fmap(JString).toList),
       "entry_type" -> JString(entryType.toString),
       "global_type" -> JString(globalType.toString)
     )

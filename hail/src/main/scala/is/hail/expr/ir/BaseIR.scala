@@ -14,15 +14,16 @@ abstract class BaseIR {
 
   protected def copy(newChildren: IndexedSeq[BaseIR]): BaseIR
 
-  def deepCopy(): this.type = copy(newChildren = childrenSeq.map(_.deepCopy())).asInstanceOf[this.type]
+  def deepCopy(): this.type = copy(newChildren = childrenSeq.fmap(_.deepCopy())).asInstanceOf[this.type]
 
   def noSharing(ctx: ExecuteContext): this.type =
     if (HasIRSharing(ctx)(this)) this.deepCopy() else this
 
   var mark: Int = 0
 
+
   def mapChildrenWithIndex(f: (BaseIR, Int) => BaseIR): BaseIR = {
-    val newChildren = childrenSeq.view.zipWithIndex.map(f.tupled).toArray
+    val newChildren = childrenSeq.zipWithIndex.fmap(f.tupled)
     if (childrenSeq.elementsSameObjects(newChildren))
       this
     else
@@ -30,7 +31,7 @@ abstract class BaseIR {
   }
 
   def mapChildren(f: (BaseIR) => BaseIR): BaseIR = {
-    val newChildren = childrenSeq.map(f)
+    val newChildren = childrenSeq.fmap(f)
     if (childrenSeq.elementsSameObjects(newChildren))
       this
     else
@@ -38,7 +39,7 @@ abstract class BaseIR {
   }
 
   def mapChildrenWithIndexStackSafe(f: (BaseIR, Int) => StackFrame[BaseIR]): StackFrame[BaseIR] = {
-    call(childrenSeq.iterator.zipWithIndex.map(f.tupled).collectRecur).map { newChildren =>
+    call(childrenSeq.zipWithIndex.fmap(f.tupled).iterator.collectRecur).map { newChildren =>
       if (childrenSeq.elementsSameObjects(newChildren))
         this
       else

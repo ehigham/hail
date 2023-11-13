@@ -4,7 +4,7 @@ import is.hail.expr.ir.IRParser._
 import is.hail.expr.ir.{IRParser, PunctuationToken, TokenIterator}
 import is.hail.types.encoded._
 import is.hail.types.virtual._
-import is.hail.utils.FastSeq
+import is.hail.utils.{FastSeq, arrayToRichIndexedSeq}
 
 object LegacyEncodedTypeParser {
 
@@ -66,12 +66,12 @@ object LegacyEncodedTypeParser {
         punctuation(it, "[")
         val types = repsepUntil(it, legacy_type_expr, PunctuationToken(","), PunctuationToken("]"))
         punctuation(it, "]")
-        (TTuple(types.map(_._1): _*), EBaseStruct(types.zipWithIndex.map { case ((_, t), idx) => EField(idx.toString, t, idx) }, req))
+        (TTuple(types.fmap(_._1): _*), EBaseStruct(types.zipWithIndex.fmap { case ((_, t), idx) => EField(idx.toString, t, idx) }, req))
       case "Struct" =>
         punctuation(it, "{")
         val args = repsepUntil(it, struct_field(legacy_type_expr), PunctuationToken(","), PunctuationToken("}"))
         punctuation(it, "}")
-        val (vFields, eFields) = args.zipWithIndex.map { case ((id, (vt, et)), i) => (Field(id, vt, i), EField(id, et, i)) }.unzip
+        val (vFields, eFields) = args.zipWithIndex.fmap { case ((id, (vt, et)), i) => (Field(id, vt, i), EField(id, et, i)) }.unzip
         (TStruct(vFields), EBaseStruct(eFields, req))
     }
     assert(eType.required == req)

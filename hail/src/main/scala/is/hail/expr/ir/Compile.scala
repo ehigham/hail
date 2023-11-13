@@ -33,9 +33,9 @@ object Compile {
   ): (Option[SingleCodeType], (HailClassLoader, FS, HailTaskContext, Region) => F) = {
 
     val normalizedBody = new NormalizeNames(_.toString)(ctx, body,
-      Env(params.map { case (n, _) => n -> n }: _*)
+      Env(params.fmap { case (n, _) => n -> n }: _*)
     )
-    val k = CodeCacheKey(FastSeq[AggStateSig](), params.map { case (n, pt) => (n, pt) }, normalizedBody)
+    val k = CodeCacheKey(FastSeq[AggStateSig](), params.fmap { case (n, pt) => (n, pt) }, normalizedBody)
     (ctx.backend.lookupOrCompileCachedFunction[F](k) {
 
       var ir = body
@@ -49,7 +49,7 @@ object Compile {
       val returnParam = CodeParamType(SingleCodeType.typeInfoFromType(ir.typ))
 
       val fb = EmitFunctionBuilder[F](ctx, "Compiled",
-        CodeParamType(typeInfo[Region]) +: params.map { case (_, pt) =>
+        CodeParamType(typeInfo[Region]) +: params.fmap { case (_, pt) =>
           pt
         }, returnParam, Some("Emit.scala"))
 
@@ -86,9 +86,9 @@ object CompileWithAggregators {
     optimize: Boolean = true
   ): (Option[SingleCodeType], (HailClassLoader, FS, HailTaskContext, Region) => (F with FunctionWithAggRegion)) = {
     val normalizedBody = new NormalizeNames(_.toString)(ctx, body,
-      Env(params.map { case (n, _) => n -> n }: _*)
+      Env(params.fmap { case (n, _) => n -> n }: _*)
     )
-    val k = CodeCacheKey(aggSigs, params.map { case (n, pt) => (n, pt) }, normalizedBody)
+    val k = CodeCacheKey(aggSigs, params.fmap { case (n, pt) => (n, pt) }, normalizedBody)
     (ctx.backend.lookupOrCompileCachedFunction[F with FunctionWithAggRegion](k) {
 
       var ir = body
@@ -97,10 +97,10 @@ object CompileWithAggregators {
         .foldLeft(Env.empty[IR]) { case (e, ((n, t), i)) => e.bind(n, In(i, t)) }))
       ir = LoweringPipeline.compileLowerer(optimize).apply(ctx, ir).asInstanceOf[IR].noSharing(ctx)
 
-      TypeCheck(ctx, ir, BindingEnv(Env.fromSeq[Type](params.map { case (name, t) => name -> t.virtualType })))
+      TypeCheck(ctx, ir, BindingEnv(Env.fromSeq[Type](params.fmap { case (name, t) => name -> t.virtualType })))
 
       val fb = EmitFunctionBuilder[F](ctx, "CompiledWithAggs",
-        CodeParamType(typeInfo[Region]) +: params.map { case (_, pt) => pt },
+        CodeParamType(typeInfo[Region]) +: params.fmap { case (_, pt) => pt },
         SingleCodeType.typeInfoFromType(ir.typ), Some("Emit.scala"))
 
       /*
@@ -194,7 +194,7 @@ object CompileIterator {
       val emitContext = EmitContext.analyze(ctx, ir)
       val emitter = new Emit(emitContext, stepFECB)
 
-      val env = EmitEnv(Env.empty, argTypeInfo.indices.filter(i => argTypeInfo(i).isInstanceOf[EmitParamType]).map(i => stepF.getEmitParam(cb, i + 1)))
+      val env = EmitEnv(Env.empty, argTypeInfo.indices.filter(i => argTypeInfo(i).isInstanceOf[EmitParamType]).fmap(i => stepF.getEmitParam(cb, i + 1)))
       val optStream = EmitCode.fromI(stepF)(cb => EmitStream.produce(emitter, ir, cb, cb.emb, outerRegion, env, None))
       returnType = optStream.st.asInstanceOf[SStream].elementEmitType.storageType.setRequired(true)
 

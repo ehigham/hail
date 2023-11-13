@@ -80,7 +80,7 @@ object UnsafeRow {
       case t: PBinary => readBinary(offset, t)
       case td: PDict =>
         val a = readArray(td, region, offset)
-        a.asInstanceOf[IndexedSeq[Row]].map(r => (r.get(0), r.get(1))).toMap
+        a.asInstanceOf[IndexedSeq[Row]].fmap(r => (r.get(0), r.get(1))).toMap
       case t: PBaseStruct => readBaseStruct(t, region, offset)
       case x: PLocus => readLocus(offset, x)
       case x: PInterval =>
@@ -228,7 +228,7 @@ object SafeRow {
 
   def selectFields(t: PBaseStruct, region: Region, off: Long)(selectIdx: Array[Int]): Row = {
     val fullRow = new UnsafeRow(t, region, off)
-    Row.fromSeq(selectIdx.map(i => Annotation.copy(t.types(i).virtualType, fullRow.get(i))))
+    Row.fromSeq(selectIdx.fmap(i => Annotation.copy(t.types(i).virtualType, fullRow.get(i))))
   }
 
   def selectFields(t: PBaseStruct, rv: RegionValue)(selectIdx: Array[Int]): Row =
@@ -279,7 +279,7 @@ class SelectFieldsRow(
     old: Row,
     oldPType: TStruct,
     newPType: TStruct
-  ) = this(old, newPType.fieldNames.map(name => oldPType.fieldIdx(name)))
+  ) = this(old, newPType.fieldNames.fmap(name => oldPType.fieldIdx(name)))
 
   def this(
     old: Row,
@@ -292,7 +292,7 @@ class SelectFieldsRow(
           newPType.fields.length <= old.length,
         s"${oldPType}, ${newPType} ${old.length} $old")
         ->
-        newPType.fieldNames.map(name => oldPType.fieldIdx(name)))._2
+        newPType.fieldNames.fmap(name => oldPType.fieldIdx(name)))._2
     )
   }
 
@@ -327,7 +327,7 @@ trait NDArray {
 }
 
 class UnsafeNDArray(val pnd: PNDArray, val region: Region, val ndAddr: Long) extends NDArray {
-  val shape: IndexedSeq[Long] = (0 until pnd.nDims).map(i => pnd.loadShape(ndAddr, i))
+  val shape: IndexedSeq[Long] = (0 until pnd.nDims).fmap(i => pnd.loadShape(ndAddr, i))
   val elementType = pnd.elementType.virtualType
   val coordStorageArray = new Array[Long](shape.size)
 
@@ -337,7 +337,7 @@ class UnsafeNDArray(val pnd: PNDArray, val region: Region, val ndAddr: Long) ext
   }
 
   def getRowMajorElements(): IndexedSeq[Annotation] = {
-    val indices = (0 until pnd.nDims).map(_ => 0L).toArray
+    val indices = (0 until pnd.nDims).fmap(_ => 0L).toArray
     var curIdx = indices.size - 1
     var idxIntoFlat = 0
     val flat = new Array[Annotation](numElements.toInt)
@@ -364,7 +364,7 @@ class UnsafeNDArray(val pnd: PNDArray, val region: Region, val ndAddr: Long) ext
   }
 
   override def forall(pred: Annotation => Boolean): Boolean = {
-    val indices = (0 until pnd.nDims).map(_ => 0L).toArray
+    val indices = (0 until pnd.nDims).fmap(_ => 0L).toArray
     var curIdx = indices.size - 1
     var idxIntoFlat = 0
 

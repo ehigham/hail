@@ -367,7 +367,7 @@ class PNDArraySuite extends PhysicalTestUtils {
   @Test def testUnstagedCopy(): Unit = {
     val region1 = Region(pool=this.pool)
     val region2 = Region(pool=this.pool)
-    val x = SafeNDArray(IndexedSeq(3L, 2L), (0 until 6).map(_.toDouble))
+    val x = SafeNDArray(IndexedSeq(3L, 2L), (0 until 6).fmap(_.toDouble))
     val pNd = PCanonicalNDArray(PFloat64Required, 2, true)
     val ndAddr1 = pNd.unstagedStoreJavaObject(ctx.stateManager, x, region=region1)
     val ndAddr2 = pNd.copyFromAddress(ctx.stateManager, region2, pNd, ndAddr1, true)
@@ -385,7 +385,7 @@ class PNDArraySuite extends PhysicalTestUtils {
     // Deep copy with elements that contain pointers, so have to actually do a full copy
     // FIXME: Currently ndarrays do not support this, reference counting needs to account for this.
 //    val pNDOfArrays = PCanonicalNDArray(PCanonicalArray(PInt32Required, true), 1)
-//    val annotationNDOfArrays = new SafeNDArray(IndexedSeq(3L), (0 until 3).map(idx => (0 to idx).toArray.toIndexedSeq))
+//    val annotationNDOfArrays = new SafeNDArray(IndexedSeq(3L), (0 until 3).fmap(idx => (0 to idx).toArray.toIndexedSeq))
 //    val addr3 = pNDOfArrays.unstagedStoreJavaObject(annotationNDOfArrays, region=region1)
 //    val unsafe3 = UnsafeRow.read(pNDOfArrays, region1, addr3)
 //    val addr4 = pNDOfArrays.copyFromAddress(region2, pNDOfArrays, addr3, true)
@@ -398,7 +398,7 @@ class PNDArraySuite extends PhysicalTestUtils {
     // Deep copy with PTypes with different requirements
     val pNDOfStructs1 = PCanonicalNDArray(PCanonicalStruct(true, ("x", PInt32Required), ("y", PInt32())), 1)
     val pNDOfStructs2 = PCanonicalNDArray(PCanonicalStruct(true, ("x", PInt32()), ("y", PInt32Required)), 1)
-    val annotationNDOfStructs = new SafeNDArray(IndexedSeq(5L), (0 until 5).map(idx => Row(idx, idx + 100)))
+    val annotationNDOfStructs = new SafeNDArray(IndexedSeq(5L), (0 until 5).fmap(idx => Row(idx, idx + 100)))
 
     val addr5 = pNDOfStructs1.unstagedStoreJavaObject(ctx.stateManager, annotationNDOfStructs, region=region1)
     val unsafe5 = UnsafeRow.read(pNDOfStructs1, region1, addr5)

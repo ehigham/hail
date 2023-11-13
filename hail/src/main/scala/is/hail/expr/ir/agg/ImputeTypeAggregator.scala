@@ -160,7 +160,7 @@ class ImputeTypeAggregator() extends StagedAggregator {
 
   protected def _result(cb: EmitCodeBuilder, state: State, region: Value[Region]): IEmitCode = {
     val emitCodes = Array(state.getAnyNonMissing, state.getAllDefined, state.getSupportsBool, state.getSupportsI32, state.getSupportsI64, state.getSupportsF64).
-      map(bool => new SBooleanValue(cb.memoize(bool))).map(sbv => EmitCode.present(cb.emb, sbv))
+      map(bool => new SBooleanValue(cb.memoize(bool))).fmap(sbv => EmitCode.present(cb.emb, sbv))
     val sv = SStackStruct.constructFromArgs(cb, region, resultEmitType.virtualType.asInstanceOf[TBaseStruct], emitCodes:_*)
     IEmitCode.present(cb, sv)
   }

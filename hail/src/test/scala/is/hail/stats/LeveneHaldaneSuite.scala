@@ -38,7 +38,7 @@ class LeveneHaldaneSuite extends TestNGSuite {
     def test(e: (Int, Int)): Boolean = {
       val (n, nA) = e
       val LH = LeveneHaldane(n, nA)
-      D_==(LH.probability(LH.mode), (nA % 2 to nA by 2).map(LH.probability).max)
+      D_==(LH.probability(LH.mode), (nA % 2 to nA by 2).fmap(LH.probability).max)
     }
     examples foreach {e => assert(test(e))}
   }
@@ -48,7 +48,7 @@ class LeveneHaldaneSuite extends TestNGSuite {
     def test(e: (Int, Int)): Boolean = {
       val (n, nA) = e
       val LH = LeveneHaldane(n, nA)
-      D_==(LH.getNumericalMean, (LH.getSupportLowerBound to LH.getSupportUpperBound).map(i => i * LH.probability(i)).sum)
+      D_==(LH.getNumericalMean, (LH.getSupportLowerBound to LH.getSupportUpperBound).fmap(i => i * LH.probability(i)).sum)
     }
     examples foreach {e => assert(test(e))}
   }
@@ -58,7 +58,7 @@ class LeveneHaldaneSuite extends TestNGSuite {
     def test(e: (Int, Int)): Boolean = {
       val (n, nA) = e
       val LH = LeveneHaldane(n, nA)
-      D_==(LH.getNumericalVariance + LH.getNumericalMean * LH.getNumericalMean, (LH.getSupportLowerBound to LH.getSupportUpperBound).map(i => i * i * LH.probability(i)).sum)
+      D_==(LH.getNumericalVariance + LH.getNumericalMean * LH.getNumericalMean, (LH.getSupportLowerBound to LH.getSupportUpperBound).fmap(i => i * i * LH.probability(i)).sum)
     }
     examples foreach {e => assert(test(e))}
   }
@@ -71,10 +71,10 @@ class LeveneHaldaneSuite extends TestNGSuite {
       (-2 to nA + 2).forall(nAB => (
         D_==(LH.leftMidP(nAB) + LH.rightMidP(nAB), 1.0)
           && D_==(LH.leftMidP(nAB),
-                           0.5 * LH.probability(nAB) + (0 to nAB - 1).map(LH.probability).sum)
+                           0.5 * LH.probability(nAB) + (0 to nAB - 1).fmap(LH.probability).sum)
           && D_==(LH.exactMidP(nAB),
                            {val p0 = LH.probability(nAB)
-                             (0 to nA).map(LH.probability).filter(D_<(_, p0, tolerance = 1.0E-12)).sum + 0.5 * (0 to nA).map(LH.probability).filter(D_==(_, p0, tolerance = 1.0E-12)).sum
+                             (0 to nA).fmap(LH.probability).filter(D_<(_, p0, tolerance = 1.0E-12)).sum + 0.5 * (0 to nA).fmap(LH.probability).filter(D_==(_, p0, tolerance = 1.0E-12)).sum
           })
         ))
     }

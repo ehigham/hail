@@ -78,7 +78,7 @@ class RowMatrix(val rows: RDD[(Long, Array[Double])],
     val partStarts = partitionStarts()
 
     new RVDPartitioner(HailStateManager(Map.empty), partitionKey, kType,
-      Array.tabulate(partStarts.length - 1) { i =>
+      FastSeq.tabulate(partStarts.length - 1) { i =>
         val start = partStarts(i)
         val end = partStarts(i + 1)
         Interval(Row(start), Row(end), includesStart = true, includesEnd = false)
@@ -194,8 +194,11 @@ class ReadBlocksAsRowsRDD(
   private val nBlockCols = gp.nBlockCols
   private val blockSize = gp.blockSize
 
-  protected def getPartitions: Array[Partition] = Array.tabulate(partitionStarts.length - 1)(pi =>
-    ReadBlocksAsRowsRDDPartition(pi, partitionStarts(pi), partitionStarts(pi + 1)))
+  protected def getPartitions: Array[Partition] =
+    (0 until partitionStarts.length - 1) fmap { pi =>
+      ReadBlocksAsRowsRDDPartition(pi, partitionStarts(pi), partitionStarts(pi + 1))
+        .asInstanceOf[Partition]
+    }
 
   def compute(split: Partition, context: TaskContext): Iterator[(Long, Array[Double])] = {
     val ReadBlocksAsRowsRDDPartition(_, start, end) = split.asInstanceOf[ReadBlocksAsRowsRDDPartition]

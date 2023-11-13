@@ -11,7 +11,7 @@ import is.hail.types.physical.stypes.interfaces.SStream
 import is.hail.types.physical.stypes.primitives.SInt32
 import is.hail.types.virtual._
 import is.hail.types._
-import is.hail.utils.{BoxedArrayBuilder, FastSeq}
+import is.hail.utils.{BoxedArrayBuilder, FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq}
 import org.apache.spark.sql.Row
 import org.testng.annotations.{DataProvider, Test}
 
@@ -240,7 +240,7 @@ class RequirednessSuite extends HailSuite {
       (required, optional, FastSeq(required), optional),
       (required, required, FastSeq(optional), optional),
     )) {
-      nodes += Array(Switch(int(x), int(d), cs.map(int)), PInt32(r))
+      nodes += Array(Switch(int(x), int(d), cs.fmap(int)), PInt32(r))
     }
     // ArrayZip
     val s1 = Ref(genUID(), TInt32)
@@ -473,7 +473,7 @@ class RequirednessSuite extends HailSuite {
   @Test
   def testDataProviders(): Unit = {
     val s = new BoxedArrayBuilder[String]()
-    valueIR().map(v => v(0) -> v(1)).foreach {
+    valueIR().fmap(v => v(0) -> v(1)).foreach {
       case (n: IR, t: PType) =>
       if (n.typ != t.virtualType)
         s += s"${ n.typ } != ${ t.virtualType }: \n${ Pretty(ctx, n) }"
@@ -481,7 +481,7 @@ class RequirednessSuite extends HailSuite {
         if (n.typ != et.virtualType)
           s += s"${ n.typ } != ${ et.virtualType }: \n${ Pretty(ctx, n) }"
     }
-    tableIR().map(v => (v(0), v(1), v(2))).foreach { case (n: TableIR, row: PType, global: PType) =>
+    tableIR().fmap(v => (v(0), v(1), v(2))).foreach { case (n: TableIR, row: PType, global: PType) =>
       if (n.typ.rowType != row.virtualType || n.typ.globalType != global.virtualType )
         s +=
           s"""row: ${ n.typ.rowType } vs ${ row.virtualType }
@@ -577,9 +577,9 @@ object RequirednessSuite {
       case t: PCanonicalSet => PCanonicalSet(deepInnerRequired(t.elementType, true), required)
       case t: PCanonicalDict => PCanonicalDict(deepInnerRequired(t.keyType, true), deepInnerRequired(t.valueType, true), required)
       case t: PCanonicalStruct =>
-        PCanonicalStruct(t.fields.map(f => PField(f.name, deepInnerRequired(f.typ, true), f.index)), required)
+        PCanonicalStruct(t.fields.fmap(f => PField(f.name, deepInnerRequired(f.typ, true), f.index)), required)
       case t: PCanonicalTuple =>
-        PCanonicalTuple(t._types.map { f => f.copy(typ = deepInnerRequired(f.typ, true)) }, required)
+        PCanonicalTuple(t._types.fmap { f => f.copy(typ = deepInnerRequired(f.typ, true)) }, required)
       case t: PCanonicalInterval =>
         PCanonicalInterval(deepInnerRequired(t.pointType, true), required)
       case t =>

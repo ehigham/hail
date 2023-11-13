@@ -58,7 +58,7 @@ sealed trait IR extends BaseIR {
     cp
   }
 
-  lazy val size: Int = 1 + children.map {
+  lazy val size: Int = 1 + childrenSeq.fmap {
       case x: IR => x.size
       case _ => 0
     }.sum
@@ -172,10 +172,13 @@ final case class UUID4(id: String) extends IR
 final case class Cast(v: IR, _typ: Type) extends IR
 final case class CastRename(v: IR, _typ: Type) extends IR
 
-final case class NA(_typ: Type) extends IR with TrivialIR
+final case class NA(_typ: Type) extends IR with TrivialIR {
+  override protected lazy val childrenSeq: IndexedSeq[BaseIR] =
+    IndexedSeq.empty
+}
 final case class IsNA(value: IR) extends IR
 
-final case class Coalesce(values: Seq[IR]) extends IR {
+final case class Coalesce(values: IndexedSeq[IR]) extends IR {
   require(values.nonEmpty)
 }
 
@@ -219,7 +222,7 @@ final case class Ref(name: String, var _typ: Type) extends BaseRef
 // Recur can't exist outside of loop
 // Loops can be nested, but we can't call outer loops in terms of inner loops so there can only be one loop "active" in a given context
 final case class TailLoop(name: String, params: IndexedSeq[(String, IR)], body: IR) extends IR {
-  lazy val paramIdx: Map[String, Int] = params.map(_._1).zipWithIndex.toMap
+  lazy val paramIdx: Map[String, Int] = params.fmap(_._1).zipWithIndex.toMap
 }
 final case class Recur(name: String, args: IndexedSeq[IR], _typ: Type) extends BaseRef
 
@@ -243,7 +246,7 @@ object MakeArray {
       if (args.forall(_.typ == args.head.typ))
         return MakeArray(args, TArray(args.head.typ))
 
-    MakeArray(args.map { arg =>
+    MakeArray(args.fmap { arg =>
       val upcast = PruneDeadFields.upcast(ctx, arg, requestedType.elementType)
       assert(upcast.typ == requestedType.elementType)
       upcast
@@ -261,7 +264,7 @@ object MakeStream {
       if (args.forall(_.typ == args.head.typ))
         return MakeStream(args, TStream(args.head.typ), requiresMemoryManagementPerElement)
 
-    MakeStream(args.map { arg =>
+    MakeStream(args.fmap { arg =>
       val upcast = PruneDeadFields.upcast(ctx, arg, requestedType.elementType)
       assert(upcast.typ == requestedType.elementType)
       upcast
@@ -410,7 +413,7 @@ object StreamFold2 {
 
 final case class StreamFold2(a: IR, accum: IndexedSeq[(String, IR)], valueName: String, seq: IndexedSeq[IR], result: IR) extends IR {
   assert(accum.length == seq.length)
-  val nameIdx: Map[String, Int] = accum.map(_._1).zipWithIndex.toMap
+  val nameIdx: Map[String, Int] = accum.fmap(_._1).zipWithIndex.toMap
 }
 
 final case class StreamScan(a: IR, zero: IR, accumName: String, valueName: String, body: IR) extends IR
@@ -445,7 +448,7 @@ object StreamJoin {
       val rightGrouped = mapIR(rightGroupedStream) { group =>
         bindIR(ToArray(group)) { array =>
           bindIR(ArrayRef(array, 0)) { head =>
-            MakeStruct(rKey.map { key => key -> GetField(head, key) } :+ groupField -> array)
+            MakeStruct(rKey.fmap { key => key -> GetField(head, key) } :+ groupField -> array)
           }
         }
       }
@@ -576,8 +579,11 @@ final case class AggGroupBy(key: IR, aggIR: IR, isScan: Boolean) extends IR
 final case class AggArrayPerElement(a: IR, elementName: String, indexName: String, aggBody: IR, knownLength: Option[IR], isScan: Boolean) extends IR
 
 object ApplyAggOp {
-  def apply(op: AggOp, initOpArgs: IR*)(seqOpArgs: IR*): ApplyAggOp =
-    ApplyAggOp(initOpArgs.toIndexedSeq, seqOpArgs.toIndexedSeq, AggSignature(op, initOpArgs.map(_.typ), seqOpArgs.map(_.typ)))
+  def apply(op: AggOp, initOpArgs: IR*)(seqOpArgs: IR*): ApplyAggOp = {
+    val ioa = initOpArgs.toFastSeq
+    val soa = seqOpArgs.toIndexedSeq
+    ApplyAggOp(ioa, soa, AggSignature(op, ioa.fmap(_.typ), soa.fmap(_.typ)))
+  }
 }
 
 final case class ApplyAggOp(initOpArgs: IndexedSeq[IR], seqOpArgs: IndexedSeq[IR], aggSig: AggSignature) extends IR {
@@ -593,24 +599,23 @@ object AggFold {
 
   def min(element: IR, sortFields: IndexedSeq[SortField]): IR = {
     val elementType = element.typ.asInstanceOf[TStruct]
-    val keyType = elementType.select(sortFields.map(_.field))._1
+    val keyType = elementType.select(sortFields.fmap(_.field))._1
     minAndMaxHelper(element, keyType, StructLT(keyType, sortFields))
   }
 
   def max(element: IR, sortFields: IndexedSeq[SortField]): IR = {
     val elementType = element.typ.asInstanceOf[TStruct]
-    val keyType = elementType.select(sortFields.map(_.field))._1
+    val keyType = elementType.select(sortFields.fmap(_.field))._1
     minAndMaxHelper(element, keyType, StructGT(keyType, sortFields))
   }
 
-  def all(element: IR): IR = {
+  def all(element: IR): IR =
     aggFoldIR(True(), element) { case (accum, element) =>
-      ApplySpecial("land", Seq.empty[Type], Seq(accum, element), TBoolean, ErrorIDs.NO_ERROR)
-    } { case (accum1, accum2) => ApplySpecial("land", Seq.empty[Type], Seq(accum1, accum2), TBoolean, ErrorIDs.NO_ERROR) }
-  }
+      ApplySpecial("land", FastSeq(), FastSeq(accum, element), TBoolean, ErrorIDs.NO_ERROR)
+    } { case (accum1, accum2) => ApplySpecial("land", FastSeq(), FastSeq(accum1, accum2), TBoolean, ErrorIDs.NO_ERROR) }
 
   private def minAndMaxHelper(element: IR, keyType: TStruct, comp: ComparisonOp[Boolean]): IR = {
-    val keyFields = keyType.fields.map(_.name)
+    val keyFields = keyType.fields.fmap(_.name)
 
     val minAndMaxZero = NA(keyType)
     val aggFoldMinAccumName1 = genUID()
@@ -636,8 +641,11 @@ object AggFold {
 final case class AggFold(zero: IR, seqOp: IR, combOp: IR, accumName: String, otherAccumName: String, isScan: Boolean) extends IR
 
 object ApplyScanOp {
-  def apply(op: AggOp, initOpArgs: IR*)(seqOpArgs: IR*): ApplyScanOp =
-    ApplyScanOp(initOpArgs.toIndexedSeq, seqOpArgs.toIndexedSeq, AggSignature(op, initOpArgs.map(_.typ), seqOpArgs.map(_.typ)))
+  def apply(op: AggOp, initOpArgs: IR*)(seqOpArgs: IR*): ApplyScanOp = {
+    val ioa = initOpArgs.toFastSeq
+    val soa = seqOpArgs.toFastSeq
+    ApplyScanOp(ioa, soa, AggSignature(op, ioa.fmap(_.typ), soa.fmap(_.typ)))
+  }
 }
 
 final case class ApplyScanOp(initOpArgs: IndexedSeq[IR], seqOpArgs: IndexedSeq[IR], aggSig: AggSignature) extends IR {
@@ -654,7 +662,7 @@ final case class SeqOp(i: Int, args: IndexedSeq[IR], aggSig: PhysicalAggSig) ext
 final case class CombOp(i1: Int, i2: Int, aggSig: PhysicalAggSig) extends IR
 object ResultOp {
   def makeTuple(aggs: IndexedSeq[PhysicalAggSig]) = {
-    MakeTuple.ordered(aggs.zipWithIndex.map { case (aggSig, index) =>
+    MakeTuple.ordered(aggs.zipWithIndex.fmap { case (aggSig, index) =>
       ResultOp(index, aggSig)
     })
   }
@@ -676,9 +684,10 @@ final case class MakeStruct(fields: IndexedSeq[(String, IR)]) extends IR
 final case class SelectFields(old: IR, fields: IndexedSeq[String]) extends IR
 
 object InsertFields {
-  def apply(old: IR, fields: Seq[(String, IR)]): InsertFields = InsertFields(old, fields, None)
+  def apply(old: IR, fields: IndexedSeq[(String, IR)]): InsertFields =
+    new InsertFields(old, fields, None)
 }
-final case class InsertFields(old: IR, fields: Seq[(String, IR)], fieldOrder: Option[IndexedSeq[String]]) extends IR {
+final case class InsertFields(old: IR, fields: IndexedSeq[(String, IR)], fieldOrder: Option[IndexedSeq[String]]) extends IR {
 
   override def typ: TStruct = tcoerce[TStruct](super.typ)
 }
@@ -695,7 +704,7 @@ object GetFieldByIdx {
 final case class GetField(o: IR, name: String) extends IR
 
 object MakeTuple {
-  def ordered(types: IndexedSeq[IR]): MakeTuple = MakeTuple(types.zipWithIndex.map { case (ir, i) => (i, ir) })
+  def ordered(types: IndexedSeq[IR]): MakeTuple = MakeTuple(types.zipWithIndex.fmap { case (ir, i) => (i, ir) })
 }
 
 final case class MakeTuple(fields: IndexedSeq[(Int, IR)]) extends IR
@@ -732,36 +741,36 @@ final case class Trap(child: IR) extends IR
 final case class Die(message: IR, _typ: Type, errorId: Int) extends IR
 final case class ConsoleLog(message: IR, result: IR) extends IR
 
-final case class ApplyIR(function: String, typeArgs: Seq[Type], args: Seq[IR], errorID: Int) extends IR {
-  var conversion: (Seq[Type], Seq[IR], Int) => IR = _
+final case class ApplyIR(function: String, typeArgs: IndexedSeq[Type], args: IndexedSeq[IR], errorID: Int) extends IR {
+  var conversion: (IndexedSeq[Type], IndexedSeq[IR], Int) => IR = _
   var inline: Boolean = _
 
-  private lazy val refs = args.map(a => Ref(genUID(), a.typ)).toArray
+  private lazy val refs = args.fmap(a => Ref(genUID(), a.typ)).toArray
   lazy val body: IR = conversion(typeArgs, refs, errorID).deepCopy()
-  lazy val refIdx: Map[String, Int] = refs.map(_.name).zipWithIndex.toMap
+  lazy val refIdx: Map[String, Int] = refs.fmap(_.name).zipWithIndex.toMap
 
   lazy val explicitNode: IR =
-    Let(refs.map(_.name).zip(args), body)
+    Let(refs.fmap(_.name).zip(args), body)
 }
 
 sealed abstract class AbstractApplyNode[F <: JVMFunction] extends IR {
   def function: String
-  def args: Seq[IR]
+  def args: IndexedSeq[IR]
   def returnType: Type
-  def typeArgs: Seq[Type]
-  def argTypes: Seq[Type] = args.map(_.typ)
+  def typeArgs: IndexedSeq[Type]
+  def argTypes: IndexedSeq[Type] = args.fmap(_.typ)
   lazy val implementation: F = IRFunctionRegistry.lookupFunctionOrFail(function, returnType, typeArgs, argTypes)
     .asInstanceOf[F]
 }
 
-final case class Apply(function: String, typeArgs: Seq[Type], args: Seq[IR], returnType: Type, errorID: Int) extends AbstractApplyNode[UnseededMissingnessObliviousJVMFunction]
+final case class Apply(function: String, typeArgs: IndexedSeq[Type], args: IndexedSeq[IR], returnType: Type, errorID: Int) extends AbstractApplyNode[UnseededMissingnessObliviousJVMFunction]
 
-final case class ApplySeeded(function: String, _args: Seq[IR], rngState: IR, staticUID: Long, returnType: Type) extends AbstractApplyNode[UnseededMissingnessObliviousJVMFunction] {
-  val args = rngState +: _args
-  val typeArgs: Seq[Type] = Seq.empty[Type]
+final case class ApplySeeded(function: String, _args: IndexedSeq[IR], rngState: IR, staticUID: Long, returnType: Type) extends AbstractApplyNode[UnseededMissingnessObliviousJVMFunction] {
+  override val args: IndexedSeq[IR] = rngState +: _args
+  override val typeArgs: IndexedSeq[Type] = IndexedSeq.empty
 }
 
-final case class ApplySpecial(function: String, typeArgs: Seq[Type], args: Seq[IR], returnType: Type, errorID: Int) extends AbstractApplyNode[UnseededMissingnessAwareJVMFunction]
+final case class ApplySpecial(function: String, override val typeArgs: IndexedSeq[Type], override val args: IndexedSeq[IR], returnType: Type, errorID: Int) extends AbstractApplyNode[UnseededMissingnessAwareJVMFunction]
 
 final case class LiftMeOut(child: IR) extends IR
 final case class TableCount(child: TableIR) extends IR

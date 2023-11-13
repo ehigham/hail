@@ -113,9 +113,10 @@ object AbstractRVDSpec {
         val leftParts = specLeft.absolutePartPaths(pathLeft)
         val rightParts = specRight.absolutePartPaths(pathRight)
         assert(leftParts.length == rightParts.length)
-        val contextsValue: IndexedSeq[Any] = (leftParts, rightParts, leftParts.indices)
-          .zipped
-          .map { (path1, path2, partIdx) => Row(Row(partIdx.toLong, path1), Row(partIdx.toLong, path2)) }
+        val contextsValue: IndexedSeq[Any] =
+          leftParts.zip(rightParts).zipWithIndex.fmap { case ((path1, path2), partIdx) =>
+            Row(Row(partIdx.toLong, path1), Row(partIdx.toLong, path2))
+          }
 
         val ctxIR = ToStream(Literal(TArray(reader.contextType), contextsValue))
 
@@ -154,14 +155,14 @@ object AbstractRVDSpec {
         val absPathLeft = removeFileProtocol(pathLeft)
         val absPathRight = removeFileProtocol(pathRight)
         val partsAndIntervals: IndexedSeq[(String, Interval)] = if (specLeft.key.isEmpty) {
-          specLeft.partFiles.map { p => (p, null) }
+          specLeft.partFiles.fmap { p => (p, null) }
         } else {
           val partFiles = specLeft.partFiles
-          tmpPartitioner.rangeBounds.map { b => (partFiles(partitioner.lowerBoundInterval(b)), b) }
+          tmpPartitioner.rangeBounds.fmap { b => (partFiles(partitioner.lowerBoundInterval(b)), b) }
         }
 
         val kSize = specLeft.key.size
-        val contextsValues: IndexedSeq[Row] = partsAndIntervals.zipWithIndex.map { case ((partPath, interval), partIdx) =>
+        val contextsValues: IndexedSeq[Row] = partsAndIntervals.zipWithIndex.fmap { case ((partPath, interval), partIdx) =>
           Row(
             partIdx.toLong,
             s"${ absPathLeft }/parts/${ partPath }",
@@ -203,7 +204,7 @@ abstract class AbstractRVDSpec {
 
   def partFiles: Array[String]
 
-  def absolutePartPaths(path: String): Array[String] = partFiles.map(path + "/parts/" + _)
+  def absolutePartPaths(path: String): Array[String] = partFiles.fmap(path + "/parts/" + _)
 
   def typedCodecSpec: AbstractTypedCodecSpec
 
@@ -231,7 +232,7 @@ abstract class AbstractRVDSpec {
       val ctxType = TStruct("partitionIndex" -> TInt64, "partitionPath" -> TString)
       val contexts = ir.ToStream(ir.Literal(
         TArray(ctxType),
-        absolutePartPaths(path).zipWithIndex.map {
+        absolutePartPaths(path).zipWithIndex.fmap {
           case (x, i) => Row(i.toLong, x)
         }.toFastSeq))
 
@@ -439,13 +440,13 @@ case class IndexedRVDSpec2(
       val reader = ir.PartitionNativeReaderIndexed(rSpec, indexSpec, part.kType.fieldNames, uidFieldName)
 
       val absPath = removeFileProtocol(path)
-      val partPaths = tmpPartitioner.rangeBounds.map { b => partFiles(part.lowerBoundInterval(b)) }
+      val partPaths = tmpPartitioner.rangeBounds.fmap { b => partFiles(part.lowerBoundInterval(b)) }
 
 
       val kSize = part.kType.size
       absolutePartPaths(path)
       assert(tmpPartitioner.rangeBounds.size == partPaths.length)
-      val contextsValues: IndexedSeq[Row] = tmpPartitioner.rangeBounds.map { interval =>
+      val contextsValues: IndexedSeq[Row] = tmpPartitioner.rangeBounds.fmap { interval =>
         val partIdx = part.lowerBoundInterval(interval)
         val partPath = partFiles(partIdx)
         Row(

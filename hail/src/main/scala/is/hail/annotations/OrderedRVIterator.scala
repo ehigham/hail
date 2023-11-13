@@ -15,7 +15,7 @@ object OrderedRVIterator {
   ): Iterator[BoxedArrayBuilder[(RegionValue, Int)]] = {
     require(its.length > 0)
     val first = its(0)
-    val flipbooks = its.map(_.iterator.toFlipbookIterator)
+    val flipbooks = its.fmap(_.iterator.toFlipbookIterator)
     FlipbookIterator.multiZipJoin(
       flipbooks.toArray,
       first.t.joinComp(sm, first.t).compare

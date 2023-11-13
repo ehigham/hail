@@ -8,6 +8,7 @@ import is.hail.utils.FastSeq
 import is.hail.variant.Call2
 import is.hail.{ExecStrategy, HailSuite}
 import org.testng.annotations.Test
+import is.hail.utils.toRichIterable
 
 object ScalaTestObject {
   def testFunction(): Int = 1
@@ -42,8 +43,8 @@ class FunctionSuite extends HailSuite {
   TestRegisterFunctions.registerAll()
 
   def lookup(meth: String, rt: Type, types: Type*)(irs: IR*): IR = {
-    val l = IRFunctionRegistry.lookupUnseeded(meth, rt, types).get
-    l(Seq(), irs, ErrorIDs.NO_ERROR)
+    val l = IRFunctionRegistry.lookupUnseeded(meth, rt, types.toFastSeq).get
+    l(FastSeq(), irs.toFastSeq, ErrorIDs.NO_ERROR)
   }
 
   @Test
@@ -79,10 +80,10 @@ class FunctionSuite extends HailSuite {
 
   @Test
   def testVariableUnification() {
-    assert(IRFunctionRegistry.lookupUnseeded("testCodeUnification", TInt32, Seq(TInt32, TInt32)).isDefined)
-    assert(IRFunctionRegistry.lookupUnseeded("testCodeUnification", TInt32, Seq(TInt64, TInt32)).isEmpty)
-    assert(IRFunctionRegistry.lookupUnseeded("testCodeUnification", TInt64, Seq(TInt32, TInt32)).isEmpty)
-    assert(IRFunctionRegistry.lookupUnseeded("testCodeUnification2", TArray(TInt32), Seq(TArray(TInt32))).isDefined)
+    assert(IRFunctionRegistry.lookupUnseeded("testCodeUnification", TInt32, FastSeq(TInt32, TInt32)).isDefined)
+    assert(IRFunctionRegistry.lookupUnseeded("testCodeUnification", TInt32, FastSeq(TInt64, TInt32)).isEmpty)
+    assert(IRFunctionRegistry.lookupUnseeded("testCodeUnification", TInt64, FastSeq(TInt32, TInt32)).isEmpty)
+    assert(IRFunctionRegistry.lookupUnseeded("testCodeUnification2", TArray(TInt32), FastSeq(TArray(TInt32))).isDefined)
   }
 
   @Test

@@ -9,6 +9,7 @@ import is.hail.types.physical.stypes.concrete.SUnreachable
 import is.hail.types.physical.stypes.interfaces.SStream
 import is.hail.types.physical.stypes.primitives._
 import is.hail.types.virtual._
+import is.hail.utils.toRichIndexedSeq
 
 
 object SType {
@@ -66,7 +67,7 @@ trait SType {
   def asIdent: String = getClass.getSimpleName
 
   def defaultValue: SValue =
-    fromValues(settableTupleTypes().map(ti => ti.uninitializedValue))
+    fromValues(settableTupleTypes().fmap(ti => ti.uninitializedValue))
 
   def isPrimitive: Boolean = this match {
     case SInt32 | SInt64 | SFloat32 | SFloat64 | SBoolean => true

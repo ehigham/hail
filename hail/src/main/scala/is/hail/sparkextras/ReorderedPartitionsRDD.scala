@@ -1,6 +1,6 @@
 package is.hail.sparkextras
 
-import is.hail.utils.FastSeq
+import is.hail.utils.{FastSeq, toRichIndexedSeq}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Dependency, NarrowDependency, Partition, TaskContext}
 
@@ -13,7 +13,7 @@ class ReorderedPartitionsRDD[T](@transient var prev: RDD[T], @transient val oldI
 
   override def getPartitions: Array[Partition] = {
     val parentPartitions = dependencies.head.rdd.asInstanceOf[RDD[T]].partitions
-    Array.tabulate(oldIndices.length) { i =>
+    oldIndices.indices fmap[Partition] { i =>
       val oldIndex = oldIndices(i)
       val oldPartition = parentPartitions(oldIndex)
       ReorderedPartitionsRDDPartition(i, oldPartition)

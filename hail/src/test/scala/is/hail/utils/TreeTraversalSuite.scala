@@ -5,7 +5,7 @@ import org.testng.annotations.Test
 class TreeTraversalSuite {
 
   def binaryTree(i: Int): Iterator[Int] =
-    (1 to 2).map(2 * i + _).iterator.filter(_ < 7)
+    (1 to 2).fmap(2 * i + _).iterator.filter(_ < 7)
 
   @Test def testPostOrder =
     Assert.assertEquals(

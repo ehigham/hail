@@ -35,12 +35,12 @@ object LocalLDPruneSuite {
     Option(builder.finish(locus, alleles))
   }
 
-  def correlationMatrixGT(gts: Array[Iterable[Annotation]]) = correlationMatrix(gts.map { gts =>
+  def correlationMatrixGT(gts: Array[Iterable[Annotation]]) = correlationMatrix(gts.fmap { gts =>
     gts.map { gt => Genotype.call(gt).map(c => c: BoxedCall).orNull }.toArray
   })
 
   def correlationMatrix(gts: Array[Array[BoxedCall]]) = {
-    val bvi = gts.map { gs => LocalLDPruneSuite.fromCalls(gs.toIndexedSeq) }
+    val bvi = gts.fmap { gs => LocalLDPruneSuite.fromCalls(gs.toIndexedSeq) }
     val r2 = for (i <- bvi.indices; j <- bvi.indices) yield {
       (bvi(i), bvi(j)) match {
         case (Some(x), Some(y)) =>
@@ -194,30 +194,30 @@ class LocalLDPruneSuite extends HailSuite {
   }
 
   @Test def testBitPackUnpack() {
-    val calls1 = Array(-1, 0, 1, 2, 1, 1, 0, 0, 0, 0, 2, 2, -1, -1, -1, -1).map(toC2)
-    val calls2 = Array(0, 1, 2, 2, 2, 0, -1, -1).map(toC2)
-    val calls3 = calls1 ++ Array.ofDim[Int](32 - calls1.length).map(toC2) ++ calls2
+    val calls1 = Array(-1, 0, 1, 2, 1, 1, 0, 0, 0, 0, 2, 2, -1, -1, -1, -1).fmap(toC2)
+    val calls2 = Array(0, 1, 2, 2, 2, 0, -1, -1).fmap(toC2)
+    val calls3 = calls1 ++ Array.ofDim[Int](32 - calls1.length).fmap(toC2) ++ calls2
 
     for (calls <- Array(calls1, calls2, calls3)) {
       assert(LocalLDPruneSuite.fromCalls(calls).forall { bpv =>
-        bpv.unpack().map(toC2(_)) sameElements calls
+        bpv.unpack().fmap(toC2(_)) sameElements calls
       })
     }
   }
 
   @Test def testR2() {
     val calls = Array(
-      Array(1, 0, 0, 0, 0, 0, 0, 0).map(toC2),
-      Array(1, 1, 1, 1, 1, 1, 1, 1).map(toC2),
-      Array(1, 2, 2, 2, 2, 2, 2, 2).map(toC2),
-      Array(1, 0, 0, 0, 1, 1, 1, 1).map(toC2),
-      Array(1, 0, 0, 0, 1, 1, 2, 2).map(toC2),
-      Array(1, 0, 1, 1, 2, 2, 0, 1).map(toC2),
-      Array(1, 0, 1, 0, 2, 2, 1, 1).map(toC2)
+      Array(1, 0, 0, 0, 0, 0, 0, 0).fmap(toC2),
+      Array(1, 1, 1, 1, 1, 1, 1, 1).fmap(toC2),
+      Array(1, 2, 2, 2, 2, 2, 2, 2).fmap(toC2),
+      Array(1, 0, 0, 0, 1, 1, 1, 1).fmap(toC2),
+      Array(1, 0, 0, 0, 1, 1, 2, 2).fmap(toC2),
+      Array(1, 0, 1, 1, 2, 2, 0, 1).fmap(toC2),
+      Array(1, 0, 1, 0, 2, 2, 1, 1).fmap(toC2)
     )
 
     val actualR2 = new MultiArray2(7, 7, fs.readLines("src/test/resources/ldprune_corrtest.txt")(_.flatMap(_.map { line =>
-      line.trim.split("\t").map(r2 => if (r2 == "NA") None else Some(r2.toDouble))
+      line.trim.split("\t").fmap(r2 => if (r2 == "NA") None else Some(r2.toDouble))
     }.value).toArray))
 
     val computedR2 = LocalLDPruneSuite.correlationMatrix(calls)
@@ -241,7 +241,7 @@ class LocalLDPruneSuite extends HailSuite {
 
     assert(isSame)
 
-    val input = Array(0, 1, 2, 2, 2, 0, -1, -1).map(toC2)
+    val input = Array(0, 1, 2, 2, 2, 0, -1, -1).fmap(toC2)
     val bvi1 = LocalLDPruneSuite.fromCalls(input).get
     val bvi2 = LocalLDPruneSuite.fromCalls(input).get
 
@@ -250,8 +250,8 @@ class LocalLDPruneSuite extends HailSuite {
 
   object Spec extends Properties("LDPrune") {
     val vectorGen = for (nSamples: Int <- Gen.choose(1, 1000);
-    v1: Array[BoxedCall] <- Gen.buildableOfN[Array](nSamples, Gen.choose(-1, 2).map(toC2));
-    v2: Array[BoxedCall] <- Gen.buildableOfN[Array](nSamples, Gen.choose(-1, 2).map(toC2))
+                         v1: Array[BoxedCall] <- Gen.buildableOfN[Array](nSamples, Gen.choose(-1, 2).map(toC2));
+                         v2: Array[BoxedCall] <- Gen.buildableOfN[Array](nSamples, Gen.choose(-1, 2).map(toC2))
     ) yield (nSamples, v1, v2)
 
     property("bitPacked pack and unpack give same as orig") =
@@ -259,7 +259,7 @@ class LocalLDPruneSuite extends HailSuite {
         val bpv = LocalLDPruneSuite.fromCalls(v1)
 
         bpv match {
-          case Some(x) => LocalLDPruneSuite.fromCalls(x.unpack().map(toC2)).get.gs sameElements x.gs
+          case Some(x) => LocalLDPruneSuite.fromCalls(x.unpack().fmap(toC2)).get.gs sameElements x.gs
           case None => true
         }
       }

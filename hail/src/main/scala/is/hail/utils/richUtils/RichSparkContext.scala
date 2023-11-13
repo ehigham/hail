@@ -10,11 +10,11 @@ class RichSparkContext(val sc: SparkContext) extends AnyVal {
 
     /*
      * Don't use:
-     *   sc.union(files.map(sc.textFile, nPartitions))
+     *   sc.union(files.fmap(sc.textFile, nPartitions))
      * since it asks for nPartitions per file instead of nPartitions over all.
      */
     val rdd = sc.textFile(files.mkString(","), nPartitions)
-    val partitionFile = rdd.partitions.map(partitionPath)
+    val partitionFile = rdd.partitions.fmap(partitionPath)
 
     rdd
       .mapPartitionsWithIndex { case (i, it) =>

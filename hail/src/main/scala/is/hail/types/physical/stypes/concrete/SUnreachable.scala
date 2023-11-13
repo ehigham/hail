@@ -8,7 +8,7 @@ import is.hail.types.physical.stypes.interfaces._
 import is.hail.types.physical.stypes.primitives.SInt64Value
 import is.hail.types.physical.{PCanonicalNDArray, PNDArray, PType}
 import is.hail.types.virtual._
-import is.hail.utils.FastSeq
+import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq, toRichIterable}
 
 object SUnreachable {
   def fromVirtualType(t: Type): SType = {
@@ -64,8 +64,8 @@ abstract class SUnreachableValue extends SSettable {
 case class SUnreachableStruct(virtualType: TBaseStruct) extends SUnreachable with SBaseStruct {
   override def size: Int = virtualType.size
 
-  override val fieldTypes: IndexedSeq[SType] = virtualType.types.map(SUnreachable.fromVirtualType)
-  override val fieldEmitTypes: IndexedSeq[EmitType] = fieldTypes.map(f => EmitType(f, true))
+  override val fieldTypes: IndexedSeq[SType] = virtualType.types.fmap(SUnreachable.fromVirtualType)
+  override val fieldEmitTypes: IndexedSeq[EmitType] = fieldTypes.fmap(f => EmitType(f, true))
 
   override def fieldIdx(fieldName: String): Int = virtualType.fieldIdx(fieldName)
 
@@ -80,7 +80,7 @@ class SUnreachableStructValue(override val st: SUnreachableStruct) extends SUnre
 
   override def subset(fieldNames: String*): SBaseStructValue = {
     val oldType = st.virtualType.asInstanceOf[TStruct]
-    val newType = TStruct(fieldNames.map(f => (f, oldType.fieldType(f))): _*)
+    val newType = TStruct(fieldNames.toFastSeq.fmap(f => (f, oldType.fieldType(f))): _*)
     new SUnreachableStructValue(SUnreachableStruct(newType))
   }
 
@@ -214,11 +214,11 @@ class SUnreachableNDArrayValue(override val st: SUnreachableNDArray) extends SUn
 
   override def loadElementAddress(indices: IndexedSeq[is.hail.asm4s.Value[Long]],cb: is.hail.expr.ir.EmitCodeBuilder): is.hail.asm4s.Code[Long] = const(0L)
 
-  override def shapes: IndexedSeq[SizeValue] = (0 until st.nDims).map(_ => SizeValueStatic(0L))
+  override def shapes: IndexedSeq[SizeValue] = (0 until st.nDims).fmap(_ => SizeValueStatic(0L))
 
-  override def shapeStruct(cb: EmitCodeBuilder): SBaseStructValue = SUnreachableStruct(TTuple((0 until st.nDims).map(_ => TInt64): _*)).sv
+  override def shapeStruct(cb: EmitCodeBuilder): SBaseStructValue = SUnreachableStruct(TTuple((0 until st.nDims).fmap(_ => TInt64): _*)).sv
 
-  override def strides: IndexedSeq[Value[Long]] = (0 until st.nDims).map(_ => const(0L))
+  override def strides: IndexedSeq[Value[Long]] = (0 until st.nDims).fmap(_ => const(0L))
 
   override def outOfBounds(indices: IndexedSeq[Value[Long]], cb: EmitCodeBuilder): Code[Boolean] = const(false)
 

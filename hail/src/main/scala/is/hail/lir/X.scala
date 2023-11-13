@@ -102,7 +102,7 @@ class Classx[C](val name: String, val superName: String, var sourceFile: Option[
     if (writeIRs) saveToFile(s"/tmp/hail/${shortName}.split.lir")
 
     // println(Pretty(this, saveLineNumbers = false))
-    classes.iterator.map { c =>
+    classes.fmap { c =>
       val bytes = Emit(c,
         print
         // Some(new PrintWriter(System.out))
@@ -170,7 +170,7 @@ class Method private[lir] (
 
   def owner: String = classx.name
 
-  def desc = s"(${parameterTypeInfo.map(_.desc).mkString})${returnTypeInfo.desc}"
+  def desc = s"(${parameterTypeInfo.fmap(_.desc).mkString})${returnTypeInfo.desc}"
 
   def isInterface: Boolean = false
 

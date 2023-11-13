@@ -5,7 +5,7 @@ import is.hail.expr.ir.agg.{Extract, PhysicalAggSig, TakeStateSig}
 import is.hail.expr.ir.{Requiredness, _}
 import is.hail.types._
 import is.hail.types.virtual._
-import is.hail.utils.FastSeq
+import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq}
 
 
 object LowerAndExecuteShuffles {
@@ -43,8 +43,8 @@ object LowerAndExecuteShuffles {
         ts = TableMapGlobals(ts, MakeStruct(FastSeq(
           ("oldGlobals", Ref("global", origGlobalTyp)),
           ("__initState",
-          RunAgg(init, MakeTuple.ordered(aggSigs.indices.map { aIdx => AggStateValue(aIdx, aggSigs(aIdx).state) }),
-            aggSigs.map(_.state))))))
+          RunAgg(init, MakeTuple.ordered(aggSigs.indices.fmap { aIdx => AggStateValue(aIdx, aggSigs(aIdx).state) }),
+            aggSigs.fmap(_.state))))))
 
         val insGlobName = genUID()
         def insGlob = Ref(insGlobName, ts.typ.globalType)
@@ -52,7 +52,7 @@ object LowerAndExecuteShuffles {
           TableMapPartitions(ts, insGlob.name, streamName,
             Let(FastSeq("global" -> GetField(insGlob, "oldGlobals")),
               StreamBufferedAggregate(Ref(streamName, streamTyp), bindIR(GetField(insGlob, "__initState")) { states =>
-                Begin(aggSigs.indices.map { aIdx =>
+                Begin(aggSigs.indices.fmap { aIdx =>
                   InitFromSerializedValue(aIdx, GetTupleElement(states, aIdx), aggSigs(aIdx).state)
                 })
               }, newKey, seq, "row", aggSigs, bufferSize)
@@ -66,7 +66,7 @@ object LowerAndExecuteShuffles {
         val rt = analyses.requirednessAnalysis.lookup(partiallyAggregated).asInstanceOf[RTable]
         val partiallyAggregatedReader = ctx.backend.lowerDistributedSort(ctx,
           preShuffleStage,
-          newKeyType.fieldNames.map(k => SortField(k, Ascending)),
+          newKeyType.fieldNames.fmap(k => SortField(k, Ascending)),
           rt,
           nPartitions)
 
@@ -86,13 +86,13 @@ object LowerAndExecuteShuffles {
             mapIR(StreamGroupByKey(partStream, newKeyType.fieldNames.toIndexedSeq, missingEqual = true)) { groupRef =>
               RunAgg(Begin(FastSeq(
                 bindIR(GetField(insGlob, "__initState")) { states =>
-                  Begin(aggSigs.indices.map { aIdx => InitFromSerializedValue(aIdx, GetTupleElement(states, aIdx), aggSigs(aIdx).state) })
+                  Begin(aggSigs.indices.fmap { aIdx => InitFromSerializedValue(aIdx, GetTupleElement(states, aIdx), aggSigs(aIdx).state) })
                 },
                 InitOp(aggSigs.length, IndexedSeq(I32(1)), PhysicalAggSig(Take(), takeVirtualSig)),
                 forIR(groupRef) { elem =>
                   Begin(FastSeq(
                     SeqOp(aggSigs.length, IndexedSeq(SelectFields(elem, newKeyType.fieldNames)), PhysicalAggSig(Take(), takeVirtualSig)),
-                    Begin((0 until aggSigs.length).map { aIdx =>
+                    Begin((0 until aggSigs.length).fmap { aIdx =>
                       CombOpValue(aIdx, GetTupleElement(GetField(elem, "agg"), aIdx), aggSigs(aIdx))
                     })))
                 })),
@@ -103,9 +103,9 @@ object LowerAndExecuteShuffles {
                     resultFromTakeUID -> result
                   ), {
                     val keyIRs: IndexedSeq[(String, IR)] =
-                      newKeyType.fieldNames.map(keyName => keyName -> GetField(ArrayRef(Ref(resultFromTakeUID, result.typ), 0), keyName))
+                      newKeyType.fieldNames.fmap(keyName => keyName -> GetField(ArrayRef(Ref(resultFromTakeUID, result.typ), 0), keyName))
 
-                    MakeStruct(keyIRs ++ expr.typ.asInstanceOf[TStruct].fieldNames.map { f =>
+                    MakeStruct(keyIRs ++ expr.typ.asInstanceOf[TStruct].fieldNames.fmap { f =>
                       (f, GetField(Ref(postAggUID, postAggIR.typ), f))
                     })
                   }),

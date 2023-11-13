@@ -19,13 +19,13 @@ import scala.language.{existentials, postfixOps}
 class UnsupportedExtraction(msg: String) extends Exception(msg)
 
 object AggStateSig {
-  def apply(op: AggOp, initOpArgs: Seq[IR], seqOpArgs: Seq[IR], r: RequirednessAnalysis): AggStateSig = {
-    val inits = initOpArgs.map { i => i -> (if (i.typ == TVoid) null else r(i)) }
-    val seqs = seqOpArgs.map { s => s -> (if (s.typ == TVoid) null else r(s)) }
+  def apply(op: AggOp, initOpArgs: IndexedSeq[IR], seqOpArgs: IndexedSeq[IR], r: RequirednessAnalysis): AggStateSig = {
+    val inits = initOpArgs.fmap { i => i -> (if (i.typ == TVoid) null else r(i)) }
+    val seqs = seqOpArgs.fmap { s => s -> (if (s.typ == TVoid) null else r(s)) }
     apply(op, inits, seqs)
   }
-  def apply(op: AggOp, initOpArgs: Seq[(IR, TypeWithRequiredness)], seqOpArgs: Seq[(IR, TypeWithRequiredness)]): AggStateSig = {
-    val seqVTypes = seqOpArgs.map { case (a, r) => VirtualTypeWithReq(a.typ, r) }
+  def apply(op: AggOp, initOpArgs: IndexedSeq[(IR, TypeWithRequiredness)], seqOpArgs: IndexedSeq[(IR, TypeWithRequiredness)]): AggStateSig = {
+    val seqVTypes = seqOpArgs.fmap { case (a, r) => VirtualTypeWithReq(a.typ, r) }
     op match {
       case Sum() | Product() => TypedStateSig(seqVTypes.head.setRequired(true))
       case Min() | Max()  => TypedStateSig(seqVTypes.head.setRequired(false))
@@ -34,7 +34,7 @@ object AggStateSig {
       case ReservoirSample() => ReservoirSampleStateSig(seqVTypes.head)
       case Densify() => DensifyStateSig(seqVTypes.head)
       case TakeBy(reverse) =>
-        val Seq(vt, kt) = seqVTypes
+        val Array(vt, kt) = seqVTypes
         TakeByStateSig(vt, kt, reverse)
       case CallStats() => CallStatsStateSig()
       case PrevNonnull() => TypedStateSig(seqVTypes.head.setRequired(false))
@@ -43,7 +43,7 @@ object AggStateSig {
       case LinearRegression() => LinearRegressionStateSig()
       case ApproxCDF() => ApproxCDFStateSig()
       case Downsample() =>
-        val Seq(_, _, labelType) = seqVTypes
+        val Array(_, _, labelType) = seqVTypes
         DownsampleStateSig(labelType)
       case ImputeType() => ImputeTypeStateSig()
       case NDArraySum() => NDArraySumStateSig(seqVTypes.head.setRequired(false)) // set required to false to handle empty aggs
@@ -51,9 +51,9 @@ object AggStateSig {
       case _ => throw new UnsupportedExtraction(op.toString)
     }
   }
-  def grouped(k: IR, aggs: Seq[AggStateSig], r: RequirednessAnalysis): GroupedStateSig =
+  def grouped(k: IR, aggs: IndexedSeq[AggStateSig], r: RequirednessAnalysis): GroupedStateSig =
     GroupedStateSig(VirtualTypeWithReq(k.typ, r(k)), aggs)
-  def arrayelements(aggs: Seq[AggStateSig]): ArrayAggStateSig =
+  def arrayelements(aggs: IndexedSeq[AggStateSig]): ArrayAggStateSig =
     ArrayAggStateSig(aggs)
 
   def getState(sig: AggStateSig, cb: EmitClassBuilder[_]): AggregatorState = sig match {
@@ -69,8 +69,8 @@ object AggStateSig {
     case CallStatsStateSig() => new CallStatsState(cb)
     case ApproxCDFStateSig() => new ApproxCDFState(cb)
     case ImputeTypeStateSig() => new ImputeTypeState(cb)
-    case ArrayAggStateSig(nested) => new ArrayElementState(cb, StateTuple(nested.map(sig => AggStateSig.getState(sig, cb)).toArray))
-    case GroupedStateSig(kt, nested) => new DictState(cb, kt, StateTuple(nested.map(sig => AggStateSig.getState(sig, cb)).toArray))
+    case ArrayAggStateSig(nested) => new ArrayElementState(cb, StateTuple(nested.fmap(sig => AggStateSig.getState(sig, cb)).toArray))
+    case GroupedStateSig(kt, nested) => new DictState(cb, kt, StateTuple(nested.fmap(sig => AggStateSig.getState(sig, cb)).toArray))
     case NDArraySumStateSig(nda) => new TypedRegionBackedAggState(nda, cb)
     case NDArrayMultiplyAddStateSig(nda) =>
       new TypedRegionBackedAggState(nda, cb)
@@ -93,8 +93,8 @@ case class CollectStateSig(pt: VirtualTypeWithReq) extends AggStateSig(Array(pt)
 case class CollectAsSetStateSig(pt: VirtualTypeWithReq) extends AggStateSig(Array(pt), None)
 case class CallStatsStateSig() extends AggStateSig(Array[VirtualTypeWithReq](), None)
 case class ImputeTypeStateSig() extends AggStateSig(Array[VirtualTypeWithReq](), None)
-case class ArrayAggStateSig(nested: Seq[AggStateSig]) extends AggStateSig(Array[VirtualTypeWithReq](), Some(nested))
-case class GroupedStateSig(kt: VirtualTypeWithReq, nested: Seq[AggStateSig]) extends AggStateSig(Array(kt), Some(nested))
+case class ArrayAggStateSig(nested: IndexedSeq[AggStateSig]) extends AggStateSig(Array[VirtualTypeWithReq](), Some(nested))
+case class GroupedStateSig(kt: VirtualTypeWithReq, nested: IndexedSeq[AggStateSig]) extends AggStateSig(Array(kt), Some(nested))
 case class ApproxCDFStateSig() extends AggStateSig(Array[VirtualTypeWithReq](), None)
 case class LinearRegressionStateSig() extends AggStateSig(Array[VirtualTypeWithReq](), None)
 case class NDArraySumStateSig(nda: VirtualTypeWithReq) extends AggStateSig(Array[VirtualTypeWithReq](nda), None) {
@@ -121,16 +121,16 @@ class PhysicalAggSig(val op: AggOp, val state: AggStateSig, val nestedOps: Array
 
 case class BasicPhysicalAggSig(override val op: AggOp, override val state: AggStateSig) extends PhysicalAggSig(op, state, Array())
 
-case class GroupedAggSig(kt: VirtualTypeWithReq, nested: Seq[PhysicalAggSig]) extends
-  PhysicalAggSig(Group(), GroupedStateSig(kt, nested.map(_.state)), nested.flatMap(sig => sig.allOps).toArray)
-case class AggElementsAggSig(nested: Seq[PhysicalAggSig]) extends
-  PhysicalAggSig(AggElements(), ArrayAggStateSig(nested.map(_.state)), nested.flatMap(sig => sig.allOps).toArray)
+case class GroupedAggSig(kt: VirtualTypeWithReq, nested: IndexedSeq[PhysicalAggSig]) extends
+  PhysicalAggSig(Group(), GroupedStateSig(kt, nested.fmap(_.state)), nested.flatMap(sig => sig.allOps).toArray)
+case class AggElementsAggSig(nested: IndexedSeq[PhysicalAggSig]) extends
+  PhysicalAggSig(AggElements(), ArrayAggStateSig(nested.fmap(_.state)), nested.flatMap(sig => sig.allOps).toArray)
 
-case class ArrayLenAggSig(knownLength: Boolean, nested: Seq[PhysicalAggSig]) extends
-  PhysicalAggSig(AggElementsLengthCheck(), ArrayAggStateSig(nested.map(_.state)), nested.flatMap(sig => sig.allOps).toArray)
+case class ArrayLenAggSig(knownLength: Boolean, nested: IndexedSeq[PhysicalAggSig]) extends
+  PhysicalAggSig(AggElementsLengthCheck(), ArrayAggStateSig(nested.fmap(_.state)), nested.flatMap(sig => sig.allOps).toArray)
 
 class Aggs(original: IR, rewriteMap: Memo[IR], bindingNodesReferenced: Memo[Unit], val init: IR, val seqPerElt: IR, val aggs: Array[PhysicalAggSig]) {
-  val states: Array[AggStateSig] = aggs.map(_.state)
+  val states: Array[AggStateSig] = aggs.fmap(_.state)
   val nAggs: Int = aggs.length
 
 
@@ -239,7 +239,7 @@ class Aggs(original: IR, rewriteMap: Memo[IR], bindingNodesReferenced: Memo[Unit
       Begin(FastSeq(
         ir.DeserializeAggs(0, 0, spec, states),
         ir.DeserializeAggs(nAggs, 1, spec, states),
-        Begin(aggs.zipWithIndex.map { case (sig, i) => CombOp(i, i + nAggs, sig) }),
+        Begin(aggs.zipWithIndex.fmap { case (sig, i) => CombOp(i, i + nAggs, sig) }),
         SerializeAggs(0, 0, spec, states)
       )))
 
@@ -278,9 +278,9 @@ class Aggs(original: IR, rewriteMap: Memo[IR], bindingNodesReferenced: Memo[Unit
       cb.assign(rightAggRegion, fb.getCodeParam[Region](3))
       cb.assign(rightAggOff, fb.getCodeParam[Long](4))
 
-      val leftStates = agg.StateTuple(states.map(s => AggStateSig.getState(s, fb.ecb)))
+      val leftStates = agg.StateTuple(states.fmap(s => AggStateSig.getState(s, fb.ecb)))
       val leftAggState = new agg.TupleAggregatorState(fb.ecb, leftStates, leftAggRegion, leftAggOff)
-      val rightStates = agg.StateTuple(states.map(s => AggStateSig.getState(s, fb.ecb)))
+      val rightStates = agg.StateTuple(states.fmap(s => AggStateSig.getState(s, fb.ecb)))
       val rightAggState = new agg.TupleAggregatorState(fb.ecb, rightStates, rightAggRegion, rightAggOff)
 
       leftStates.createStates(cb)
@@ -337,7 +337,7 @@ object Extract {
 
   def addLets(ir: IR, lets: Array[AggLet]): IR = {
     assert(lets.areDistinct())
-    Let(lets.map(al => al.name -> al.value), ir)
+    Let(lets.fmap(al => al.name -> al.value), ir)
   }
 
   def getResultType(aggSig: AggSignature): Type = aggSig match {
@@ -383,11 +383,11 @@ object Extract {
     case PhysicalAggSig(Downsample(), DownsampleStateSig(labelType)) => new DownsampleAggregator(labelType)
     case PhysicalAggSig(ImputeType(), ImputeTypeStateSig()) => new ImputeTypeAggregator()
     case ArrayLenAggSig(knownLength, nested) => //FIXME nested things shouldn't need to know state
-      new ArrayElementLengthCheckAggregator(nested.map(getAgg).toArray, knownLength)
+      new ArrayElementLengthCheckAggregator(nested.fmap(getAgg).toArray, knownLength)
     case AggElementsAggSig(nested) =>
-      new ArrayElementwiseOpAggregator(nested.map(getAgg).toArray)
+      new ArrayElementwiseOpAggregator(nested.fmap(getAgg).toArray)
     case GroupedAggSig(k, nested) =>
-      new GroupedAggregator(k, nested.map(getAgg).toArray)
+      new GroupedAggregator(k, nested.fmap(getAgg).toArray)
     case PhysicalAggSig(NDArraySum(), NDArraySumStateSig(nda)) =>
       new NDArraySumAggregator(nda)
     case PhysicalAggSig(NDArrayMultiplyAdd(), NDArrayMultiplyAddStateSig(nda)) =>
@@ -407,7 +407,7 @@ object Extract {
     val rewriteMap = Memo.empty[IR]
     extract(ir, Env.empty, bindingNodesReferenced, rewriteMap, ab, seq, let, memo, ref, r, isScan)
     val (initOps, pAggSigs) = ab.result().unzip
-    val rt = TTuple(initOps.map(_.aggSig.resultType): _*)
+    val rt = TTuple(initOps.fmap(_.aggSig.resultType): _*)
     ref._typ = rt
 
     new Aggs(ir, rewriteMap, bindingNodesReferenced, Begin(initOps), addLets(Begin(seq.result()), let.result()), pAggSigs)
@@ -497,10 +497,10 @@ object Extract {
         val i = ab.length
         val (initOps, pAggSigs) = newAggs.result().unzip
 
-        val rt = TDict(key.typ, TTuple(initOps.map(_.aggSig.resultType): _*))
+        val rt = TDict(key.typ, TTuple(initOps.fmap(_.aggSig.resultType): _*))
         newRef._typ = rt.elementType
 
-        val groupState = AggStateSig.grouped(key, pAggSigs.map(_.state), r)
+        val groupState = AggStateSig.grouped(key, pAggSigs.fmap(_.state), r)
         val groupSig = GroupedAggSig(groupState.kt, pAggSigs.toFastSeq)
         ab += InitOp(i, FastSeq(Begin(initOps)), groupSig) -> groupSig
         seqBuilder += SeqOp(i, FastSeq(key, Begin(newSeq.result().toFastSeq)), groupSig)
@@ -520,7 +520,7 @@ object Extract {
         val i = ab.length
         val (initOps, pAggSigs) = newAggs.result().unzip
 
-        val rt = TArray(TTuple(initOps.map(_.aggSig.resultType): _*))
+        val rt = TArray(TTuple(initOps.fmap(_.aggSig.resultType): _*))
         newRef._typ = rt.elementType
 
         val checkSig = ArrayLenAggSig(knownLength.isDefined, pAggSigs)

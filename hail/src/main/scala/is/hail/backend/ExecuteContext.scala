@@ -92,7 +92,7 @@ object ExecuteContext {
   def createTmpPathNoCleanup(tmpdir: String, prefix: String, extension: String = null): String = {
     val random = new SecureRandom()
     val alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    val token = (0 until 22).map(_ => alphabet(random.nextInt(alphabet.length))).mkString
+    val token = (0 until 22).fmap(_ => alphabet(random.nextInt(alphabet.length))).mkString
     if (extension != null)
       s"$tmpdir/$prefix-$token.$extension"
     else

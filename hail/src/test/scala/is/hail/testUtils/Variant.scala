@@ -2,6 +2,7 @@ package is.hail.testUtils
 
 import is.hail.annotations.Annotation
 import is.hail.types.virtual.{TArray, TLocus, TString, TStruct}
+import is.hail.utils.{arrayToRichIndexedSeq, toRichIndexedSeq}
 import is.hail.variant._
 import org.apache.spark.sql.Row
 import org.json4s._
@@ -19,7 +20,7 @@ object Variant {
   def apply(contig: String,
     start: Int,
     ref: String,
-    alts: Array[String]): Variant = Variant(contig, start, ref, alts.map(alt => AltAllele(ref, alt)))
+    alts: Array[String]): Variant = Variant(contig, start, ref, alts.fmap(alt => AltAllele(ref, alt)))
 
   def apply(contig: String,
     start: Int,
@@ -43,7 +44,7 @@ object Variant {
     if (l == null || alleles == null)
       null
     else
-      Variant(l.contig, l.position, alleles(0), alleles.tail.map(x => AltAllele(alleles(0), x)))
+      Variant(l.contig, l.position, alleles(0), alleles.tail.fmap(x => AltAllele(alleles(0), x)))
   }
 }
 
@@ -80,5 +81,5 @@ case class Variant(contig: String,
   def locus: Locus = Locus(contig, start)
 
   override def toString: String =
-    s"$contig:$start:$ref:${ altAlleles.map(_.alt).mkString(",") }"
+    s"$contig:$start:$ref:${ altAlleles.fmap(_.alt).mkString(",") }"
 }

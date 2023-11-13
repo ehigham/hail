@@ -22,7 +22,7 @@ object EmitStreamDistribute {
 
     val keyType = requestedSplittersVal.st.elementType.asInstanceOf[SBaseStruct]
     val keyPType = pivotsPType.elementType
-    val keyFieldNames = keyType.virtualType.fields.map(_.name)
+    val keyFieldNames = keyType.virtualType.fields.fmap(_.name)
 
     def compare(cb: EmitCodeBuilder, lelt: EmitValue, relt: EmitValue): Code[Int] = {
       val lhs = lelt.map(cb)(_.asBaseStruct.subset(keyFieldNames: _*))

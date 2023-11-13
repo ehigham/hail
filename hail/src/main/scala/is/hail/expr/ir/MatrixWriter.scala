@@ -138,7 +138,7 @@ object MatrixNativeWriter {
       override val stage: TableStage =
         lowered.mapContexts { oldCtx =>
           val d = digitsNeeded(lowered.numPartitions)
-          val partFiles = Array.tabulate(lowered.numPartitions)(i => s"${partFile(d, i)}-")
+          val partFiles = (0 until lowered.numPartitions).fmap(i => s"${partFile(d, i)}-")
 
           zip2(oldCtx, ToStream(Literal(TArray(TString), partFiles.toFastSeq)), ArrayZipBehavior.AssertSameLength) { (ctxElt, pf) =>
             MakeStruct(FastSeq("oldCtx" -> ctxElt, "writeCtx" -> pf))
@@ -285,9 +285,9 @@ case class SplitPartitionNativeWriter(spec1: AbstractTypedCodecSpec,
       val ctxValue = pctx.asString.loadString(cb)
       val (filenames, stages, buffers) =
         FastSeq(partPrefix1, partPrefix2)
-          .map(const)
+          .fmap(const)
           .zipWithIndex
-          .map { case (prefix, i) =>
+          .fmap { case (prefix, i) =>
             val filename = mb.newLocal[String](s"filename$i")
             cb.assign(filename, prefix.concat(ctxValue))
 
@@ -339,7 +339,7 @@ case class SplitPartitionNativeWriter(spec1: AbstractTypedCodecSpec,
         writeIndexInfo.foreach { case (_, keyType, writer) =>
           writer.add(cb, {
             IEmitCode.present(cb, keyType.asInstanceOf[PCanonicalBaseStruct]
-              .constructFromFields(cb, stream.elementRegion, keyType.fields.map { f =>
+              .constructFromFields(cb, stream.elementRegion, keyType.fields.fmap { f =>
                 EmitCode.fromI(cb.emb)(cb => row.loadField(cb, f.name))
               },
                 deepCopy = false
@@ -357,7 +357,7 @@ case class SplitPartitionNativeWriter(spec1: AbstractTypedCodecSpec,
           )
         }
 
-        val key = SStackStruct.constructFromArgs(cb, stream.elementRegion, keyType, keyType.fields.map { f =>
+        val key = SStackStruct.constructFromArgs(cb, stream.elementRegion, keyType, keyType.fields.fmap { f =>
           EmitCode.fromI(cb.emb)(cb => row.loadField(cb, f.name))
         }: _*)
 
@@ -509,7 +509,7 @@ case class MatrixVCFWriter(
 
     ts.mapContexts { oldCtx =>
       val d = digitsNeeded(ts.numPartitions)
-      val partFiles = Literal(TArray(TString), Array.tabulate(ts.numPartitions)(i => s"$folder/${ partFile(d, i) }-").toFastSeq)
+      val partFiles = Literal(TArray(TString), (0 until ts.numPartitions).fmap(i => s"$folder/${ partFile(d, i) }-").toFastSeq)
 
       zip2(oldCtx, ToStream(partFiles), ArrayZipBehavior.AssertSameLength) { (ctxElt, pf) =>
         MakeStruct(FastSeq(
@@ -549,10 +549,10 @@ case class VCFPartitionWriter(typ: MatrixType, entriesFieldName: String, writeHe
   val ctxType: Type = TStruct("cols" -> TArray(typ.colType), "partFile" -> TString)
 
   val formatFieldOrder: Array[Int] = typ.entryType.fieldIdx.get("GT") match {
-    case Some(i) => (i +: typ.entryType.fields.filter(fd => fd.name != "GT").map(_.index)).toArray
+    case Some(i) => (i +: typ.entryType.fields.filter(fd => fd.name != "GT").fmap(_.index)).toArray
     case None => typ.entryType.fields.indices.toArray
   }
-  val formatFieldStr = formatFieldOrder.map(i => typ.entryType.fields(i).name).mkString(":")
+  val formatFieldStr = formatFieldOrder.fmap(i => typ.entryType.fields(i).name).mkString(":")
 
   val locusIdx = typ.rowType.fieldIdx("locus")
   val allelesIdx = typ.rowType.fieldIdx("alleles")
@@ -936,7 +936,7 @@ case class MatrixGENWriter(
 
     ts.mapContexts { oldCtx =>
       val d = digitsNeeded(ts.numPartitions)
-      val partFiles = Literal(TArray(TString), Array.tabulate(ts.numPartitions)(i => s"$folder/${ partFile(d, i) }-").toFastSeq)
+      val partFiles = Literal(TArray(TString), (0 until ts.numPartitions).fmap(i => s"$folder/${ partFile(d, i) }-").toFastSeq)
 
       zip2(oldCtx, ToStream(partFiles), ArrayZipBehavior.AssertSameLength) { (ctxElt, pf) =>
         MakeStruct(FastSeq(
@@ -1056,8 +1056,8 @@ case class MatrixBGENWriter(
 
     ts.mapContexts { oldCtx =>
       val d = digitsNeeded(ts.numPartitions)
-      val partFiles = ToStream(Literal(TArray(TString), Array.tabulate(ts.numPartitions)(i => s"$folder/${ partFile(d, i) }-").toFastSeq))
-      val numVariants = if (writeHeader) ToStream(ts.countPerPartition()) else ToStream(MakeArray(Array.tabulate(ts.numPartitions)(_ => NA(TInt64)): _*))
+      val partFiles = ToStream(Literal(TArray(TString), FastSeq.tabulate(ts.numPartitions)(i => s"$folder/${ partFile(d, i) }-").toFastSeq))
+      val numVariants = if (writeHeader) ToStream(ts.countPerPartition()) else ToStream(MakeArray(FastSeq.tabulate(ts.numPartitions)(_ => NA(TInt64)): _*))
 
       val ctxElt = Ref(genUID(), tcoerce[TStream](oldCtx.typ).elementType)
       val pf = Ref(genUID(), tcoerce[TStream](partFiles.typ).elementType)
@@ -1320,7 +1320,7 @@ case class MatrixPLINKWriter(
     ts.mapContexts { oldCtx =>
       val d = digitsNeeded(ts.numPartitions)
       val files = Literal(TArray(TTuple(TString, TString)),
-                          Array.tabulate(ts.numPartitions)(i => Row(s"$tmpBedDir/${ partFile(d, i) }-", s"$tmpBimDir/${ partFile(d, i) }-")).toFastSeq)
+                          (0 until ts.numPartitions).fmap(i => Row(s"$tmpBedDir/${ partFile(d, i) }-", s"$tmpBimDir/${ partFile(d, i) }-")).toFastSeq)
 
       zip2(oldCtx, ToStream(files), ArrayZipBehavior.AssertSameLength) { (ctxElt, pf) =>
         MakeStruct(FastSeq(
@@ -1501,7 +1501,7 @@ case class MatrixBlockMatrixWriter(
     }
 
     // Two steps, make a partitioner that works currently based on row_idx splits, then resplit accordingly.
-    val inputRowIntervals = inputPartStarts.zip(inputPartStops).map{ case (intervalStart, intervalEnd) =>
+    val inputRowIntervals = inputPartStarts.zip(inputPartStops).fmap{ case (intervalStart, intervalEnd) =>
       Interval(Row(intervalStart.toInt), Row(intervalEnd.toInt), true, false)
     }
 
@@ -1509,9 +1509,9 @@ case class MatrixBlockMatrixWriter(
     val keyedByRowIdx = partsZippedWithIdx.changePartitionerNoRepartition(rowIdxPartitioner)
 
     // Now create a partitioner that makes appropriately sized blocks
-    val desiredRowStarts = (0 until numBlockRows).map(_ * blockSize)
+    val desiredRowStarts = (0 until numBlockRows).fmap(_ * blockSize)
     val desiredRowStops = desiredRowStarts.drop(1) :+ numRows.toInt
-    val desiredRowIntervals = desiredRowStarts.zip(desiredRowStops).map{
+    val desiredRowIntervals = desiredRowStarts.zip(desiredRowStops).fmap{
       case (intervalStart, intervalEnd) =>  Interval(Row(intervalStart), Row(intervalEnd), true, false)
     }
 
@@ -1600,23 +1600,23 @@ case class MatrixNativeMultiWriter(
     MatrixValue.writeMultiple(ctx, mvs, paths, overwrite, stageLocally, bufferSpec)
 
   def lower(ctx: ExecuteContext, tables: IndexedSeq[(String, String, IndexedSeq[String], TableStage, RTable)]): IR = {
-    val components = paths.zip(tables).map { case (path, (colsFieldName, entriesFieldName, colKey, ts, rt)) =>
+    val components = paths.zip(tables).fmap { case (path, (colsFieldName, entriesFieldName, colKey, ts, rt)) =>
       MatrixNativeWriter.generateComponentFunctions(colsFieldName, entriesFieldName, colKey,
         ctx, ts, rt, path, overwrite, stageLocally, codecSpecJSONStr)
     }
 
-    require(tables.map(_._4.tableType.keyType).distinct.length == 1)
-    val unionType = TTuple(components.map(c => TIterable.elementType(c.stage.contexts.typ)): _*)
+    require(tables.fmap(_._4.tableType.keyType).distinct.length == 1)
+    val unionType = TTuple(components.fmap(c => TIterable.elementType(c.stage.contexts.typ)): _*)
 
     val contextUnionType = TStruct("matrixId" -> TInt32, "options" -> unionType)
 
     val emptyUnionIRs: IndexedSeq[(Int, IR)] =
-      IndexedSeq.tabulate(unionType.size)(i => i -> NA(unionType.types(i)))
+      FastSeq.tabulate(unionType.size)(i => i -> NA(unionType.types(i)))
 
     val concatenatedContexts =
       flatten(
         MakeArray(
-          components.zipWithIndex.map { case (c, matrixId) =>
+          components.zipWithIndex.fmap { case (c, matrixId) =>
             ToArray(mapIR(c.stage.contexts) { ctx =>
               MakeStruct(FastSeq(
                 "matrixId" -> I32(matrixId),
@@ -1631,14 +1631,14 @@ case class MatrixNativeMultiWriter(
     val allBroadcasts = MakeStruct(components.flatMap(_.stage.broadcastVals))
 
     Begin(FastSeq(
-      Begin(components.map(_.setup)),
+      Begin(components.fmap(_.setup)),
       Let(components.flatMap(_.stage.letBindings),
         bindIR(cdaIR(concatenatedContexts, allBroadcasts, "matrix_multi_writer") { case (ctx, globals) =>
           bindIR(GetField(ctx, "options")) { options =>
             Switch(GetField(ctx, "matrixId"),
               default = Die("MatrixId exceeds matrix count", components.head.writePartitionType),
-              cases = components.zipWithIndex.map { case (component, i) =>
-                val binds = component.stage.broadcastVals.map { case (name, _) =>
+              cases = components.zipWithIndex.fmap { case (component, i) =>
+                val binds = component.stage.broadcastVals.fmap { case (name, _) =>
                   name -> GetField(globals, name)
                 }
 
@@ -1650,9 +1650,9 @@ case class MatrixNativeMultiWriter(
           }
         }) { cdaResult =>
           val partitionCountScan =
-            components.map(_.stage.numPartitions).scanLeft(0)(_ + _)
+            components.fmap(_.stage.numPartitions).scanLeft(0)(_ + _)
 
-          Begin(components.zipWithIndex.map { case (c, i) =>
+          Begin(components.zipWithIndex.fmap { case (c, i) =>
             c.finalizeWrite(ArraySlice(cdaResult, partitionCountScan(i), Some(partitionCountScan(i + 1))), c.stage.globals)
           })
         }

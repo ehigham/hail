@@ -485,12 +485,12 @@ object IRParser {
         punctuation(it, "[")
         val fields = repsepUntil(it, ptuple_subset_field, PunctuationToken(","), PunctuationToken("]"))
         punctuation(it, "]")
-        PCanonicalTuple(fields.map { case (idx, t) => PTupleField(idx, t)}, req)
+        PCanonicalTuple(fields.fmap { case (idx, t) => PTupleField(idx, t)}, req)
       case "PCStruct" =>
         punctuation(it, "{")
         val args = repsepUntil(it, ptype_field, PunctuationToken(","), PunctuationToken("}"))
         punctuation(it, "}")
-        val fields = args.zipWithIndex.map { case ((id, t), i) => PField(id, t, i) }
+        val fields = args.zipWithIndex.fmap { case ((id, t), i) => PField(id, t, i) }
         PCanonicalStruct(fields, req)
       case "PSubsetStruct" =>
         punctuation(it, "{")
@@ -575,18 +575,18 @@ object IRParser {
         punctuation(it, "[")
         val fields = repsepUntil(it, tuple_subset_field, PunctuationToken(","), PunctuationToken("]"))
         punctuation(it, "]")
-        TTuple(fields.map { case (idx, t) => TupleField(idx, t)})
+        TTuple(fields.fmap { case (idx, t) => TupleField(idx, t)})
       case "Struct" =>
         punctuation(it, "{")
         val args = repsepUntil(it, type_field, PunctuationToken(","), PunctuationToken("}"))
         punctuation(it, "}")
-        val fields = args.zipWithIndex.map { case ((id, t), i) => Field(id, t, i) }
+        val fields = args.zipWithIndex.fmap { case ((id, t), i) => Field(id, t, i) }
         TStruct(fields)
       case "Union" =>
         punctuation(it, "{")
         val args = repsepUntil(it, type_field, PunctuationToken(","), PunctuationToken("}"))
         punctuation(it, "}")
-        val cases = args.zipWithIndex.map { case ((id, t), i) => Case(id, t, i) }
+        val cases = args.zipWithIndex.fmap { case ((id, t), i) => Case(id, t, i) }
         TUnion(cases)
       case "Void" => TVoid
     }
@@ -903,7 +903,7 @@ object IRParser {
         for {
           paramIRs <- fillArray(paramNames.length)(ir_value_expr(env)(it))
           params = paramNames.zip(paramIRs)
-          bodyEnv = env.bindEval(params.map { case (n, v) => n -> v.typ}: _*)
+          bodyEnv = env.bindEval(params.fmap { case (n, v) => n -> v.typ}: _*)
           body <- ir_value_expr(bodyEnv)(it)
         } yield TailLoop(name, params, body)
       case "Recur" =>
@@ -1153,7 +1153,7 @@ object IRParser {
         val names = identifiers(it)
         for {
           as <- names.mapRecur(_ => ir_value_expr(env)(it))
-          body <- ir_value_expr(env.bindEval(names.zip(as.map(a => tcoerce[TStream](a.typ).elementType)): _*))(it)
+          body <- ir_value_expr(env.bindEval(names.zip(as.fmap(a => tcoerce[TStream](a.typ).elementType)): _*))(it)
         } yield StreamZip(as, names, body, behavior, errorID)
       case "StreamZipJoinProducers" =>
         val key = identifiers(it)
@@ -1226,7 +1226,7 @@ object IRParser {
           accIRs <- fillArray(accumNames.length)(ir_value_expr(env)(it))
           accs = accumNames.zip(accIRs)
           eltType = tcoerce[TStream](a.typ).elementType
-          resultEnv = env.bindEval(accs.map { case (name, value) => (name, value.typ) }: _*)
+          resultEnv = env.bindEval(accs.fmap { case (name, value) => (name, value.typ) }: _*)
           seqEnv = resultEnv.bindEval(valueName, eltType)
           seqs <- fillArray(accs.length)(ir_value_expr(seqEnv)(it))
           res <- ir_value_expr(resultEnv)(it)
@@ -1334,14 +1334,14 @@ object IRParser {
         for {
           initOpArgs <- ir_value_exprs(env.noAgg)(it)
           seqOpArgs <- ir_value_exprs(env.promoteAgg)(it)
-          aggSig = AggSignature(aggOp, initOpArgs.map(arg => arg.typ), seqOpArgs.map(arg => arg.typ))
+          aggSig = AggSignature(aggOp, initOpArgs.fmap(arg => arg.typ), seqOpArgs.fmap(arg => arg.typ))
         } yield ApplyAggOp(initOpArgs, seqOpArgs, aggSig)
       case "ApplyScanOp" =>
         val aggOp = agg_op(it)
         for {
           initOpArgs <- ir_value_exprs(env.noScan)(it)
           seqOpArgs <- ir_value_exprs(env.promoteScan)(it)
-          aggSig = AggSignature(aggOp, initOpArgs.map(arg => arg.typ), seqOpArgs.map(arg => arg.typ))
+          aggSig = AggSignature(aggOp, initOpArgs.fmap(arg => arg.typ), seqOpArgs.fmap(arg => arg.typ))
         } yield ApplyScanOp(initOpArgs, seqOpArgs, aggSig)
       case "AggFold" =>
         val accumName = identifier(it)
@@ -2140,7 +2140,7 @@ object IRParser {
       case "BlockMatrixSlice" =>
         val slices = literals(literals(int64_literal))(it)
         blockmatrix_ir(env.onlyRelational)(it).map { child =>
-          BlockMatrixSlice(child, slices.map(_.toFastSeq).toFastSeq)
+          BlockMatrixSlice(child, slices.fmap(_.toFastSeq).toFastSeq)
         }
       case "ValueToBlockMatrix" =>
         val shape = int64_literals(it)

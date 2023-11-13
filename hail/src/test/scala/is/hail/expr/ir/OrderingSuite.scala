@@ -25,7 +25,7 @@ class OrderingSuite extends HailSuite {
       case ti: TInterval => recursiveSize(ti.pointType)
       case tc: TIterable => recursiveSize(tc.elementType)
       case tbs: TBaseStruct =>
-        tbs.types.map { t => recursiveSize(t) }.sum
+        tbs.types.fmap { t => recursiveSize(t) }.sum
       case _ => 0
     }
     inner + 1
@@ -369,7 +369,7 @@ class OrderingSuite extends HailSuite {
     val p = Prop.forAll(compareGen) { case (telt: TTuple, a: IndexedSeq[Row]@unchecked) =>
       val tdict = TDict(telt.types(0), telt.types(1))
       val array: IndexedSeq[Row] = a ++ a
-      val expectedMap = array.filter(_ != null).map { case Row(k, v) => (k, v) }.toMap
+      val expectedMap = array.filter(_ != null).fmap { case Row(k, v) => (k, v) }.toMap
       assertEvalsTo(
         ToArray(StreamMap(ToStream(In(0, TArray(telt))),
         "x", GetField(Ref("x", tdict.elementType), "key"))),

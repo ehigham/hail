@@ -25,9 +25,9 @@ object ArrayFunctions extends RegistryFunctions {
       ("add", tnum("T"), tv("T"), (ir1: IR, ir2: IR, _) =>ApplyBinaryPrimOp(Add(),ir1, ir2)),
       ("sub", tnum("T"), tv("T"), (ir1: IR, ir2: IR, _) =>ApplyBinaryPrimOp(Subtract(), ir1, ir2)),
       ("pow", tnum("T"), TFloat64, (ir1: IR, ir2: IR, errorID: Int) =>
-        Apply("pow", Seq(), Seq(ir1, ir2), TFloat64, errorID)),
+        Apply("pow", FastSeq(), FastSeq(ir1, ir2), TFloat64, errorID)),
       ("mod", tnum("T"), tv("T"), (ir1: IR, ir2: IR, errorID: Int) =>
-        Apply("mod", Seq(), Seq(ir1, ir2), ir2.typ, errorID)))
+        Apply("mod", FastSeq(), FastSeq(ir1, ir2), ir2.typ, errorID)))
 
   def mean(args: Seq[IR]): IR = {
     val Seq(a) = args

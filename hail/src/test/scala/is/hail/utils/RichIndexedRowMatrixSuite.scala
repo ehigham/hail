@@ -16,7 +16,7 @@ class RichIndexedRowMatrixSuite extends HailSuite {
   @Test def testToBlockMatrixDense() {
     val nRows = 9L
     val nCols = 6L
-    val data = Seq(
+    val data = FastSeq(
       (0L, Vectors.dense(0.0, 1.0, 2.0, 1.0, 3.0, 4.0)),
       (1L, Vectors.dense(3.0, 4.0, 5.0, 1.0, 1.0, 1.0)),
       (3L, Vectors.dense(9.0, 0.0, 1.0, 1.0, 1.0, 1.0)),
@@ -25,7 +25,7 @@ class RichIndexedRowMatrixSuite extends HailSuite {
       (6L, Vectors.dense(1.0, 2.0, 3.0, 1.0, 1.0, 1.0)),
       (7L, Vectors.dense(4.0, 5.0, 6.0, 1.0, 1.0, 1.0)),
       (8L, Vectors.dense(7.0, 8.0, 9.0, 1.0, 1.0, 1.0))
-    ).map(IndexedRow.tupled)
+    ).fmap(IndexedRow.tupled)
     val indexedRows: RDD[IndexedRow] = sc.parallelize(data)
 
     val irm = new IndexedRowMatrix(indexedRows)
@@ -54,12 +54,12 @@ class RichIndexedRowMatrixSuite extends HailSuite {
   @Test def emptyBlocks() {
     val nRows = 9
     val nCols = 2
-    val data = Seq(
+    val data = FastSeq(
       (3L, Vectors.dense(1.0, 2.0)),
       (4L, Vectors.dense(1.0, 2.0)),
       (5L, Vectors.dense(1.0, 2.0)),
       (8L, Vectors.dense(1.0, 2.0))
-    ).map(IndexedRow.tupled)
+    ).fmap(IndexedRow.tupled)
 
     val irm = new IndexedRowMatrix(sc.parallelize(data))
     val irmLocal = irm.toBlockMatrix().toLocalMatrix()

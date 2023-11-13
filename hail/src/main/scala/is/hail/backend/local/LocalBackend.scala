@@ -142,7 +142,7 @@ class LocalBackend(
   : (Option[Throwable], IndexedSeq[(Array[Byte], Int)]) = {
     val stageId = nextStageId()
     runAllKeepFirstError(MoreExecutors.sameThreadExecutor) {
-      collection.map { case (c, i) =>
+      collection.fmap { case (c, i) =>
         (
           () => using(new LocalTaskContext(i, stageId)) {
             f(c, _, theHailClassLoader, fs)

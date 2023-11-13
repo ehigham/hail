@@ -193,12 +193,12 @@ package object stats {
       if (logProb) hgd.logProbability(k) else hgd.probability(k)
     }
 
-    val logdc = support.map(dhyper(_, logProb = true))
+    val logdc = support.fmap(dhyper(_, logProb = true))
 
     def dnhyper(ncp: Double): Array[Double] = {
-      var d = logdc.zipWithIndex.map { case (hr, i) => hr + math.log(ncp) * i }
-      d = d.map(dens => math.exp(dens - d.max))
-      d.map(_ / d.sum)
+      var d = logdc.zipWithIndex.fmap { case (hr, i) => hr + math.log(ncp) * i }
+      d = d.fmap(dens => math.exp(dens - d.max))
+      d.fmap(_ / d.sum)
     }
 
     def phyper(k: Int, lower_tail: Boolean = true): Double = {
@@ -226,7 +226,7 @@ package object stats {
         dnhyper(ncp)
           .zipWithIndex
           .filter { case (dbl, i) => if (upper_tail) support(i) >= q else support(i) <= q }
-          .map { case (dbl, i) => dbl }
+          .fmap { case (dbl, i) => dbl }
           .sum
       }
     }
@@ -237,7 +237,7 @@ package object stats {
       else if (ncp == Double.PositiveInfinity)
         high
       else
-        dnhyper(ncp).zipWithIndex.map { case (dnh, i) => dnh * support(i) }.sum
+        dnhyper(ncp).zipWithIndex.fmap { case (dnh, i) => dnh * support(i) }.sum
     }
 
     def unirootMnHyper(fn: Double => Double, x: Double)(t: Double) = mnhyper(fn(t)) - x

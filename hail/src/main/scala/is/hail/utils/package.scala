@@ -4,6 +4,7 @@ import is.hail.annotations.ExtendedOrdering
 import is.hail.check.Gen
 import is.hail.expr.ir.ByteArrayBuilder
 import is.hail.io.fs.{FS, FileListEntry}
+import is.hail.utils.toRichIndexedSeq
 import org.apache.commons.io.output.TeeOutputStream
 import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.PathIOException
@@ -543,17 +544,17 @@ package object utils extends Logging
   }
 
   def roundWithConstantSum(a: Array[Double]): Array[Int] = {
-    val withFloors = a.zipWithIndex.map { case (d, i) => (i, d, math.floor(d)) }
-    val totalFractional = (withFloors.map { case (i, orig, floor) => orig - floor }.sum + 0.5).toInt
+    val withFloors = a.zipWithIndex.fmap { case (d, i) => (i, d, math.floor(d)) }
+    val totalFractional = (withFloors.fmap { case (i, orig, floor) => orig - floor }.sum + 0.5).toInt
     withFloors
       .sortBy { case (_, orig, floor) => floor - orig }
       .zipWithIndex
-      .map { case ((i, orig, floor), iSort) =>
+      .fmap { case ((i, orig, floor), iSort) =>
         if (iSort < totalFractional)
           (i, math.ceil(orig))
         else
           (i, math.floor(orig))
-      }.sortBy(_._1).map(_._2.toInt)
+      }.sortBy(_._1).fmap(_._2.toInt)
   }
 
   def uniqueMinIndex(a: Array[Int]): java.lang.Integer = {
@@ -712,7 +713,7 @@ package object utils extends Logging
 
     assert(n >= 0)
     assert(k > 0)
-    val parts = Array.tabulate(k)(i => n / k + (i < (n % k)).toInt)
+    val parts = 0 until k fmap (i => n / k + (i < (n % k)).toInt)
     assert(parts.sum == n)
     assert(parts.max - parts.min <= 1)
     parts
@@ -726,7 +727,7 @@ package object utils extends Logging
 
     assert(n >= 0)
     assert(k > 0)
-    val parts = Array.tabulate(k)(i => n / k + (i < (n % k)).toLong)
+    val parts = 0 until k fmap (i => n / k + (i < (n % k)).toLong)
     assert(parts.sum == n)
     assert(parts.max - parts.min <= 1)
     parts
@@ -801,9 +802,7 @@ package object utils extends Logging
     if (dupes.nonEmpty) {
       Left(dupes.map { case (k, m) => k -> m.map(_._1) })
     } else {
-      Right(grouped
-        .map { case (k, m) => k -> m.map(_._2).head }
-        .toMap)
+      Right(grouped.map { case (k, m) => k -> m.map(_._2).head })
     }
   }
 
@@ -1012,7 +1011,7 @@ package object utils extends Logging
     val buffer = new mutable.ArrayBuffer[(A, Int)](tasks.length)
 
     tasks
-      .map { case (t, k) => (executor.submit(() => Try(t())), k) }
+      .fmap { case (t, k) => (executor.submit(() => Try(t())), k) }
       .foreach { case (f, k) =>
         f.get() match {
           case Success(v) =>
@@ -1036,7 +1035,7 @@ object GenericIndexedSeqSerializer extends Serializer[IndexedSeq[_]] {
   val IndexedSeqClass = classOf[IndexedSeq[_]]
 
   override def serialize(implicit format: Formats) = {
-    case seq: IndexedSeq[_] => JArray(seq.map(Extraction.decompose).toList)
+    case seq: IndexedSeq[_] => JArray(seq.fmap(Extraction.decompose).toList)
   }
 
   override def deserialize(implicit format: Formats) = {

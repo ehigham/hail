@@ -25,7 +25,7 @@ final case class PCanonicalNDArray(elementType: PType, nDims: Int, required: Boo
     sb.append(s",$nDims]")
   }
 
-  lazy val shapeType: PCanonicalTuple = PCanonicalTuple(true, Array.tabulate(nDims)(_ => PInt64Required):_*)
+  lazy val shapeType: PCanonicalTuple = PCanonicalTuple(true, FastSeq.tabulate(nDims)(_ => PInt64Required):_*)
   lazy val strideType: PCanonicalTuple = shapeType
 
   def loadShape(ndAddr: Long, idx: Int): Long = {
@@ -56,7 +56,7 @@ final case class PCanonicalNDArray(elementType: PType, nDims: Int, required: Boo
   }
 
   override def unstagedLoadStrides(addr: Long): IndexedSeq[Long] = {
-    (0 until nDims).map { dimIdx =>
+    (0 until nDims).fmap { dimIdx =>
       this.loadStride(addr, dimIdx)
     }
   }
@@ -114,7 +114,7 @@ final case class PCanonicalNDArray(elementType: PType, nDims: Int, required: Boo
     val ndarrayValue = loadCheapSCode(cb, nd).asNDArray
     val stridesTuple = ndarrayValue.strides
 
-    cb.newLocal[Long]("pcndarray_get_element_addr", indices.zipWithIndex.map { case (requestedElementIndex, strideIndex) =>
+    cb.newLocal[Long]("pcndarray_get_element_addr", indices.zipWithIndex.fmap { case (requestedElementIndex, strideIndex) =>
       requestedElementIndex * stridesTuple(strideIndex)
     }.foldLeft(const(0L).get)(_ + _) + ndarrayValue.firstDataAddress)
   }
@@ -189,14 +189,14 @@ final case class PCanonicalNDArray(elementType: PType, nDims: Int, required: Boo
 
     val cacheKey = ("constructByCopyingArray", this, dataCode.st)
     val mb = cb.emb.ecb.getOrGenEmitMethod("pcndarray_construct_by_copying_array", cacheKey,
-      FastSeq[ParamType](classInfo[Region], dataCode.st.paramType) ++ (0 until 2 * nDims).map(_ => CodeParamType(LongInfo)),
+      FastSeq[ParamType](classInfo[Region], dataCode.st.paramType) ++ (0 until 2 * nDims).fmap(_ => CodeParamType(LongInfo)),
       sType.paramType) { mb =>
       mb.emitSCode { cb =>
 
         val region = mb.getCodeParam[Region](1)
         val dataValue = mb.getSCodeParam(2).asIndexable
-        val shape = (0 until nDims).map(i => SizeValueDyn(mb.getCodeParam[Long](3 + i)))
-        val strides = (0 until nDims).map(i => mb.getCodeParam[Long](3 + nDims + i))
+        val shape = (0 until nDims).fmap(i => SizeValueDyn(mb.getCodeParam[Long](3 + i)))
+        val strides = (0 until nDims).fmap(i => mb.getCodeParam[Long](3 + nDims + i))
 
         val result = constructUninitialized(shape, strides, cb, region)
 
@@ -214,12 +214,12 @@ final case class PCanonicalNDArray(elementType: PType, nDims: Int, required: Boo
       }
     }
 
-    val newShape = shape.map {
+    val newShape = shape.fmap {
       case s: SizeValue => s
       case s => SizeValueDyn(s)
     }
 
-    cb.invokeSCode(mb, FastSeq[Param](region, SCodeParam(dataCode)) ++ (newShape.map(CodeParam(_)) ++ strides.map(CodeParam(_))): _*)
+    cb.invokeSCode(mb, FastSeq[Param](region, SCodeParam(dataCode)) ++ (newShape.fmap(CodeParam(_)) ++ strides.fmap(CodeParam(_))): _*)
       .asNDArray
       .coerceToShape(cb, newShape)
   }
@@ -230,7 +230,7 @@ final case class PCanonicalNDArray(elementType: PType, nDims: Int, required: Boo
     cb: EmitCodeBuilder,
     region: Value[Region]
   ): (Value[Long], EmitCodeBuilder => SNDArrayPointerValue) = {
-    val newShape = shape.map {
+    val newShape = shape.fmap {
       case s: SizeValue => s
       case s => SizeValueDyn(s)
     }
@@ -250,11 +250,11 @@ final case class PCanonicalNDArray(elementType: PType, nDims: Int, required: Boo
     cb.assign(ndAddr, this.representation.allocate(region))
     shapeType.storeAtAddress(cb, cb.newLocal[Long]("construct_shape", this.representation.fieldOffset(ndAddr, "shape")),
       region,
-      SStackStruct.constructFromArgs(cb, region, shapeType.virtualType, shape.map(s => EmitCode.present(cb.emb, primitive(s))): _*),
+      SStackStruct.constructFromArgs(cb, region, shapeType.virtualType, shape.fmap(s => EmitCode.present(cb.emb, primitive(s))): _*),
       false)
     strideType.storeAtAddress(cb, cb.newLocal[Long]("construct_strides", this.representation.fieldOffset(ndAddr, "strides")),
       region,
-      SStackStruct.constructFromArgs(cb, region, strideType.virtualType, strides.map(s => EmitCode.present(cb.emb, primitive(s))): _*),
+      SStackStruct.constructFromArgs(cb, region, strideType.virtualType, strides.fmap(s => EmitCode.present(cb.emb, primitive(s))): _*),
       false)
     val newDataPointer = cb.newLocal("ndarray_construct_new_data_pointer", dataPtr)
     cb += Region.storeAddress(this.representation.fieldOffset(ndAddr, 2), newDataPointer)
@@ -347,9 +347,9 @@ final case class PCanonicalNDArray(elementType: PType, nDims: Int, required: Boo
   def loadCheapSCode(cb: EmitCodeBuilder, addr: Code[Long]): SNDArrayPointerValue = {
     val a = cb.memoize(addr)
     val shapeTuple = shapeType.loadCheapSCode(cb, representation.loadField(a, "shape"))
-    val shape = Array.tabulate(nDims)(i => SizeValueDyn(shapeTuple.loadField(cb, i).get(cb).asLong.value))
+    val shape = FastSeq.tabulate(nDims)(i => SizeValueDyn(shapeTuple.loadField(cb, i).get(cb).asLong.value))
     val strideTuple = strideType.loadCheapSCode(cb, representation.loadField(a, "strides"))
-    val strides = Array.tabulate(nDims)(strideTuple.loadField(cb, _).get(cb).asLong.value)
+    val strides = FastSeq.tabulate(nDims)(strideTuple.loadField(cb, _).get(cb).asLong.value)
     val firstDataAddress = cb.memoize(dataFirstElementPointer(a))
     new SNDArrayPointerValue(sType, a, shape, strides, firstDataAddress)
   }
@@ -368,11 +368,11 @@ final case class PCanonicalNDArray(elementType: PType, nDims: Int, required: Boo
     val dataAddr = inputSNDValue.firstDataAddress
     shapeType.storeAtAddress(cb, cb.newLocal[Long]("construct_shape", this.representation.fieldOffset(targetAddr, "shape")),
       region,
-      SStackStruct.constructFromArgs(cb, region, shapeType.virtualType, shape.map(s => EmitCode.present(cb.emb, primitive(s))): _*),
+      SStackStruct.constructFromArgs(cb, region, shapeType.virtualType, shape.fmap(s => EmitCode.present(cb.emb, primitive(s))): _*),
       false)
     strideType.storeAtAddress(cb, cb.newLocal[Long]("construct_strides", this.representation.fieldOffset(targetAddr, "strides")),
       region,
-      SStackStruct.constructFromArgs(cb, region, strideType.virtualType, strides.map(s => EmitCode.present(cb.emb, primitive(s))): _*),
+      SStackStruct.constructFromArgs(cb, region, strideType.virtualType, strides.fmap(s => EmitCode.present(cb.emb, primitive(s))): _*),
       false)
 
     value.st match {

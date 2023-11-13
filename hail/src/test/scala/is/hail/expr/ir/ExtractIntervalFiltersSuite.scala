@@ -46,7 +46,7 @@ class ExtractIntervalFiltersSuite extends HailSuite { outer =>
   def and(l: IR, r: IR): IR = invoke("land", TBoolean, l, r)
   def not(b: IR): IR = ApplyUnaryPrimOp(Bang, b)
 
-  def check(filter: IR, rowRef: Ref, key: IR, probes: IndexedSeq[Row], residualFilter: IR, trueIntervals: Seq[Interval]): Unit = {
+  def check(filter: IR, rowRef: Ref, key: IR, probes: IndexedSeq[Row], residualFilter: IR, trueIntervals: IndexedSeq[Interval]): Unit = {
     val result = ExtractIntervalFilters.extractPartitionFilters(ctx, filter, rowRef, key.typ.asInstanceOf[TStruct].fieldNames)
     if (result.isEmpty) {
       assert(trueIntervals == FastSeq(Interval(Row(), Row(), true, true)))
@@ -60,7 +60,7 @@ class ExtractIntervalFiltersSuite extends HailSuite { outer =>
 
     val irIntervals: IR = Literal(
       TArray(RVDPartitioner.intervalIRRepresentation(keyType)),
-      trueIntervals.map { i =>
+      trueIntervals.fmap { i =>
         RVDPartitioner.intervalToIRRepresentation(i, keyType.size)
       })
 
@@ -86,9 +86,9 @@ class ExtractIntervalFiltersSuite extends HailSuite { outer =>
     rowRef: Ref,
     key: IR,
     probes: IndexedSeq[Row],
-    trueIntervals: Seq[Interval],
-    falseIntervals: Seq[Interval],
-    naIntervals: Seq[Interval],
+    trueIntervals: IndexedSeq[Interval],
+    falseIntervals: IndexedSeq[Interval],
+    naIntervals: IndexedSeq[Interval],
     trueResidual: IR = True(),
     falseResidual: IR = True(),
     naResidual: IR = True()

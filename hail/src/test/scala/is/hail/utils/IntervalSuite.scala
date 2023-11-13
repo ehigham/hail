@@ -275,7 +275,7 @@ case class SetIntervalTree(ctx: ExecuteContext, annotations: Array[(SetInterval,
 
   val (intervals, values) = annotations.unzip
 
-  val intervalTree: RVDPartitioner = new RVDPartitioner(ctx.stateManager, TStruct(("i", TInt32)), intervals.map(_.rowInterval))
+  val intervalTree: RVDPartitioner = new RVDPartitioner(ctx.stateManager, TStruct(("i", TInt32)), intervals.fmap(_.rowInterval))
 
   def contains(point: Int): Boolean = doubledPointSet.contains(2 * point)
 
@@ -285,11 +285,11 @@ case class SetIntervalTree(ctx: ExecuteContext, annotations: Array[(SetInterval,
 
   def definitelyDisjoint(other: SetInterval): Boolean = doubledPointSet.intersect(other.doubledPointSet).isEmpty
 
-  def queryIntervals(point: Int): Set[Interval] = intervals.filter(_.contains(point)).map(_.interval).toSet
+  def queryIntervals(point: Int): Set[Interval] = intervals.filter(_.contains(point)).fmap(_.interval).toSet
 
-  def queryValues(point: Int): Set[Int] = annotations.filter(_._1.contains(point)).map(_._2).toSet
+  def queryValues(point: Int): Set[Int] = annotations.filter(_._1.contains(point)).fmap(_._2).toSet
 
-  def queryProbablyOverlappingValues(interval: SetInterval): Set[Int] = annotations.filter(_._1.probablyOverlaps(interval)).map(_._2).toSet
+  def queryProbablyOverlappingValues(interval: SetInterval): Set[Int] = annotations.filter(_._1.probablyOverlaps(interval)).fmap(_._2).toSet
 
-  override val toString: String = intervals.map(_.interval).mkString(", ")
+  override val toString: String = intervals.fmap(_.interval).mkString(", ")
 }

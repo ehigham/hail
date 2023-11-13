@@ -20,20 +20,20 @@ object PSubsetStruct {
 // Semantics: PSubsetStruct is a non-constructible view of another PStruct, which is not allowed to mutate
 // that underlying PStruct's region data
 final case class PSubsetStruct(ps: PStruct, _fieldNames: IndexedSeq[String]) extends PStruct {
-  val fields: IndexedSeq[PField] = _fieldNames.zipWithIndex.map { case (name, i) => PField(name, ps.fieldType(name), i)}
+  val fields: IndexedSeq[PField] = _fieldNames.zipWithIndex.fmap { case (name, i) => PField(name, ps.fieldType(name), i)}
   val required = ps.required
 
   if (fields == ps.fields) {
     log.warn("PSubsetStruct used without subsetting input PStruct")
   }
 
-  private val idxMap: Array[Int] = _fieldNames.map(f => ps.fieldIdx(f)).toArray
+  private val idxMap: Array[Int] = _fieldNames.fmap(f => ps.fieldIdx(f)).toArray
 
-  lazy val missingIdx: Array[Int] = idxMap.map(i => ps.missingIdx(i))
+  lazy val missingIdx: Array[Int] = idxMap.fmap(i => ps.missingIdx(i))
   lazy val nMissing: Int = missingIdx.length
 
-  override lazy val virtualType = TStruct(fields.map(f => (f.name -> f.typ.virtualType)):_*)
-  override val types: Array[PType] = fields.map(_.typ).toArray
+  override lazy val virtualType = TStruct(fields.fmap(f => (f.name -> f.typ.virtualType)):_*)
+  override val types: Array[PType] = fields.fmap(_.typ).toArray
 
   override val byteSize: Long = 8
 
@@ -47,7 +47,7 @@ final case class PSubsetStruct(ps: PStruct, _fieldNames: IndexedSeq[String]) ext
   }
 
   override def rename(m: Map[String, String]): PStruct = {
-    val newNames = fieldNames.map(fieldName => m.getOrElse(fieldName, fieldName))
+    val newNames = fieldNames.fmap(fieldName => m.getOrElse(fieldName, fieldName))
     val newPStruct = ps.rename(m)
 
     PSubsetStruct(newPStruct, newNames)

@@ -225,7 +225,7 @@ object IBD {
       val view = HardCallView(rowPType)
       it.map { ptr =>
         view.set(ptr)
-        Array.tabulate[Byte](view.getLength) { i =>
+        FastSeq.tabulate[Byte](view.getLength) { i =>
           view.setGenotype(i)
           if (view.hasGT)
             IBSFFI.gtToCRep(Call.unphasedDiploidGtIndex(view.getGT))
@@ -293,7 +293,7 @@ object IBD {
   }
 
   private val ibdPType =
-    PCanonicalStruct(required = true, Array(("i", PCanonicalString()), ("j", PCanonicalString())) ++ ExtendedIBDInfo.pType.fields.map(f => (f.name, f.typ)): _*)
+    PCanonicalStruct(required = true, Array(("i", PCanonicalString()), ("j", PCanonicalString())) ++ ExtendedIBDInfo.pType.fields.fmap(f => (f.name, f.typ)): _*)
   private val ibdKey = FastSeq("i", "j")
 
   private[methods] def generateComputeMaf(input: MatrixValue, fieldName: String): (RegionValue) => Double = {

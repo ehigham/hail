@@ -167,8 +167,8 @@ class HadoopFS(private[this] var conf: SerializableHadoopConfiguration) extends 
     var files = url.hadoopFs.globStatus(url.hadoopPath)
     if (files == null)
       files = Array.empty
-    log.info(s"globbing path $url returned ${ files.length } files: ${ files.map(_.getPath.getName).mkString(",") }")
-    files.map(fileListEntry => new HadoopFileListEntry(fileListEntry))
+    log.info(s"globbing path $url returned ${ files.length } files: ${ files.fmap(_.getPath.getName).mkString(",") }")
+    files.fmap(fileListEntry => new HadoopFileListEntry(fileListEntry))
   }
 
   def fileListEntry(url: URL): FileListEntry = {

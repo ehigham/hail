@@ -245,7 +245,7 @@ case class PCRelate(
   }
 
   private[methods] def k2(ctx: ExecuteContext, phi: M, mu: M, variance: M, g: M): M = {
-    val twoPhi_ii = phi.diagonal().map(2.0 * _)
+    val twoPhi_ii = phi.diagonal().fmap(2.0 * _)
     val normalizedGD = g.map2WithIndex(mu, { case (_, i, g, mu) =>
       if (java.lang.Double.isNaN(mu))
         0.0 // https://github.com/Bioconductor-mirror/GENESIS/blob/release-3.5/R/pcrelate.R#L391

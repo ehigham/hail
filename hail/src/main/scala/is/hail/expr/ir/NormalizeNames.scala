@@ -2,6 +2,7 @@ package is.hail.expr.ir
 
 import is.hail.backend.ExecuteContext
 import is.hail.utils.StackSafe._
+import is.hail.utils.toRichIndexedSeq
 
 class NormalizeNames(normFunction: Int => String, allowFreeVariables: Boolean = false) {
   var count: Int = 0
@@ -80,7 +81,7 @@ class NormalizeNames(normFunction: Int => String, allowFreeVariables: Boolean = 
         } yield AggLet(newName, newValue, newBody, isScan)
       case TailLoop(name, args, body) =>
         val newFName = gen()
-        val newNames = Array.tabulate(args.length)(i => gen())
+        val newNames = args.fmap(i => gen())
         val (names, values) = args.unzip
         for {
           newValues <- values.mapRecur(v => normalize(v))
@@ -100,7 +101,7 @@ class NormalizeNames(normFunction: Int => String, allowFreeVariables: Boolean = 
           newBody <- normalize(body, env.bindEval(name, newName))
         } yield StreamMap(newA, newName, newBody)
       case StreamZip(as, names, body, behavior, errorID) =>
-        val newNames = names.map(_ => gen())
+        val newNames = names.fmap(_ => gen())
         for {
           newAs <- as.mapRecur(normalize(_))
           newBody <- normalize(body, env.bindEval(names.zip(newNames): _*))

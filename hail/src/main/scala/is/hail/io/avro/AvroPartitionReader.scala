@@ -12,6 +12,7 @@ import is.hail.types.physical.stypes.interfaces.{SBaseStructValue, SStreamValue,
 import is.hail.types.physical.stypes.primitives.{SInt64, SInt64Value}
 import is.hail.types.virtual._
 import is.hail.types.{RField, RStruct, TypeWithRequiredness}
+import is.hail.utils.toRichIndexedSeq
 import org.apache.avro.Schema
 import org.apache.avro.file.DataFileStream
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericRecord}
@@ -152,7 +153,7 @@ object AvroReader {
   }
 
   private[avro] def recordToHail(cb: EmitCodeBuilder, region: Value[Region], record: Value[GenericRecord], requestedType: TBaseStruct): SBaseStructValue = {
-    val codes = requestedType.fields.map { case Field(name, typ, _) =>
+    val codes = requestedType.fields.fmap { case Field(name, typ, _) =>
       val v = cb.newLocal[AnyRef]("avro_value")
       cb.assign(v, record.invoke[String, AnyRef]("get", name))
       typ match {

@@ -170,7 +170,7 @@ class KeyedRVD(val rvd: RVD, val key: Int) {
         this.realType.rowType,
         ContextRDD.union(
           rvd.sparkContext,
-          Seq(this.rvd.crdd, right.rvd.crdd)))
+          FastSeq(this.rvd.crdd, right.rvd.crdd)))
 
     val ranges = this.rvd.partitioner.coarsenedRangeBounds(key) ++
       right.rvd.partitioner.coarsenedRangeBounds(key)

@@ -17,10 +17,10 @@ object Bindings {
       for (k <- 0 until i) result(k) = bindings(k)._1 -> bindings(k)._2.typ
       result
     case TailLoop(name, args, body) => if (i == args.length)
-      args.map { case (name, ir) => name -> ir.typ } :+
-        name -> TTuple(TTuple(args.map(_._2.typ): _*), body.typ) else empty
+      args.fmap { case (name, ir) => name -> ir.typ } :+
+        name -> TTuple(TTuple(args.fmap(_._2.typ): _*), body.typ) else empty
     case StreamMap(a, name, _) => if (i == 1) Array(name -> tcoerce[TStream](a.typ).elementType) else empty
-    case StreamZip(as, names, _, _, _) => if (i == as.length) names.zip(as.map(a => tcoerce[TStream](a.typ).elementType)) else empty
+    case StreamZip(as, names, _, _, _) => if (i == as.length) names.zip(as.fmap(a => tcoerce[TStream](a.typ).elementType)) else empty
     case StreamZipJoin(as, key, curKey, curVals, _) =>
       val eltType = tcoerce[TStruct](tcoerce[TStream](as.head.typ).elementType)
       if (i == as.length)
@@ -48,9 +48,9 @@ object Bindings {
       if (i <= accum.length)
         empty
       else if (i < 2 * accum.length + 1)
-        Array((valueName, tcoerce[TStream](a.typ).elementType)) ++ accum.map { case (name, value) => (name, value.typ) }
+        Array((valueName, tcoerce[TStream](a.typ).elementType)) ++ accum.fmap { case (name, value) => (name, value.typ) }
       else
-        accum.map { case (name, value) => (name, value.typ) }
+        accum.fmap { case (name, value) => (name, value.typ) }
     case StreamBufferedAggregate(stream, _,  _, _, name, _, _) => if (i > 0) Array(name -> tcoerce[TStream](stream.typ).elementType) else empty
     case RunAggScan(a, name, _, _, _, _) => if (i == 2 || i == 3) Array(name -> tcoerce[TStream](a.typ).elementType) else empty
     case StreamScan(a, zero, accumName, valueName, _) => if (i == 2) Array(accumName -> zero.typ, valueName -> tcoerce[TStream](a.typ).elementType) else empty

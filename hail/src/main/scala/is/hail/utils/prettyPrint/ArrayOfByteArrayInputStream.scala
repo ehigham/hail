@@ -1,10 +1,12 @@
 package is.hail.utils.prettyPrint
 
+import is.hail.utils.arrayToRichIndexedSeq
+
 import java.io.{ByteArrayInputStream, InputStream}
 
 class ArrayOfByteArrayInputStream(bytes: Array[Array[Byte]]) extends InputStream {
 
-  val byteInputStreams = bytes.map(new ByteArrayInputStream(_))
+  val byteInputStreams = bytes.fmap(new ByteArrayInputStream(_))
   var currentInputStreamIdx = 0
 
   override def read(): Int = {

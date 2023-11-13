@@ -19,11 +19,9 @@ object TStruct {
   val empty: TStruct = TStruct()
 
   def apply(args: (String, Type)*): TStruct =
-    TStruct(args
-      .iterator
-      .zipWithIndex
-      .map { case ((n, t), i) => Field(n, t, i) }
-      .toArray)
+    TStruct(args.toFastSeq.zipWithIndex.fmap { case ((n, t), i) =>
+      Field(n, t, i)
+    })
 
   def apply(names: java.util.List[String], types: java.util.List[Type]): TStruct = {
     val sNames = names.asScala.toArray
@@ -36,16 +34,16 @@ object TStruct {
 
   def concat(struct1: TStruct, struct2: TStruct): TStruct = {
     struct2.fieldNames.foreach { field => assert(!struct1.hasField(field)) }
-    TStruct(struct1.fields ++ struct2.fields.map(field => field.copy(index = field.index + struct1.size)))
+    TStruct(struct1.fields ++ struct2.fields.fmap(field => field.copy(index = field.index + struct1.size)))
   }
 }
 
 final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
   assert(fields.zipWithIndex.forall { case (f, i) => f.index == i })
 
-  lazy val types: Array[Type] = fields.map(_.typ).toArray
+  lazy val types: Array[Type] = fields.fmap(_.typ).toArray
 
-  lazy val fieldNames: Array[String] = fields.map(_.name).toArray
+  lazy val fieldNames: Array[String] = fields.fmap(_.name).toArray
 
   def size: Int = fields.length
 
@@ -70,7 +68,7 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
     case _ => false
   }
 
-  override def subst() = TStruct(fields.map(f => f.copy(typ = f.typ.subst().asInstanceOf[Type])))
+  override def subst() = TStruct(fields.fmap(f => f.copy(typ = f.typ.subst().asInstanceOf[Type])))
 
   def index(str: String): Option[Int] = fieldIdx.get(str)
 
@@ -191,7 +189,7 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
     // In fieldIdxBuilder, positive integers are field indices from the left.
     // Negative integers are the complement of field indices from the right.
 
-    val rightFieldIdx = other.fields.map { f => f.name -> (f.index -> f.typ) }.toMap
+    val rightFieldIdx = other.fields.fmap { f => f.name -> (f.index -> f.typ) }.toMap
     val leftFields = fieldNames.toSet
 
     fields.foreach { f =>
@@ -273,7 +271,7 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
         s"""invalid struct filter operation: ${
           plural(notFound.size, s"field ${ notFound.head }", s"fields [ ${ notFound.mkString(", ") } ]")
         } not found
-           |  Existing struct fields: [ ${ fields.map(f => prettyIdentifier(f.name)).mkString(", ") } ]""".stripMargin)
+           |  Existing struct fields: [ ${ fields.fmap(f => prettyIdentifier(f.name)).mkString(", ") } ]""".stripMargin)
 
     val fn = (f: Field) =>
       if (include)
@@ -284,16 +282,16 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
   }
 
   def ++(that: TStruct): TStruct = {
-    val overlapping = fields.map(_.name).toSet.intersect(
-      that.fields.map(_.name).toSet)
+    val overlapping = fields.fmap(_.name).toSet.intersect(
+      that.fields.fmap(_.name).toSet)
     if (overlapping.nonEmpty)
       fatal(s"overlapping fields in struct concatenation: ${ overlapping.mkString(", ") }")
 
-    TStruct(fields.map(f => (f.name, f.typ)) ++ that.fields.map(f => (f.name, f.typ)): _*)
+    TStruct(fields.fmap(f => (f.name, f.typ)) ++ that.fields.fmap(f => (f.name, f.typ)): _*)
   }
 
   def filter(f: (Field) => Boolean): (TStruct, (Annotation) => Annotation) = {
-    val included = fields.map(f)
+    val included = fields.fmap(f)
 
     val newFields = fields.zip(included)
       .flatMap { case (field, incl) =>
@@ -323,7 +321,7 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
         Annotation.fromSeq(newValues)
       }
 
-    (TStruct(newFields.zipWithIndex.map { case (f, i) => f.copy(index = i) }), filterer)
+    (TStruct(newFields.zipWithIndex.fmap { case (f, i) => f.copy(index = i) }), filterer)
   }
 
   override def pyString(sb: StringBuilder): Unit = {
@@ -356,35 +354,35 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
   }
 
   def select(keep: IndexedSeq[String]): (TStruct, (Row) => Row) = {
-    val t = TStruct(keep.map { n =>
+    val t = TStruct(keep.fmap { n =>
       n -> field(n).typ
     }: _*)
 
-    val keepIdx = keep.map(fieldIdx)
+    val keepIdx = keep.fmap(fieldIdx)
     val selectF: Row => Row = { r =>
-      Row.fromSeq(keepIdx.map(r.get))
+      Row.fromSeq(keepIdx.fmap(r.get))
     }
     (t, selectF)
   }
 
   def typeAfterSelectNames(keep: IndexedSeq[String]): TStruct =
-    TStruct(keep.map(n => n -> fieldType(n)): _*)
+    TStruct(keep.fmap(n => n -> fieldType(n)): _*)
 
   def typeAfterSelect(keep: IndexedSeq[Int]): TStruct =
-    TStruct(keep.map(i => fieldNames(i) -> types(i)): _*)
+    TStruct(keep.fmap(i => fieldNames(i) -> types(i)): _*)
 
-  def toEnv: Env[Type] = Env(fields.map(f => (f.name, f.typ)): _*)
+  def toEnv: Env[Type] = Env(fields.fmap(f => (f.name, f.typ)): _*)
 
   override def valueSubsetter(subtype: Type): Any => Any = {
     if (this == subtype)
       return identity
 
     val subStruct = subtype.asInstanceOf[TStruct]
-    val subsetFields = subStruct.fields.map(f => (fieldIdx(f.name), fieldType(f.name).valueSubsetter(f.typ)))
+    val subsetFields = subStruct.fields.fmap(f => (fieldIdx(f.name), fieldType(f.name).valueSubsetter(f.typ)))
 
     { (a: Any) =>
       val r = a.asInstanceOf[Row]
-      Row.fromSeq(subsetFields.map { case (i, subset) => subset(r.get(i)) })
+      Row.fromSeq(subsetFields.fmap { case (i, subset) => subset(r.get(i)) })
     }
   }
 

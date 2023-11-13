@@ -13,7 +13,7 @@ case class RVDPartitionInfo(
   min: Any,
   max: Any,
   // min, max: RegionValue[kType]
-  samples: Array[Any],
+  samples: IndexedSeq[Any],
   sortedness: Int,
   contextStr: String
 ) {
@@ -110,7 +110,7 @@ object RVDPartitionInfo {
 
       RVDPartitionInfo(partitionIndex, i,
         safe(minF.value), safe(maxF.value),
-        Array.tabulate[Any](math.min(i, sampleSize).toInt)(i => safe(samples(i).value)),
+        FastSeq.tabulate[Any](math.min(i, sampleSize).toInt)(i => safe(samples(i).value)),
         sortedness,
         contextStr)
     }

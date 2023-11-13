@@ -3,6 +3,8 @@ package is.hail
 import org.objectweb.asm.Opcodes._
 import org.objectweb.asm.tree._
 
+import is.hail.utils.toRichIndexedSeq
+
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
@@ -292,7 +294,7 @@ package object asm4s {
   implicit def toCodeNullable[T >: Null : TypeInfo](c: Code[T]): CodeNullable[T] =
     new CodeNullable(c)
 
-  implicit def indexedSeqValueToCode[T](v: IndexedSeq[Value[T]]): IndexedSeq[Code[T]] = v.map(_.get)
+  implicit def indexedSeqValueToCode[T](v: IndexedSeq[Value[T]]): IndexedSeq[Code[T]] = v.fmap(_.get)
 
   implicit def valueToCode[T](v: Value[T]): Code[T] = v.get
 

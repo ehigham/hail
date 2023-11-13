@@ -169,7 +169,7 @@ object MatrixPLINKReader {
     val (sampleInfo, signature) = LoadPlink.parseFam(fs, params.fam, ffConfig)
 
     val nameMap = Map("id" -> "s")
-    val saSignature = signature.copy(fields = signature.fields.map(f => f.copy(name = nameMap.getOrElse(f.name, f.name))))
+    val saSignature = signature.copy(fields = signature.fields.fmap(f => f.copy(name = nameMap.getOrElse(f.name, f.name))))
 
     val nSamples = sampleInfo.length
     if (nSamples <= 0)
@@ -249,7 +249,7 @@ object MatrixPLINKReader {
     }
     assert(prevEnd == nVariants)
 
-    val contexts = cb.result().map(r => r: Any)
+    val contexts = cb.result().fmap(r => r: Any)
 
     val partitioner = new RVDPartitioner(ctx.stateManager, locusAllelesType, ib.result(), 0)
 
@@ -315,8 +315,8 @@ class MatrixPLINKReader(
 
   val partitionCounts: Option[IndexedSeq[Long]] = None
 
-  val globals = Row(sampleInfo.zipWithIndex.map { case (s, idx) =>
-    Row((0 until s.length).map(s.apply) :+ idx.toLong :_*)
+  val globals = Row(sampleInfo.zipWithIndex.fmap { case (s, idx) =>
+    Row((0 until s.length).fmap(s.apply) :+ idx.toLong :_*)
   })
 
   override def concreteRowRequiredness(ctx: ExecuteContext, requestedType: TableType): VirtualTypeWithReq =
@@ -342,7 +342,7 @@ class MatrixPLINKReader(
       "end" -> TInt32,
       "partitionIndex" -> TInt32)
 
-    val contextsWithPartIdx = contexts.zipWithIndex.map { case (row: Row, partIdx: Int) =>
+    val contextsWithPartIdx = contexts.zipWithIndex.fmap { case (row: Row, partIdx: Int) =>
       Row(row(0), row(1), row(2), partIdx)
     }
 

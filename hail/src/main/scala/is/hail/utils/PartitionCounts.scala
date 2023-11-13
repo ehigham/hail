@@ -23,7 +23,7 @@ object PartitionCounts {
   def getHeadPCs(original: IndexedSeq[Long], n: Long): IndexedSeq[Long] =
     getPCSubsetOffset(n, original.iterator) match {
       case Some(PCSubsetOffset(lastIdx, nKeep, _)) =>
-        (0 to lastIdx).map { i =>
+        (0 to lastIdx).fmap { i =>
           if (i == lastIdx)
             nKeep
           else

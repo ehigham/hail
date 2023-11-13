@@ -8,6 +8,7 @@ import is.hail.types.physical.stypes.SValue
 import is.hail.types.physical.stypes.concrete.SNDArrayPointerValue
 import is.hail.types.physical.stypes.interfaces.{SIndexableValue, SNDArrayValue}
 import is.hail.types.virtual.TNDArray
+import is.hail.utils.toRichIndexedSeq
 
 abstract class PNDArray extends PType {
   val elementType: PType
@@ -22,7 +23,7 @@ abstract class PNDArray extends PType {
 
   def loadShape(off: Long, idx: Int): Long
   def unstagedLoadShapes(addr: Long): IndexedSeq[Long] = {
-    (0 until nDims).map { dimIdx =>
+    (0 until nDims).fmap { dimIdx =>
       this.loadShape(addr, dimIdx)
     }
   }

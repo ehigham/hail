@@ -143,7 +143,7 @@ class StagedBlockLinkedListSuite extends HailSuite {
     pool.scopedRegion { region =>
       val b = new BlockLinkedList[Int](region, PInt32Required)
       for (i <- 1 to 100) b += i
-      assertEquals(b.toIndexedSeq, IndexedSeq.tabulate(100)(_ + 1))
+      assertEquals(b.toIndexedSeq, FastSeq.tabulate(100)(_ + 1))
     }
   }
 

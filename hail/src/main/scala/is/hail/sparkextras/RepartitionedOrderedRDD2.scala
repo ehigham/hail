@@ -13,7 +13,7 @@ import scala.annotation.tailrec
 object OrderedDependency {
   def generate[T](oldPartitioner: RVDPartitioner, newIntervals: IndexedSeq[Interval], rdd: RDD[T]): OrderedDependency[T] = {
     new OrderedDependency(
-      newIntervals.map(oldPartitioner.queryInterval).toArray,
+      newIntervals.fmap(oldPartitioner.queryInterval).toArray,
       rdd)
   }
 }
@@ -44,12 +44,12 @@ class RepartitionedOrderedRDD2 private (sm: HailStateManager, @transient val pre
   val kOrd: ExtendedOrdering = PartitionBoundOrdering(sm, typ.kType.virtualType)
 
 
-  def getPartitions: Array[Partition] = {
+  override protected def getPartitions: Array[Partition] = {
     require(newRangeBounds.forall{i => typ.kType.virtualType.relaxedTypeCheck(i.start) && typ.kType.virtualType.relaxedTypeCheck(i.end)})
-    Array.tabulate[Partition](newRangeBounds.length) { i =>
+    newRangeBounds.indices fmap[Partition] { i =>
       RepartitionedOrderedRDD2Partition(
         i,
-        dependency.getParents(i).toArray.map(prevCRDD.partitions),
+        dependency.getParents(i).toArray.fmap(prevCRDD.partitions),
         newRangeBounds(i))
     }
   }

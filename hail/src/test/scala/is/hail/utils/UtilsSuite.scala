@@ -90,11 +90,11 @@ class UtilsSuite extends HailSuite {
     val fs = new HadoopFS(new SerializableHadoopConfiguration(sc.hadoopConfiguration))
 
     val partFileNames = fs.glob("src/test/resources/part-*")
-      .map { fileListEntry =>
+      .fmap { fileListEntry =>
         (fileListEntry, new hadoop.fs.Path(fileListEntry.getPath))
       }.sortBy { case (fileListEntry, path) =>
         getPartNumber(path.getName)
-      }.map(_._2.getName)
+      }.fmap(_._2.getName)
 
     assert(partFileNames(0) == "part-40001" && partFileNames(1) == "part-100001")
   }

@@ -136,7 +136,7 @@ class Requiredness(val usesAndDefs: UsesAndDefs, ctx: ExecuteContext) {
     def addBindings(name: String, ds: Array[IR]): Unit = {
       if (refMap.contains(name)) {
         val uses = refMap(name)
-        uses.foreach { u => defs.bind(u, ds.map(lookup).toArray[BaseTypeWithRequiredness]) }
+        uses.foreach { u => defs.bind(u, ds.fmap(lookup).toArray[BaseTypeWithRequiredness]) }
         ds.foreach { d => dependents.getOrElseUpdate(d, mutable.Set[RefEquality[BaseIR]]()) ++= uses }
       }
     }
@@ -160,7 +160,7 @@ class Requiredness(val usesAndDefs: UsesAndDefs, ctx: ExecuteContext) {
       case TailLoop(loopName, params, body) =>
         addBinding(loopName, body)
         val argDefs = Array.fill(params.length)(new BoxedArrayBuilder[IR]())
-        refMap.getOrElse(loopName, FastSeq()).map(_.t).foreach { case Recur(_, args, _) =>
+        refMap.getOrElse(loopName, FastSeq()).fmap(_.t).foreach { case Recur(_, args, _) =>
           argDefs.zip(args).foreach { case (ab, d) => ab += d }
         }
         val s = Array.fill[TypeWithRequiredness](params.length)(null)
@@ -195,16 +195,16 @@ class Requiredness(val usesAndDefs: UsesAndDefs, ctx: ExecuteContext) {
           i += 1
         }
       case StreamZipJoin(as, key, curKey, curVals, _) =>
-        val aEltTypes = as.map(a => tcoerce[RStruct](tcoerce[RIterable](lookup(a)).elementType))
+        val aEltTypes = as.fmap(a => tcoerce[RStruct](tcoerce[RIterable](lookup(a)).elementType))
         if (refMap.contains(curKey)) {
           val uses = refMap(curKey)
-          val keyTypes = aEltTypes.map(t => RStruct.fromNamesAndTypes(key.map(k => k -> t.fieldType(k))))
+          val keyTypes = aEltTypes.fmap(t => RStruct.fromNamesAndTypes(key.fmap(k => k -> t.fieldType(k))))
           uses.foreach { u => defs.bind(u, keyTypes) }
           as.foreach { a => dependents.getOrElseUpdate(a, mutable.Set[RefEquality[BaseIR]]()) ++= uses }
         }
         if (refMap.contains(curVals)) {
           val uses = refMap(curVals)
-          val valTypes = aEltTypes.map { t =>
+          val valTypes = aEltTypes.fmap { t =>
             val optional = t.copy(t.children)
             optional.union(false)
             RIterable(optional)
@@ -223,7 +223,7 @@ class Requiredness(val usesAndDefs: UsesAndDefs, ctx: ExecuteContext) {
         val producerElementType = tcoerce[RStruct](tcoerce[RIterable](lookup(makeProducer)).elementType)
         if (refMap.contains(curKey)) {
           val uses = refMap(curKey)
-          val keyType = RStruct.fromNamesAndTypes(key.map(k => k -> producerElementType.fieldType(k)))
+          val keyType = RStruct.fromNamesAndTypes(key.fmap(k => k -> producerElementType.fieldType(k)))
           uses.foreach { u => defs.bind(u, Array(keyType)) }
           dependents.getOrElseUpdate(makeProducer, mutable.Set[RefEquality[BaseIR]]()) ++= uses
         }
@@ -525,7 +525,7 @@ class Requiredness(val usesAndDefs: UsesAndDefs, ctx: ExecuteContext) {
       case EncodedLiteral(codec, value) => requiredness.fromPType(codec.decodedPType().setRequired(true))
 
       case Coalesce(values) =>
-        val reqs = values.map(lookup)
+        val reqs = values.fmap(lookup)
         requiredness.union(reqs.exists(_.required))
         reqs.foreach(r => requiredness.children.zip(r.children).foreach { case (r1, r2) => r1.unionFrom(r2) })
       case If(cond, cnsq, altr) =>
@@ -535,7 +535,7 @@ class Requiredness(val usesAndDefs: UsesAndDefs, ctx: ExecuteContext) {
       case Switch(x, default, cases) =>
         requiredness.union(lookup(x).required)
         requiredness.unionFrom(lookup(default))
-        requiredness.unionFrom(cases.map(lookup))
+        requiredness.unionFrom(cases.fmap(lookup))
       case AggLet(name, value, body, isScan) =>
         requiredness.unionFrom(lookup(body))
       case Let(_, body) =>
@@ -545,11 +545,11 @@ class Requiredness(val usesAndDefs: UsesAndDefs, ctx: ExecuteContext) {
       case TailLoop(name, params, body) =>
         requiredness.unionFrom(lookup(body))
       case x: BaseRef =>
-        requiredness.unionFrom(defs(node).map(tcoerce[TypeWithRequiredness]))
+        requiredness.unionFrom(defs(node).fmap(tcoerce[TypeWithRequiredness]))
       case MakeArray(args, _) =>
-        tcoerce[RIterable](requiredness).elementType.unionFrom(args.map(lookup))
+        tcoerce[RIterable](requiredness).elementType.unionFrom(args.fmap(lookup))
       case MakeStream(args, _, _) =>
-        tcoerce[RIterable](requiredness).elementType.unionFrom(args.map(lookup))
+        tcoerce[RIterable](requiredness).elementType.unionFrom(args.fmap(lookup))
       case ArrayRef(a, i, _) =>
         val aReq = lookupAs[RIterable](a)
         requiredness.unionFrom(aReq.elementType)
@@ -665,13 +665,13 @@ class Requiredness(val usesAndDefs: UsesAndDefs, ctx: ExecuteContext) {
         rit.elementType.unionFrom(lookup(body))
       case ApplyAggOp(initOpArgs, seqOpArgs, aggSig) => //FIXME round-tripping through ptype
         val emitResult = agg.PhysicalAggSig(aggSig.op, agg.AggStateSig(aggSig.op,
-          initOpArgs.map(i => i -> lookup(i)),
-          seqOpArgs.map(s => s -> lookup(s)))).emitResultType
+          initOpArgs.fmap(i => i -> lookup(i)),
+          seqOpArgs.fmap(s => s -> lookup(s)))).emitResultType
         requiredness.fromEmitType(emitResult)
       case ApplyScanOp(initOpArgs, seqOpArgs, aggSig) =>
         val emitResult = agg.PhysicalAggSig(aggSig.op, agg.AggStateSig(aggSig.op,
-          initOpArgs.map(i => i -> lookup(i)),
-          seqOpArgs.map(s => s -> lookup(s)))).emitResultType
+          initOpArgs.fmap(i => i -> lookup(i)),
+          seqOpArgs.fmap(s => s -> lookup(s)))).emitResultType
         requiredness.fromEmitType(emitResult)
       case AggFold(zero, seqOp, combOp, elementName, accumName, _) =>
         requiredness.unionFrom(lookup(zero))
@@ -697,7 +697,7 @@ class Requiredness(val usesAndDefs: UsesAndDefs, ctx: ExecuteContext) {
         requiredness.union(ndReq.required && idxs.forall(lookup(_).required))
       case NDArraySlice(nd, slices) =>
         val slicesReq = lookupAs[RTuple](slices)
-        val allSlicesRequired = slicesReq.fields.map(_.typ).forall {
+        val allSlicesRequired = slicesReq.fields.fmap(_.typ).forall {
           case r: RTuple => r.required && r.fields.forall(_.typ.required)
           case r => r.required
         }
@@ -754,7 +754,7 @@ class Requiredness(val usesAndDefs: UsesAndDefs, ctx: ExecuteContext) {
         requiredness.unionFrom(oldReq.field(idx))
       case x: ApplyIR => requiredness.unionFrom(lookup(x.body))
       case x: AbstractApplyNode[_] => //FIXME: round-tripping via PTypes.
-        val argP = x.args.map { a =>
+        val argP = x.args.fmap { a =>
           val pt = lookup(a).canonicalPType(a.typ)
           EmitType(pt.sType, pt.required)
         }
@@ -827,7 +827,6 @@ class Requiredness(val usesAndDefs: UsesAndDefs, ctx: ExecuteContext) {
 
     requiredness.probeChangedAndReset()
   }
-
 
   final class Queue(val markFlag: Int) {
     private[this] val q = mutable.Queue[RefEquality[BaseIR]]()

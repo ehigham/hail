@@ -52,7 +52,7 @@ trait Py4jUtils {
 
   def ls(fs: FS, path: String): String = {
     val statuses = fs.listDirectory(path)
-    JsonMethods.compact(JArray(statuses.map(fs => fileListEntryToJson(fs)).toList))
+    JsonMethods.compact(JArray(statuses.fmap(fs => fileListEntryToJson(fs)).toList))
   }
 
   def fileListEntry(fs: FS, path: String): String = {

@@ -55,16 +55,16 @@ object RegressionUtils {
   def getColumnVariables(mv: MatrixValue, names: Array[String]): IndexedSeq[Array[Option[Double]]] = {
     val colType = mv.typ.colType
     assert(names.forall(name => mv.typ.colType.field(name).typ == TFloat64))
-    val fieldIndices = names.map { name =>
+    val fieldIndices = names.fmap { name =>
       val field = mv.typ.colType.field(name)
       assert(field.typ == TFloat64)
       field.index
     }
     mv.colValues
       .javaValue
-      .map { a =>
+      .fmap { a =>
         val struct = a.asInstanceOf[Row]
-        fieldIndices.map(i => Option(struct.get(i)).map(_.asInstanceOf[Double]))
+        fieldIndices.fmap(i => Option(struct.get(i)).map(_.asInstanceOf[Double]))
       }
   }
 
@@ -102,10 +102,10 @@ object RegressionUtils {
     if (n == 0)
       fatal("No complete samples: each sample is missing its phenotype or some covariate")
 
-    val yArray = yForCompleteSamples.flatMap(_.map(_.get)).toArray
+    val yArray = yForCompleteSamples.flatMap(_.fmap(_.get)).toArray
     val y = new DenseMatrix(rows = n, cols = nPhenos, data = yArray, offset = 0, majorStride = nPhenos, isTranspose = true)
 
-    val covArray = covForCompleteSamples.flatMap(_.map(_.get)).toArray
+    val covArray = covForCompleteSamples.flatMap(_.fmap(_.get)).toArray
     val cov = new DenseMatrix(rows = n, cols = nCovs, data = covArray, offset = 0, majorStride = nCovs, isTranspose = true)
 
     if (n < nCols)

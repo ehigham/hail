@@ -144,8 +144,8 @@ object HailContext {
     val fsBc = fs.broadcast
 
     new RDD[T](SparkBackend.sparkContext("readPartition"), Nil) {
-      def getPartitions: Array[Partition] =
-        Array.tabulate(nPartitions)(i => FilePartition(i, partFiles(i)))
+      override def getPartitions: Array[Partition] =
+        (0 until nPartitions) fmap (i => FilePartition(i, partFiles(i)).asInstanceOf[Partition])
 
       override def compute(split: Partition, context: TaskContext): Iterator[T] = {
         val p = split.asInstanceOf[FilePartition]
@@ -178,7 +178,7 @@ class HailContext private(
     maxLines: Int
   ): Map[String, Array[WithContext[String]]] = {
     val regexp = regex.r
-    SparkBackend.sparkContext("fileAndLineCounts").textFilesLines(fs.globAll(files).map(_.getPath))
+    SparkBackend.sparkContext("fileAndLineCounts").textFilesLines(fs.globAll(files).fmap(_.getPath))
       .filter(line => regexp.findFirstIn(line.value).isDefined)
       .take(maxLines)
       .groupBy(_.source.file)
@@ -187,7 +187,7 @@ class HailContext private(
   def grepPrint(fs: FS, regex: String, files: Seq[String], maxLines: Int) {
     fileAndLineCounts(fs, regex, files, maxLines).foreach { case (file, lines) =>
       info(s"$file: ${ lines.length } ${ plural(lines.length, "match", "matches") }:")
-      lines.map(_.value).foreach { line =>
+      lines.fmap(_.value).foreach { line =>
         val (screen, logged) = line.truncatable().strings
         log.info("\t" + logged)
         println(s"\t$screen")
@@ -196,7 +196,7 @@ class HailContext private(
   }
 
   def grepReturn(fs: FS, regex: String, files: Seq[String], maxLines: Int): Array[(String, Array[String])] =
-    fileAndLineCounts(fs: FS, regex, files, maxLines).mapValues(_.map(_.value)).toArray
+    fileAndLineCounts(fs: FS, regex, files, maxLines).mapValues(_.fmap(_.value)).toArray
 
   def parseVCFMetadata(fs: FS, file: String): Map[String, Map[String, Map[String, String]]] = {
     LoadVCF.parseHeaderMetadata(fs, Set.empty, TFloat64, file)

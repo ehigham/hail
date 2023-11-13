@@ -15,14 +15,14 @@ import is.hail.utils._
 import net.sourceforge.jdistlib.T
 
 case class LinearRegressionRowsSingle(
-  yFields: Seq[String],
+  yFields: IndexedSeq[String],
   xField: String,
-  covFields: Seq[String],
+  covFields: IndexedSeq[String],
   rowBlockSize: Int,
-  passThrough: Seq[String]) extends MatrixToTableFunction {
+  passThrough: IndexedSeq[String]) extends MatrixToTableFunction {
 
   override def typ(childType: MatrixType): TableType = {
-    val passThroughType = TStruct(passThrough.map(f => f -> childType.rowType.field(f).typ): _*)
+    val passThroughType = TStruct(passThrough.fmap(f => f -> childType.rowType.field(f).typ): _*)
     val schema = TStruct(
       ("n", TInt32),
       ("sum_x", TFloat64),
@@ -79,7 +79,7 @@ case class LinearRegressionRowsSingle(
     val tableType = typ(mv.typ)
     val rvdType = tableType.canonicalRVDType
 
-    val copiedFieldIndices = (mv.typ.rowKey ++ passThrough).map(fullRowType.fieldIdx(_)).toArray
+    val copiedFieldIndices = (mv.typ.rowKey ++ passThrough).fmap(fullRowType.fieldIdx(_))
     val nDependentVariables = yFields.length
 
     val sm = ctx.stateManager
@@ -175,14 +175,14 @@ case class LinearRegressionRowsSingle(
 }
 
 case class LinearRegressionRowsChained(
-  yFields: Seq[Seq[String]],
+  yFields: IndexedSeq[Seq[String]],
   xField: String,
-  covFields: Seq[String],
+  covFields: IndexedSeq[String],
   rowBlockSize: Int,
-  passThrough: Seq[String]) extends MatrixToTableFunction {
+  passThrough: IndexedSeq[String]) extends MatrixToTableFunction {
 
   override def typ(childType: MatrixType): TableType = {
-    val passThroughType = TStruct(passThrough.map(f => f -> childType.rowType.field(f).typ): _*)
+    val passThroughType = TStruct(passThrough.fmap(f => f -> childType.rowType.field(f).typ): _*)
     val chainedSchema = TStruct(
       ("n", TArray(TInt32)),
       ("sum_x", TArray(TFloat64)),
@@ -201,10 +201,10 @@ case class LinearRegressionRowsChained(
 
   def execute(ctx: ExecuteContext, mv: MatrixValue): TableValue = {
 
-    val localData = yFields.map(y => RegressionUtils.getPhenosCovCompleteSamples(mv, y.toArray, covFields.toArray))
+    val localData = yFields.fmap(y => RegressionUtils.getPhenosCovCompleteSamples(mv, y.toArray, covFields.toArray))
 
     val k = covFields.length // nCovariates
-    val bcData = localData.zipWithIndex.map { case ((y, cov, completeColIdx), i) =>
+    val bcData = localData.zipWithIndex.fmap { case ((y, cov, completeColIdx), i) =>
       val n = y.rows
       val d = n - k - 1
       if (d < 1)
@@ -238,7 +238,7 @@ case class LinearRegressionRowsChained(
 
     val tableType = typ(mv.typ)
     val rvdType = tableType.canonicalRVDType
-    val copiedFieldIndices = (mv.typ.rowKey ++ passThrough).map(fullRowType.fieldIdx(_)).toArray
+    val copiedFieldIndices = (mv.typ.rowKey ++ passThrough).fmap(fullRowType.fieldIdx(_)).toArray
 
     val sm = ctx.stateManager
     val newRVD = mv.rvd.mapPartitionsWithContext(
@@ -248,7 +248,7 @@ case class LinearRegressionRowsChained(
 
         val inputData = bc.value
         val builder = new IntArrayBuilder()
-        val data = inputData.map(cri => new Array[Double](cri.n * rowBlockSize))
+        val data = inputData.fmap(cri => new Array[Double](cri.n * rowBlockSize))
 
         val blockWRVs = new Array[WritableRegionValue](rowBlockSize)
         var i = 0
@@ -274,7 +274,7 @@ case class LinearRegressionRowsChained(
             }
             val blockLength = i
 
-            val results = Array.tabulate(nGroups) { j =>
+            val results = FastSeq.tabulate(nGroups) { j =>
               val cri = inputData(j)
               val X = new DenseMatrix[Double](cri.n, blockLength, data(j))
 

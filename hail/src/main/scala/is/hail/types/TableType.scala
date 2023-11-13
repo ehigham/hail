@@ -15,7 +15,7 @@ class TableTypeSerializer extends CustomSerializer[TableType](format => (
   { case tt: TableType => JString(tt.toString) }))
 
 object TableType {
-  def keyType(ts: TStruct, key: IndexedSeq[String]): TStruct = ts.typeAfterSelect(key.map(ts.fieldIdx))
+  def keyType(ts: TStruct, key: IndexedSeq[String]): TStruct = ts.typeAfterSelect(key.fmap(ts.fieldIdx))
   def valueType(ts: TStruct, key: IndexedSeq[String]): TStruct = ts.filterSet(key.toSet, include = false)._1
 }
 
@@ -85,7 +85,7 @@ case class TableType(rowType: TStruct, key: IndexedSeq[String], globalType: TStr
     JObject(
       "global_type" -> JString(globalType.toString),
       "row_type" -> JString(rowType.toString),
-      "row_key" -> JArray(key.map(f => JString(f)).toList)
+      "row_key" -> JArray(key.fmap(f => JString(f)).toList)
     )
   }
 }

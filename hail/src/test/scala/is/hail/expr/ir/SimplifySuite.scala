@@ -2,7 +2,7 @@ package is.hail.expr.ir
 
 import is.hail.expr.ir.TestUtils.IRAggCount
 import is.hail.types.virtual._
-import is.hail.utils.{FastSeq, Interval}
+import is.hail.utils.{FastSeq, Interval, toRichIndexedSeq}
 import is.hail.variant.Locus
 import is.hail.{ExecStrategy, HailSuite}
 import org.apache.spark.sql.Row
@@ -46,17 +46,17 @@ class SimplifySuite extends HailSuite {
   lazy val base = Literal(TStruct("1" -> TInt32, "2" -> TInt32), Row(1,2))
 
   @Test def testInsertFieldsRewriteRules() {
-    val ir1 = InsertFields(InsertFields(base, Seq("1" -> I32(2)), None), Seq("1" -> I32(3)), None)
-    assert(Simplify(ctx, ir1) == InsertFields(base, Seq("1" -> I32(3)), Some(FastSeq("1", "2"))))
+    val ir1 = InsertFields(InsertFields(base, FastSeq("1" -> I32(2)), None), FastSeq("1" -> I32(3)), None)
+    assert(Simplify(ctx, ir1) == InsertFields(base, FastSeq("1" -> I32(3)), Some(FastSeq("1", "2"))))
 
-    val ir2 = InsertFields(InsertFields(base, Seq("3" -> I32(2)), Some(FastSeq("3", "1", "2"))), Seq("3" -> I32(3)), None)
-    assert(Simplify(ctx, ir2) == InsertFields(base, Seq("3" -> I32(3)), Some(FastSeq("3", "1", "2"))))
+    val ir2 = InsertFields(InsertFields(base, FastSeq("3" -> I32(2)), Some(FastSeq("3", "1", "2"))), FastSeq("3" -> I32(3)), None)
+    assert(Simplify(ctx, ir2) == InsertFields(base, FastSeq("3" -> I32(3)), Some(FastSeq("3", "1", "2"))))
 
-    val ir3 = InsertFields(InsertFields(base, Seq("3" -> I32(2)), Some(FastSeq("3", "1", "2"))), Seq("4" -> I32(3)), Some(FastSeq("3", "1", "2", "4")))
-    assert(Simplify(ctx, ir3) == InsertFields(base, Seq("3" -> I32(2), "4" -> I32(3)), Some(FastSeq("3", "1", "2", "4"))))
+    val ir3 = InsertFields(InsertFields(base, FastSeq("3" -> I32(2)), Some(FastSeq("3", "1", "2"))), FastSeq("4" -> I32(3)), Some(FastSeq("3", "1", "2", "4")))
+    assert(Simplify(ctx, ir3) == InsertFields(base, FastSeq("3" -> I32(2), "4" -> I32(3)), Some(FastSeq("3", "1", "2", "4"))))
 
-    val ir4 = InsertFields(InsertFields(base, Seq("3" -> I32(0), "4" -> I32(1))), Seq("3" -> I32(5)))
-    assert(Simplify(ctx, ir4) == InsertFields(base, Seq("4" -> I32(1), "3" -> I32(5)), Some(FastSeq("1", "2", "3", "4"))))
+    val ir4 = InsertFields(InsertFields(base, FastSeq("3" -> I32(0), "4" -> I32(1))), FastSeq("3" -> I32(5)))
+    assert(Simplify(ctx, ir4) == InsertFields(base, FastSeq("4" -> I32(1), "3" -> I32(5)), Some(FastSeq("1", "2", "3", "4"))))
   }
 
   lazy val base2 = Literal(TStruct("A" -> TInt32, "B" -> TInt32, "C" -> TInt32, "D" -> TInt32), Row(1, 2, 3, 4))
@@ -96,7 +96,7 @@ class SimplifySuite extends HailSuite {
 
   @Test def testTableCountExplodeSetRewrite() {
     var ir: TableIR = TableRange(1, 1)
-    ir = TableMapRows(ir, InsertFields(Ref("row", ir.typ.rowType), Seq("foo" -> Literal(TSet(TInt32), Set(1)))))
+    ir = TableMapRows(ir, InsertFields(Ref("row", ir.typ.rowType), FastSeq("foo" -> Literal(TSet(TInt32), Set(1)))))
     ir = TableExplode(ir, FastSeq("foo"))
     assertEvalsTo(TableCount(ir), 1L)
   }
@@ -530,7 +530,7 @@ class SimplifySuite extends HailSuite {
   def blockMatrixRules: Array[Array[Any]] = {
     val matrix =
       ValueToBlockMatrix(
-        MakeArray((1 to 4).map(F64(_)), TArray(TFloat64)),
+        MakeArray((1 to 4).fmap(F64(_)), TArray(TFloat64)),
         FastSeq(2, 2),
         10
       )
@@ -560,9 +560,9 @@ class SimplifySuite extends HailSuite {
   @DataProvider(name = "SwitchRules")
   def switchRules: Array[Array[Any]] =
     Array(
-      Array(I32(-1), I32(-1), IndexedSeq.tabulate(5)(I32), I32(-1)),
-      Array(I32(1), I32(-1), IndexedSeq.tabulate(5)(I32), I32(1)),
-      Array(ref(TInt32), I32(-1), IndexedSeq.tabulate(5)(I32), Switch(ref(TInt32), I32(-1), IndexedSeq.tabulate(5)(I32))),
+      Array(I32(-1), I32(-1), FastSeq.tabulate(5)(I32), I32(-1)),
+      Array(I32(1), I32(-1), FastSeq.tabulate(5)(I32), I32(1)),
+      Array(ref(TInt32), I32(-1), FastSeq.tabulate(5)(I32), Switch(ref(TInt32), I32(-1), FastSeq.tabulate(5)(I32))),
       Array(I32(256), I32(-1), IndexedSeq.empty[IR], I32(-1)),
       Array(ref(TInt32), I32(-1), IndexedSeq.empty[IR], Switch(ref(TInt32), I32(-1), IndexedSeq.empty[IR])), // missingness
     )

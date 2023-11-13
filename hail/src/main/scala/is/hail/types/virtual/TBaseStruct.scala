@@ -16,10 +16,10 @@ object TBaseStruct {
     * types of r.
     */
   def getOrdering(sm: HailStateManager, types: Array[Type], missingEqual: Boolean = true): ExtendedOrdering =
-    ExtendedOrdering.rowOrdering(types.map(_.ordering(sm)), missingEqual)
+    ExtendedOrdering.rowOrdering(types.fmap(_.ordering(sm)), missingEqual)
 
   def getJoinOrdering(sm: HailStateManager, types: Array[Type], missingEqual: Boolean = false): ExtendedOrdering =
-    ExtendedOrdering.rowOrdering(types.map(_.mkOrdering(sm, missingEqual = missingEqual)), _missingEqual = missingEqual)
+    ExtendedOrdering.rowOrdering(types.fmap(_.mkOrdering(sm, missingEqual = missingEqual)), _missingEqual = missingEqual)
 }
 
 abstract class TBaseStruct extends Type {
@@ -72,14 +72,11 @@ abstract class TBaseStruct extends Type {
 
   def truncate(newSize: Int): TBaseStruct
 
-  override def _showStr(a: Annotation): String = {
-    if (types.isEmpty)
-      "()"
-    else {
-      Array.tabulate(size)(i => types(i).showStr(a.asInstanceOf[Row].get(i)))
-        .mkString("(", ",", ")")
-    }
-  }
+  override def _showStr(a: Annotation): String =
+    if (types.isEmpty) "()"
+    else (0 until size)
+      .fmap(i => types(i).showStr(a.asInstanceOf[Row].get(i)))
+      .mkString("(", ",", ")")
 
   override def str(a: Annotation): String = JsonMethods.compact(toJSON(a))
 
@@ -89,9 +86,9 @@ abstract class TBaseStruct extends Type {
     } else
       Gen.size.flatMap(fuel =>
         if (types.length > fuel)
-          Gen.uniformSequence(types.map(t => Gen.const(null))).map(a => Annotation(a: _*))
+          Gen.uniformSequence(types.fmap(_ => Gen.const(null))).map(a => Annotation(a: _*))
         else
-          Gen.uniformSequence(types.map(t => t.genValue(sm))).map(a => Annotation(a: _*)))
+          Gen.uniformSequence(types.fmap(_.genValue(sm))).map(a => Annotation(a: _*)))
   }
 
   override def valuesSimilar(a1: Annotation, a2: Annotation, tolerance: Double, absolute: Boolean): Boolean =

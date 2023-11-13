@@ -9,6 +9,7 @@ import is.hail.types.physical.stypes.primitives.{SBoolean, SInt32}
 import is.hail.types.physical.stypes.interfaces._
 import is.hail.types.physical.{PBoolean, PCanonicalString, PInt32, PLocus, PString, PType}
 import is.hail.types.virtual._
+import is.hail.utils.FastSeq
 import is.hail.variant.ReferenceGenome
 
 object ReferenceGenomeFunctions extends RegistryFunctions {
@@ -18,7 +19,7 @@ object ReferenceGenomeFunctions extends RegistryFunctions {
     registerSCode1t("isValidContig", Array(LocusFunctions.tlocus("R")), TString, TBoolean, (_: Type, _: SType) => SBoolean) {
       case (r, cb, Seq(tlocus: TLocus), _, contig, _) =>
         val scontig = contig.asString.loadString(cb)
-        primitive(cb.memoize(rgCode(r.mb, tlocus.asInstanceOf[TLocus].rg).invoke[String, Boolean]("isValidContig", scontig)))
+        primitive(cb.memoize(rgCode(r.mb, tlocus.rg).invoke[String, Boolean]("isValidContig", scontig)))
     }
 
     registerSCode2t("isValidLocus", Array(LocusFunctions.tlocus("R")), TString, TInt32, TBoolean, (_: Type, _: SType, _: SType) => SBoolean) {
@@ -53,15 +54,15 @@ object ReferenceGenomeFunctions extends RegistryFunctions {
           name = "getReferenceSequenceFromValidLocus",
           returnType = TString,
           typeParameters = tl,
-          arguments = Seq(TString, TInt32, TInt32, TInt32)).get
+          arguments = FastSeq(TString, TInt32, TInt32, TInt32)).get
         val isValid = IRFunctionRegistry.lookupUnseeded(
           "isValidLocus",
           TBoolean,
           typeParameters = tl,
-          Seq(TString, TInt32)).get
+          FastSeq(TString, TInt32)).get
 
-        val r = isValid(tl, Seq(contig, pos), ErrorIDs.NO_ERROR)
-        val p = getRef(tl, Seq(contig, pos, before, after), ErrorIDs.NO_ERROR)
+        val r = isValid(tl, FastSeq(contig, pos), ErrorIDs.NO_ERROR)
+        val p = getRef(tl, FastSeq(contig, pos, before, after), ErrorIDs.NO_ERROR)
         If(r, p, NA(TString))
     }
   }

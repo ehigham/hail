@@ -38,19 +38,15 @@ object TUnion {
   val empty: TUnion = TUnion(FastSeq())
 
   def apply(args: (String, Type)*): TUnion =
-    TUnion(args
-      .iterator
-      .zipWithIndex
-      .map { case ((n, t), i) => Case(n, t, i) }
-      .toArray)
+    TUnion(args.toFastSeq.zipWithIndex.fmap { case ((n, t), i) => Case(n, t, i) })
 }
 
 final case class TUnion(cases: IndexedSeq[Case]) extends Type {
-  lazy val types: Array[Type] = cases.map(_.typ).toArray
+  lazy val types: Array[Type] = cases.fmap(_.typ)
 
   lazy val caseIdx: collection.Map[String, Int] = toMapFast(cases)(_.name, _.index)
 
-  lazy val caseNames: Array[String] = cases.map(_.name).toArray
+  lazy val caseNames: Array[String] = cases.fmap(_.name)
 
   def size: Int = cases.length
 
@@ -63,7 +59,7 @@ final case class TUnion(cases: IndexedSeq[Case]) extends Type {
     case _ => false
   }
 
-  override def subst(): TUnion = TUnion(cases.map(f => f.copy(typ = f.typ.subst())))
+  override def subst(): TUnion = TUnion(cases.fmap(f => f.copy(typ = f.typ.subst())))
 
   def index(str: String): Option[Int] = caseIdx.get(str)
 

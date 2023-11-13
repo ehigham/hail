@@ -7,7 +7,7 @@ import is.hail.types.physical.stypes.interfaces._
 import is.hail.types.physical.stypes.{SType, SValue}
 import is.hail.types.physical.{PCanonicalNDArray, PType}
 import is.hail.types.virtual.Type
-import is.hail.utils.{FastSeq, toRichIterable}
+import is.hail.utils.{FastSeq, toRichIndexedSeq, toRichIterable}
 
 final case class SNDArrayPointer(pType: PCanonicalNDArray) extends SNDArray {
   require(!pType.required)
@@ -48,7 +48,7 @@ final case class SNDArrayPointer(pType: PCanonicalNDArray) extends SNDArray {
     val strides = values.slice(1 + pType.nDims, 1 + 2 * pType.nDims).asInstanceOf[IndexedSeq[Value[Long@unchecked]]]
     val dataFirstElementPointer = values.last.asInstanceOf[Value[Long]]
     assert(a.ti == LongInfo)
-    new SNDArrayPointerValue(this, a, shape.map(SizeValueDyn.apply), strides, dataFirstElementPointer)
+    new SNDArrayPointerValue(this, a, shape.fmap(SizeValueDyn.apply), strides, dataFirstElementPointer)
   }
 
   override def storageType(): PType = pType
@@ -97,7 +97,7 @@ class SNDArrayPointerValue(
   )(body: IndexedSeq[SValue] => SValue
   ): Unit = {
     SNDArray._coiterate(cb, indexVars, (this, destIndices, "dest") +: arrays: _*) { ptrs =>
-      val codes = (this +: arrays.map(_._1)).zip(ptrs).toFastSeq.map { case (array, ptr) =>
+      val codes = (this +: arrays.map(_._1)).zip(ptrs).toFastSeq.fmap { case (array, ptr) =>
         val pt: PType = array.st.pType.elementType
         pt.loadCheapSCode(cb, pt.loadFromNested(ptr))
       }
@@ -109,8 +109,8 @@ class SNDArrayPointerValue(
 object SNDArrayPointerSettable {
   def apply(sb: SettableBuilder, st: SNDArrayPointer, name: String): SNDArrayPointerSettable = {
     new SNDArrayPointerSettable(st, sb.newSettable[Long](name),
-      Array.tabulate(st.pType.nDims)(i => sb.newSettable[Long](s"${name}_nd_shape_$i")),
-      Array.tabulate(st.pType.nDims)(i => sb.newSettable[Long](s"${name}_nd_strides_$i")),
+      FastSeq.tabulate(st.pType.nDims)(i => sb.newSettable[Long](s"${name}_nd_shape_$i")),
+      FastSeq.tabulate(st.pType.nDims)(i => sb.newSettable[Long](s"${name}_nd_strides_$i")),
       sb.newSettable[Long](s"${name}_nd_first_element")
     )
   }
@@ -122,14 +122,14 @@ final class SNDArrayPointerSettable(
   val shape: IndexedSeq[Settable[Long]],
   override val strides: IndexedSeq[Settable[Long]],
   override val firstDataAddress: Settable[Long]
-) extends SNDArrayPointerValue(st, a, shape.map(SizeValueDyn.apply), strides, firstDataAddress) with SNDArraySettable {
+) extends SNDArrayPointerValue(st, a, shape.fmap(SizeValueDyn.apply), strides, firstDataAddress) with SNDArraySettable {
   def settableTuple(): IndexedSeq[Settable[_]] = FastSeq(a) ++ shape ++ strides ++ FastSeq(firstDataAddress)
 
   def store(cb: EmitCodeBuilder, v: SValue): Unit = v match {
     case v: SNDArrayPointerValue =>
       cb.assign(a, v.a)
-      (shape, v.shapes).zipped.foreach(cb.assign(_, _))
-      (strides, v.strides).zipped.foreach(cb.assign(_, _))
+      shape.zip(v.shapes).foreach { case (a, b) => cb.assign(a, b) }
+      strides.zip(v.strides).foreach { case (a, b) => cb.assign(a, b) }
       cb.assign(firstDataAddress, v.firstDataAddress)
   }
 }

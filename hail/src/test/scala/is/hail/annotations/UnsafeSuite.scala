@@ -20,7 +20,7 @@ class UnsafeSuite extends HailSuite {
       case t: TStruct =>
         TStruct(
           t.fields.filter(_ => Random.nextDouble() < 0.4)
-            .map(f => f.name -> f.typ): _*)
+            .fmap(f => f.name -> f.typ): _*)
 
       case t: TArray =>
         TArray(subsetType(t.elementType))
@@ -37,7 +37,7 @@ class UnsafeSuite extends HailSuite {
           null
         else {
           val a2 = a.asInstanceOf[Row]
-          Row.fromSeq(requestedType2.fields.map { rf =>
+          Row.fromSeq(requestedType2.fields.fmap { rf =>
             val f = t2.field(rf.name)
             subset(f.typ, rf.typ, a2.get(f.index))
           })
@@ -52,7 +52,7 @@ class UnsafeSuite extends HailSuite {
   @DataProvider(name = "codecs")
   def codecs(): Array[Array[Any]] = {
     (BufferSpec.specs ++ Array(TypedCodecSpec(PCanonicalStruct("x" -> PInt64()), BufferSpec.default)))
-      .map(x => Array[Any](x))
+      .fmap(x => Array[Any](x))
   }
 
   @Test(dataProvider = "codecs") def testCodecSerialization(codec: Spec) {
@@ -306,7 +306,7 @@ class UnsafeSuite extends HailSuite {
     assert(t2.byteOffsets.toSeq == Seq(2, 4, 8, 16, 12, 24, 32, 28, 3, 40, 48))
     assert(t2.byteSize == 49)
 
-    val t3 = makeStruct((0 until 512).map(_ => PFloat64()): _*)
+    val t3 = makeStruct((0 until 512).fmap(_ => PFloat64()): _*)
     assert(t3.byteSize == (512 / 8) + 512 * 8)
     val t4 = makeStruct((0 until 256).flatMap(_ => Iterator(PInt32(), PInt32(), PFloat64(), PBoolean())): _*)
     assert(t4.byteSize == 256 * 4 / 8 + 256 * 4 * 2 + 256 * 8 + 256)

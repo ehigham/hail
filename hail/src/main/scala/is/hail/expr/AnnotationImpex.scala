@@ -36,7 +36,7 @@ object SparkAnnotationImpex {
     case BinaryType => PCanonicalBinary()
     case ArrayType(elementType, containsNull) => PCanonicalArray(importType(elementType).setRequired(!containsNull))
     case StructType(fields) =>
-      PCanonicalStruct(fields.map { f => (f.name, importType(f.dataType).setRequired(!f.nullable)) }: _*)
+      PCanonicalStruct(fields.fmap { f => (f.name, importType(f.dataType).setRequired(!f.nullable)) }: _*)
   }
 
   def exportType(t: Type): DataType = (t: @unchecked) match {
@@ -54,7 +54,7 @@ object SparkAnnotationImpex {
         BooleanType //placeholder
       else
         StructType(tbs.fields
-          .map(f =>
+          .fmap(f =>
             StructField(escapeColumnName(f.name), f.typ.schema, nullable = true)))
   }
 }
@@ -68,8 +68,8 @@ case class JSONExtractContig(name: String, length: Int)
 case class JSONExtractReferenceGenome(name: String, contigs: Array[JSONExtractContig], xContigs: Set[String],
   yContigs: Set[String], mtContigs: Set[String], par: Array[JSONExtractIntervalLocus]) {
 
-  def toReferenceGenome: ReferenceGenome = ReferenceGenome(name, contigs.map(_.name),
-    contigs.map(c => (c.name, c.length)).toMap, xContigs, yContigs, mtContigs, par.map(_.toLocusTuple))
+  def toReferenceGenome: ReferenceGenome = ReferenceGenome(name, contigs.fmap(_.name),
+    contigs.fmap(c => (c.name, c.length)).toMap, xContigs, yContigs, mtContigs, par.fmap(_.toLocusTuple))
 }
 
 object JSONAnnotationImpex {
@@ -141,8 +141,8 @@ object JSONAnnotationImpex {
         case TNDArray(elementType, _) =>
           val jnd = a.asInstanceOf[NDArray]
           JObject(
-            "shape" -> JArray(jnd.shape.map(shapeEntry => JInt(shapeEntry)).toList),
-            "data" -> JArray(jnd.getRowMajorElements().map(a => exportAnnotation(a, elementType)).toList)
+            "shape" -> JArray(jnd.shape.fmap(shapeEntry => JInt(shapeEntry)).toList),
+            "data" -> JArray(jnd.getRowMajorElements().fmap(a => exportAnnotation(a, elementType)).toList)
           )
       }
     }
