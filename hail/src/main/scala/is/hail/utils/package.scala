@@ -705,7 +705,7 @@ package object utils extends Logging
     }
   }
 
-  def partition(n: Int, k: Int): Array[Int] = {
+  def partition(n: Int, k: Int): IndexedSeq[Int] = {
     if (k == 0) {
       assert(n == 0)
       return Array.empty[Int]
@@ -719,7 +719,7 @@ package object utils extends Logging
     parts
   }
 
-  def partition(n: Long, k: Int): Array[Long] = {
+  def partition(n: Long, k: Int): IndexedSeq[Long] = {
     if (k == 0) {
       assert(n == 0)
       return Array.empty[Long]

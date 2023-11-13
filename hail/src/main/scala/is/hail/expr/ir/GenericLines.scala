@@ -437,7 +437,7 @@ class GenericLine(
 class GenericLinesRDDPartition(val index: Int, val context: Any) extends Partition
 
 class GenericLinesRDD(
-  @(transient@param) contexts: IndexedSeq[Any],
+  @(transient@param) contexts: Array[Any],
   body: (Any) => CloseableIterator[GenericLine]
 ) extends RDD[GenericLine](SparkBackend.sparkContext("GenericLinesRDD"), Seq()) {
 

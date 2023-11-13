@@ -4,7 +4,7 @@ import is.hail.expr.ir.IRParser._
 import is.hail.expr.ir.{IRParser, PunctuationToken, TokenIterator}
 import is.hail.types.encoded._
 import is.hail.types.virtual._
-import is.hail.utils.{FastSeq, arrayToRichIndexedSeq}
+import is.hail.utils.{FastSeq, toRichArray}
 
 object LegacyEncodedTypeParser {
 

@@ -3,7 +3,7 @@ package is.hail.check
 import breeze.linalg.DenseMatrix
 import breeze.storage.Zero
 import is.hail.check.Arbitrary.arbitrary
-import is.hail.utils.{arrayToRichIndexedSeq, roundWithConstantSum, toRichIndexedSeq}
+import is.hail.utils.{roundWithConstantSum, toRichArray, toRichIndexedSeq}
 import org.apache.commons.math3.random._
 
 import scala.collection.generic.CanBuildFrom

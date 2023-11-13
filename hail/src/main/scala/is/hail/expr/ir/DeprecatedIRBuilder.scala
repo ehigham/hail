@@ -2,7 +2,7 @@ package is.hail.expr.ir
 
 import is.hail.types._
 import is.hail.types.virtual._
-import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq, toRichIterable}
+import is.hail.utils.{FastSeq, toRichArray, toRichIndexedSeq, toRichIterable}
 
 import scala.language.{dynamics, implicitConversions}
 

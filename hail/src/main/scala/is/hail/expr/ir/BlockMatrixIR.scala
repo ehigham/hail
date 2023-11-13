@@ -866,7 +866,7 @@ case class BlockMatrixSlice(child: BlockMatrixIR, slices: IndexedSeq[IndexedSeq[
 
   val blockCostIsLinear: Boolean = child.blockCostIsLinear
 
-  lazy val Array(rowBlockDependents: IndexedSeq[Array[Int]], colBlockDependents: IndexedSeq[Array[Int]]) =
+  lazy val IndexedSeq(rowBlockDependents: IndexedSeq[Array[Int]], colBlockDependents: IndexedSeq[Array[Int]]) =
     slices.fmap { case IndexedSeq(start, stop, step) =>
       val size = 1 + (stop - start - 1) / step
       val nBlocks = BlockMatrixType.numBlocks(size, child.typ.blockSize)
@@ -898,7 +898,7 @@ case class BlockMatrixSlice(child: BlockMatrixIR, slices: IndexedSeq[IndexedSeq[
 
   override protected[ir] def execute(ctx: ExecuteContext): BlockMatrix = {
     val bm = child.execute(ctx)
-    val Array(rowKeep, colKeep) = slices.fmap { s =>
+    val IndexedSeq(rowKeep, colKeep) = slices.fmap { s =>
       val IndexedSeq(start, stop, step) = s
       start until stop by step
     }
