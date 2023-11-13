@@ -16,6 +16,7 @@ import is.hail.utils._
 import org.apache.spark.sql.Row
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 object Interpret {
   type Agg = (IndexedSeq[Row], TStruct)
@@ -356,7 +357,8 @@ object Interpret {
             case s: Set[_] =>
               s.asInstanceOf[Set[Any]].toFastSeq.sorted(ordering)
             case d: Map[_, _] => d.iterator.map { case (k, v) => Row(k, v) }.toFastSeq.sorted(ordering)
-            case a => a
+            case a: Array[_] => mutable.WrappedArray.make(a)
+            case wrapped => wrapped
           }
         }
 

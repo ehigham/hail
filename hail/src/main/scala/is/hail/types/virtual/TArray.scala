@@ -6,6 +6,7 @@ import is.hail.check.Gen
 import is.hail.utils.toRichIndexedSeq
 import org.json4s.jackson.JsonMethods
 
+import scala.collection.mutable
 import scala.reflect.{ClassTag, classTag}
 
 final case class TArray(elementType: Type) extends TContainer {
@@ -35,8 +36,15 @@ final case class TArray(elementType: Type) extends TContainer {
     sb.append("]")
   }
 
-  def _typeCheck(a: Any): Boolean = a.isInstanceOf[IndexedSeq[_]] &&
-    a.asInstanceOf[IndexedSeq[_]].forall(elementType.typeCheck)
+  def _typeCheck(a: Any): Boolean =
+    a match {
+      case as: IndexedSeq[_] =>
+        as.forall(elementType.typeCheck)
+      case as: mutable.WrappedArray[_] =>
+        as.forall(elementType.typeCheck)
+      case _ =>
+        false
+    }
 
   override def _showStr(a: Annotation): String =
     a.asInstanceOf[IndexedSeq[Annotation]]
