@@ -7,6 +7,7 @@ import is.hail.check.Gen
 import is.hail.check.Prop.forAll
 import is.hail.expr.ir.GenericLines
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import org.apache.commons.io.IOUtils
 import org.apache.spark.sql.Row
 import org.apache.{hadoop => hd}
@@ -32,7 +33,7 @@ class TestFileInputFormat extends hd.mapreduce.lib.input.TextInputFormat {
     val fileSystem = path.getFileSystem(hConf)
     val blkLocations = fileSystem.getFileBlockLocations(file, 0, length)
 
-    FastSeq.tabulate(splitPoints.length - 1) { i =>
+    RichIndexedSeq.tabulate(splitPoints.length - 1) { i =>
       val s = splitPoints(i)
       val e = splitPoints(i + 1)
       val splitSize = e - s

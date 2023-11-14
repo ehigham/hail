@@ -13,6 +13,7 @@ import is.hail.types.physical.stypes.interfaces.{NoBoxLongIterator, SStreamValue
 import is.hail.types.physical.stypes.{PTypeReferenceSingleCodeType, SingleCodeSCode, StreamSingleCodeType}
 import is.hail.types.virtual._
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import is.hail.variant.Call2
 import is.hail.{ExecStrategy, HailSuite}
 import org.apache.spark.sql.Row
@@ -272,7 +273,7 @@ class EmitStreamSuite extends HailSuite {
       StreamMap(ten, "x", x * 2) -> (0 until 10).fmap(_ * 2),
       StreamMap(ten, "x", x.toL) -> (0 until 10).fmap(_.toLong),
       StreamMap(StreamMap(ten, "x", x + 1), "y", y * y) -> (0 until 10).fmap(i => (i + 1) * (i + 1)),
-      StreamMap(ten, "x", NA(TInt32)) -> FastSeq.tabulate(10) { _ => null }
+      StreamMap(ten, "x", NA(TInt32)) -> RichIndexedSeq.fill[Integer](10) { null }
     )
     for ((ir, v) <- tests) {
       assert(evalStream(ir) == v, Pretty(ctx, ir))
@@ -291,7 +292,7 @@ class EmitStreamSuite extends HailSuite {
       StreamFilter(ten, "x", x cne 5) -> (0 until 10).filter(_ != 5),
       StreamFilter(StreamMap(ten, "x", (x * 2).toL), "y", y > 5L) -> (3 until 10).fmap(x => (x * 2).toLong),
       StreamFilter(StreamMap(ten, "x", (x * 2).toL), "y", NA(TBoolean)) -> IndexedSeq(),
-      StreamFilter(StreamMap(ten, "x", NA(TInt32)), "z", True()) -> FastSeq.tabulate(10) { _ => null }
+      StreamFilter(StreamMap(ten, "x", NA(TInt32)), "z", True()) -> RichIndexedSeq.tabulate(10) { _ => null }
     )
     for ((ir, v) <- tests) {
       assert(evalStream(ir) == v, Pretty(ctx, ir))

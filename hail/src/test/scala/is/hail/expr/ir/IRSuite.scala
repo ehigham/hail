@@ -19,6 +19,7 @@ import is.hail.types.physical.stypes._
 import is.hail.types.physical.stypes.primitives.SInt32
 import is.hail.types.virtual._
 import is.hail.types.{BlockMatrixType, TableType, VirtualTypeWithReq, tcoerce}
+import is.hail.utils.richUtils.RichIndexedSeq
 import is.hail.utils.{FastSeq, _}
 import is.hail.variant.{Call2, Locus}
 import is.hail.{ExecStrategy, HailSuite}
@@ -2387,7 +2388,7 @@ class IRSuite extends HailSuite {
       assertEquals(start, stop, -step, expected = Array.range(start, stop, -step).toFastSeq)
     }
     // this needs to be written this way because of a bug in Scala's Array.range
-    val expected = FastSeq.tabulate(11)(Int.MinValue + _ * (Int.MaxValue / 5)).toFastSeq
+    val expected = RichIndexedSeq.tabulate(11)(Int.MinValue + _ * (Int.MaxValue / 5)).toFastSeq
     assertEquals(Int.MinValue, Int.MaxValue, Int.MaxValue / 5, expected)
   }
 
@@ -3468,8 +3469,8 @@ class IRSuite extends HailSuite {
 
     val stream = mapIR(rangeIR(5)) { _ => single }
 
-    def selfZip(s: IR, n: Int) = StreamZip(Array.fill(n)(s), FastSeq.tabulate(n)(i => s"$i"),
-      MakeArray(FastSeq.tabulate(n)(i => Ref(s"$i", TString)), TArray(TString)),
+    def selfZip(s: IR, n: Int) = StreamZip(Array.fill(n)(s), RichIndexedSeq.tabulate(n)(i => s"$i"),
+      MakeArray(RichIndexedSeq.tabulate(n)(i => Ref(s"$i", TString)), TArray(TString)),
       ArrayZipBehavior.AssumeSameLength)
 
     def assertNumDistinct(s: IR, expected: Int) =
@@ -3547,7 +3548,7 @@ class IRSuite extends HailSuite {
 
     assert(dataIdx == data.size)
 
-    result.fmap(_._1).sliding(2).foreach { case Array(interval1, interval2) =>
+    result.fmap(_._1).sliding(2).foreach { case Seq(interval1, interval2) =>
       assert(interval1.isDisjointFrom(kord, interval2))
     }
 

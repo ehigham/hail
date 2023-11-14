@@ -5,7 +5,7 @@ import is.hail.types.BaseType
 import is.hail.utils.StackSafe._
 import is.hail.utils._
 
-abstract class BaseIR {
+abstract class BaseIR extends AnyRef {
   def typ: BaseType
 
   protected def childrenSeq: IndexedSeq[BaseIR]

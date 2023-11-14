@@ -2,6 +2,7 @@ package is.hail.expr.ir
 
 import is.hail.expr.ir.TestUtils.IRAggCount
 import is.hail.types.virtual._
+import is.hail.utils.richUtils.RichIndexedSeq
 import is.hail.utils.{FastSeq, Interval, toRichIndexedSeq}
 import is.hail.variant.Locus
 import is.hail.{ExecStrategy, HailSuite}
@@ -560,9 +561,9 @@ class SimplifySuite extends HailSuite {
   @DataProvider(name = "SwitchRules")
   def switchRules: Array[Array[Any]] =
     Array(
-      Array(I32(-1), I32(-1), FastSeq.tabulate(5)(I32), I32(-1)),
-      Array(I32(1), I32(-1), FastSeq.tabulate(5)(I32), I32(1)),
-      Array(ref(TInt32), I32(-1), FastSeq.tabulate(5)(I32), Switch(ref(TInt32), I32(-1), FastSeq.tabulate(5)(I32))),
+      Array(I32(-1), I32(-1), RichIndexedSeq.tabulate(5)(I32), I32(-1)),
+      Array(I32(1), I32(-1), RichIndexedSeq.tabulate(5)(I32), I32(1)),
+      Array(ref(TInt32), I32(-1), RichIndexedSeq.tabulate(5)(I32), Switch(ref(TInt32), I32(-1), RichIndexedSeq.tabulate(5)(I32))),
       Array(I32(256), I32(-1), IndexedSeq.empty[IR], I32(-1)),
       Array(ref(TInt32), I32(-1), IndexedSeq.empty[IR], Switch(ref(TInt32), I32(-1), IndexedSeq.empty[IR])), // missingness
     )

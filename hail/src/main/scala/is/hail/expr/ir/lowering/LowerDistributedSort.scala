@@ -120,7 +120,7 @@ object LowerDistributedSort {
     val ord: Ordering[Annotation] = ExtendedOrdering.rowOrdering(sortColIndexOrd).toOrdering
 
     val kType = TStruct(sortFields.fmap(f => (f.field, rowType.fieldType(f.field))): _*)
-    val kIndex = kType.fieldNames.fmap(f => rowType.fieldIdx(f))
+    val kIndex = kType.fieldNames.fmap(rowType.fieldIdx)
     ctx.timer.time("LowerDistributedSort.localSort.sort")(annotations.sortBy{ a: Annotation =>
       a.asInstanceOf[Row].select(kIndex).asInstanceOf[Annotation]
     }(ord))

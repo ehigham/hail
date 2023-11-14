@@ -7,11 +7,12 @@ import is.hail.annotations._
 import is.hail.backend.ExecuteContext
 import is.hail.expr.ir.functions.MatrixToTableFunction
 import is.hail.expr.ir.{IntArrayBuilder, MatrixValue, TableValue}
+import is.hail.stats._
 import is.hail.types._
 import is.hail.types.physical.PStruct
 import is.hail.types.virtual.{TArray, TFloat64, TInt32, TStruct}
-import is.hail.stats._
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import net.sourceforge.jdistlib.T
 
 case class LinearRegressionRowsSingle(
@@ -79,13 +80,13 @@ case class LinearRegressionRowsSingle(
     val tableType = typ(mv.typ)
     val rvdType = tableType.canonicalRVDType
 
-    val copiedFieldIndices = (mv.typ.rowKey ++ passThrough).fmap(fullRowType.fieldIdx(_))
+    val copiedFieldIndices = mv.typ.rowKey.concatMap(passThrough)(fullRowType.fieldIdx(_)).toArray
     val nDependentVariables = yFields.length
 
     val sm = ctx.stateManager
     val newRVD = mv.rvd.mapPartitionsWithContext(
       rvdType) { (consumerCtx, it) =>
-        val producerCtx = consumerCtx.freshContext
+        val producerCtx = consumerCtx.freshContext()
         val rvb = new RegionValueBuilder(sm)
 
         val missingCompleteCols = new IntArrayBuilder()
@@ -274,7 +275,7 @@ case class LinearRegressionRowsChained(
             }
             val blockLength = i
 
-            val results = FastSeq.tabulate(nGroups) { j =>
+            val results = RichIndexedSeq.tabulate(nGroups) { j =>
               val cri = inputData(j)
               val X = new DenseMatrix[Double](cri.n, blockLength, data(j))
 

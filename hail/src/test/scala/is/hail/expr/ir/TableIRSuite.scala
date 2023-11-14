@@ -11,6 +11,7 @@ import is.hail.rvd.RVDPartitioner
 import is.hail.types._
 import is.hail.types.virtual._
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import is.hail.{ExecStrategy, HailSuite}
 import org.apache.spark.sql.Row
 import org.scalatest.Inspectors.forAll
@@ -69,8 +70,8 @@ class TableIRSuite extends HailSuite {
     val t = TableRange(10, 2)
     val row = Ref("row", t.typ.rowType)
     val node = collect(TableMapRows(t, InsertFields(row, FastSeq("x" -> GetField(row, "idx")))))
-    assertEvalsTo(collect(t), Row(FastSeq.tabulate(10)(Row(_)).toFastSeq, Row()))
-    assertEvalsTo(node, Row(FastSeq.tabulate(10)(i => Row(i, i)).toFastSeq, Row()))
+    assertEvalsTo(collect(t), Row(RichIndexedSeq.tabulate(10)(Row(_)).toFastSeq, Row()))
+    assertEvalsTo(node, Row(RichIndexedSeq.tabulate(10)(i => Row(i, i)).toFastSeq, Row()))
   }
 
   @Test def testNestedRangeCollect() {
@@ -93,7 +94,7 @@ class TableIRSuite extends HailSuite {
     val row = Ref("row", t.typ.rowType)
     val sum = AggSignature(Sum(), FastSeq(), FastSeq(TInt64))
     val node = collect(TableMapRows(t, InsertFields(row, FastSeq("sum" -> ApplyScanOp(FastSeq(), FastSeq(Cast(GetField(row, "idx"), TInt64)), sum)))))
-    assertEvalsTo(node, Row(FastSeq.tabulate(10)(i => Row(i, Array.range(0, i).sum.toLong)).toFastSeq, Row()))
+    assertEvalsTo(node, Row(RichIndexedSeq.tabulate(10)(i => Row(i, Array.range(0, i).sum.toLong)).toFastSeq, Row()))
   }
 
   @Test def testGetGlobals() {
@@ -101,7 +102,7 @@ class TableIRSuite extends HailSuite {
     val t = TableRange(10, 2)
     val newGlobals = InsertFields(Ref("global", t.typ.globalType), FastSeq("x" -> collect(t)))
     val node = TableGetGlobals(TableMapGlobals(t, newGlobals))
-    assertEvalsTo(node, Row(Row(FastSeq.tabulate(10)(i => Row(i)).toFastSeq, Row())))
+    assertEvalsTo(node, Row(Row(RichIndexedSeq.tabulate(10)(i => Row(i)).toFastSeq, Row())))
   }
 
   @Test def testCollectGlobals() {
@@ -112,8 +113,8 @@ class TableIRSuite extends HailSuite {
       TableMapGlobals(t, newGlobals),
       InsertFields(Ref("row", t.typ.rowType), FastSeq("x" -> GetField(Ref("global", newGlobals.typ), "x"))))
 
-    val collectedT = Row(FastSeq.tabulate(10)(i => Row(i)).toFastSeq, Row())
-    val expected = FastSeq.tabulate(10)(i => Row(i, collectedT)).toFastSeq
+    val collectedT = Row(RichIndexedSeq.tabulate(10)(i => Row(i)).toFastSeq, Row())
+    val expected = RichIndexedSeq.tabulate(10)(i => Row(i, collectedT)).toFastSeq
 
     assertEvalsTo(collect(node), Row(expected, Row(collectedT)))
   }
@@ -143,7 +144,7 @@ class TableIRSuite extends HailSuite {
       TableMapGlobals(t, MakeStruct(FastSeq("x" -> GetField(ArrayRef(GetField(collect(t), "rows"), 4), "idx")))),
        ApplyComparisonOp(EQ(TInt32), GetField(Ref("row", t.typ.rowType), "idx"), GetField(Ref("global", TStruct("x" -> TInt32)), "x")))
 
-    val expected = FastSeq.tabulate(10)(Row(_)).filter(_.get(0) == 4).toFastSeq
+    val expected = RichIndexedSeq.tabulate(10)(Row(_)).filter(_.get(0) == 4).toFastSeq
 
     assertEvalsTo(collect(node), Row(expected, Row(4)))
   }
@@ -203,7 +204,7 @@ class TableIRSuite extends HailSuite {
           "a" -> Str("foo"),
           "b" -> Literal(TTuple(TInt32, TString), Row(1, "hello")))))
 
-    val expected = FastSeq.tabulate(10)(Row(_, "foo", Row(1, "hello"))).toFastSeq
+    val expected = RichIndexedSeq.tabulate(10)(Row(_, "foo", Row(1, "hello"))).toFastSeq
     assertEvalsTo(collect(node), Row(expected, Row()))
   }
 
@@ -214,7 +215,7 @@ class TableIRSuite extends HailSuite {
 
     val newRow = InsertFields(oldRow, FastSeq("idx2" -> IRScanCount))
     val newTable = TableMapRows(t, newRow)
-    val expected = FastSeq.tabulate(20)(i => Row(i, i.toLong)).toFastSeq
+    val expected = RichIndexedSeq.tabulate(20)(i => Row(i, i.toLong)).toFastSeq
     assertEvalsTo(ArraySort(ToStream(TableAggregate(newTable, IRAggCollect(Ref("row", newRow.typ)))), True()), expected)
   }
 
@@ -226,7 +227,7 @@ class TableIRSuite extends HailSuite {
     val newRow = InsertFields(oldRow, FastSeq("range" -> IRScanCollect(GetField(oldRow, "idx"))))
     val newTable = TableMapRows(t, newRow)
 
-    val expected = FastSeq.tabulate(20)(i => Row(i, Array.range(0, i).toFastSeq)).toFastSeq
+    val expected = RichIndexedSeq.tabulate(20)(i => Row(i, Array.range(0, i).toFastSeq)).toFastSeq
     assertEvalsTo(ArraySort(ToStream(TableAggregate(newTable, IRAggCollect(Ref("row", newRow.typ)))), True()), expected)
   }
 
@@ -843,7 +844,7 @@ class TableIRSuite extends HailSuite {
             ApplyScanOp(FastSeq(), FastSeq(Ref("streamx", TInt32).toL), sumSig)),
           "aggx",
           ApplyAggOp(FastSeq(), FastSeq(Ref("aggx", TInt64)), sumSig))))))
-    assertEvalsTo(TableCollect(tr), Row(FastSeq.tabulate(10) { i =>
+    assertEvalsTo(TableCollect(tr), Row(RichIndexedSeq.tabulate(10) { i =>
       val r = (0 until i).fmap(_.toLong).scanLeft(0L)(_ + _).init.sum
       Row(i, r)
     }, Row()
@@ -866,7 +867,7 @@ class TableIRSuite extends HailSuite {
             "aggx",
             ApplyAggOp(FastSeq(), FastSeq(Ref("aggx", TInt64)), sumSig))),
           sumSig)))))
-    assertEvalsTo(TableCollect(tr), Row(FastSeq.tabulate(10) { i =>
+    assertEvalsTo(TableCollect(tr), Row(RichIndexedSeq.tabulate(10) { i =>
       (0 until i).fmap(_.toLong).scanLeft(0L)(_ + _).init.sum
     }.scanLeft(0L)(_ + _)
       .zipWithIndex
@@ -1100,7 +1101,7 @@ class TableIRSuite extends HailSuite {
             "row2",
             InsertFields(Ref("row2", rowType), FastSeq("str" -> Str("foo")))))
       ),
-      Row(FastSeq.tabulate(20) { i =>
+      Row(RichIndexedSeq.tabulate(20) { i =>
         Row(i, "foo")
       }, Row("Hello")))
 
@@ -1112,7 +1113,7 @@ class TableIRSuite extends HailSuite {
             "row2",
             GetField(Ref("row2", rowType), "idx") > 0))
       ),
-      Row(FastSeq.tabulate(20) { i =>
+      Row(RichIndexedSeq.tabulate(20) { i =>
         Row(i)
       }.filter(_.getAs[Int](0) > 0), Row("Hello")))
 
@@ -1140,7 +1141,7 @@ class TableIRSuite extends HailSuite {
             "row",
             !IsNA(row)))
       ),
-      Row(FastSeq.tabulate(20) { i =>
+      Row(RichIndexedSeq.tabulate(20) { i =>
         // 0,1,2,3,4,5,6,7,8,9,... ==>
         // 0,0,0,0,0,5,5,5,5,5,...
         Row((i / 5) * 5)

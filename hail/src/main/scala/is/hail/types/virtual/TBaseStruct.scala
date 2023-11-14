@@ -15,15 +15,15 @@ object TBaseStruct {
     * of types of r is a prefix of types, or types is a prefix of the list of
     * types of r.
     */
-  def getOrdering(sm: HailStateManager, types: Array[Type], missingEqual: Boolean = true): ExtendedOrdering =
+  def getOrdering(sm: HailStateManager, types: IndexedSeq[Type], missingEqual: Boolean = true): ExtendedOrdering =
     ExtendedOrdering.rowOrdering(types.fmap(_.ordering(sm)), missingEqual)
 
-  def getJoinOrdering(sm: HailStateManager, types: Array[Type], missingEqual: Boolean = false): ExtendedOrdering =
+  def getJoinOrdering(sm: HailStateManager, types: IndexedSeq[Type], missingEqual: Boolean = false): ExtendedOrdering =
     ExtendedOrdering.rowOrdering(types.fmap(_.mkOrdering(sm, missingEqual = missingEqual)), _missingEqual = missingEqual)
 }
 
 abstract class TBaseStruct extends Type {
-  def types: Array[Type]
+  def types: IndexedSeq[Type]
 
   def fields: IndexedSeq[Field]
 

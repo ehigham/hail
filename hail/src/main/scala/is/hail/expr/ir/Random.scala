@@ -2,6 +2,7 @@ package is.hail.expr.ir
 
 import is.hail.asm4s._
 import is.hail.utils.FastSeq
+import is.hail.utils.richUtils.RichIndexedSeq
 import net.sourceforge.jdistlib.rng.RandomEngine
 import net.sourceforge.jdistlib.{Beta, Gamma, HyperGeometric, Poisson}
 import org.apache.commons.math3.random.RandomGenerator
@@ -275,7 +276,7 @@ object Threefry {
       val xArray = f.mb.getArg[Array[Long]](1)
       val tArray = f.mb.getArg[Array[Long]](2)
       val t = Array(cb.memoize(tArray(0)), cb.memoize(tArray(1)))
-      val x = FastSeq.tabulate[Settable[Long]](4)(i => cb.newLocal[Long](s"x$i", xArray(i)))
+      val x = RichIndexedSeq.tabulate[Settable[Long]](4)(i => cb.newLocal[Long](s"x$i", xArray(i)))
       encrypt(cb, expandKey(k), t, x)
       for (i <- 0 until 4) cb += (xArray(i) = x(i))
       Code._empty

@@ -1,15 +1,12 @@
 package is.hail.sparkextras
 
 import is.hail.HailContext
-import is.hail.annotations.RegionPool
-import is.hail.backend.HailTaskContext
 import is.hail.backend.spark.{SparkBackend, SparkTaskContext}
 import is.hail.rvd.RVDContext
 import is.hail.utils._
-import is.hail.utils.PartitionCounts._
+import is.hail.utils.richUtils.RichArray
 import org.apache.spark._
 import org.apache.spark.rdd._
-import org.apache.spark.ExposedUtils
 
 import scala.reflect.ClassTag
 
@@ -138,7 +135,7 @@ object ContextRDD {
   def czipNPartitions[T: ClassTag, U: ClassTag](
     crdds: IndexedSeq[ContextRDD[T]],
     preservesPartitioning: Boolean = false
-  )(f: (RVDContext, Array[Iterator[T]]) => Iterator[U]
+  )(f: (RVDContext, IndexedSeq[Iterator[T]]) => Iterator[U]
   ): ContextRDD[U] = {
     def inCtx(f: RVDContext => Iterator[U]): Iterator[RVDContext => Iterator[U]] = Iterator.single(f)
     new ContextRDD(
@@ -350,7 +347,7 @@ class ContextRDD[T: ClassTag](
   // a ContextRDD with 8 partitions, being naively coalesced to 3, one example set of part ends is
   // [2, 5, 7]. With this, original partion indicies 0, 1, and 2 make up the first new partition 3,
   // 4, and 5 make up the second, and 6 and 7 make up the third.
-  def coalesceWithEnds(partEnds: Array[Int]): ContextRDD[T] =
+  def coalesceWithEnds(partEnds: IndexedSeq[Int]): ContextRDD[T] =
     onRDD(rdd => {
       rdd.coalesce(partEnds.length, shuffle = false, partitionCoalescer = Some(new CRDDCoalescer(partEnds)))
     })
@@ -394,10 +391,10 @@ class ContextRDD[T: ClassTag](
   ): ContextRDD[U] = new ContextRDD(f(rdd))
 }
 
-private class CRDDCoalescer(partEnds: Array[Int]) extends PartitionCoalescer with Serializable {
-  def coalesce(maxPartitions: Int, prev: RDD[_]): Array[PartitionGroup] = {
+private class CRDDCoalescer(partEnds: IndexedSeq[Int]) extends PartitionCoalescer with Serializable {
+  override def coalesce(maxPartitions: Int, prev: RDD[_]): Array[PartitionGroup] = {
     assert(maxPartitions == partEnds.length)
-    val groups = Array.fill(maxPartitions)(new PartitionGroup())
+    val groups = RichArray.fill(maxPartitions)(new PartitionGroup())
     val parts = prev.partitions
     var i = 0
     for ((end, j) <- partEnds.zipWithIndex) {

@@ -7,6 +7,7 @@ import is.hail.expr.JSONAnnotationImpex
 import is.hail.expr.ir.TestUtils._
 import is.hail.types.virtual._
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import is.hail.{ExecStrategy, HailSuite}
 import org.apache.spark.sql.Row
 import org.json4s.jackson.JsonMethods
@@ -35,7 +36,7 @@ class MatrixIRSuite extends HailSuite {
       val read = MatrixIR.read(fs, path, dropCols = false, dropRows = false, None)
       val droppedRows = MatrixIR.read(fs, path, dropCols = false, dropRows = true, None)
 
-      val expectedCols = FastSeq.tabulate(10)(i => Row(i, Row(0L, i.toLong))).toFastSeq
+      val expectedCols = RichIndexedSeq.tabulate(10)(i => Row(i, Row(0L, i.toLong))).toFastSeq
       val expectedRows = if (writer eq writer1) {
         val uids = for {
           (partSize, partIndex) <- partition(10, 3).zipWithIndex
@@ -43,7 +44,7 @@ class MatrixIRSuite extends HailSuite {
         } yield Row(partIndex.toLong, i.toLong)
         (0 until 10).zip(uids).fmap { case (i, uid) => Row(i, uid, expectedCols.fmap { case Row(j, _) => Row(i, j) }) }
       } else
-        FastSeq.tabulate(10)(i => Row(i, Row(0L, i.toLong), expectedCols.fmap { case Row(j, _) => Row(i, j) })).toFastSeq
+        RichIndexedSeq.tabulate(10)(i => Row(i, Row(0L, i.toLong), expectedCols.fmap { case Row(j, _) => Row(i, j) })).toFastSeq
       val expectedGlobals = Row(0, expectedCols);
       {
         implicit val execStrats: Set[ExecStrategy] = Set(ExecStrategy.Interpret, ExecStrategy.InterpretUnoptimized)

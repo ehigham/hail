@@ -4,7 +4,8 @@ import is.hail.HailSuite
 import is.hail.check.Gen._
 import is.hail.check.Prop._
 import is.hail.check.Properties
-import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq}
+import is.hail.utils.richUtils.RichIndexedSeq
+import is.hail.utils.{toRichArray, toRichIndexedSeq}
 import org.testng.annotations.Test
 
 import scala.language.implicitConversions
@@ -124,7 +125,7 @@ class IndexBTreeSuite extends HailSuite {
   @Test def writeReadMultipleOfBranchingFactorDoesNotError() {
     val idxFile = ctx.createTmpPath("btree")
     IndexBTree.write(
-      FastSeq.tabulate(1024)(i => i.toLong),
+      RichIndexedSeq.tabulate(1024)(i => i.toLong),
       idxFile,
       fs)
     val index = new IndexBTree(idxFile, fs)
@@ -152,7 +153,7 @@ class IndexBTreeSuite extends HailSuite {
   @Test def queryArrayPositionAndFileOffsetIsCorrectTwoLevelsArray() {
     def sqr(x: Long) = x * x
     val f = ctx.createTmpPath("btree")
-    val v = FastSeq.tabulate(1025)(x => sqr(x))
+    val v = RichIndexedSeq.tabulate(1025)(x => sqr(x))
     val branchingFactor = 1024
     IndexBTree.write(v, f, fs, branchingFactor = branchingFactor)
     val bt = new IndexBTree(f, fs, branchingFactor = branchingFactor)
@@ -179,7 +180,7 @@ class IndexBTreeSuite extends HailSuite {
   @Test def queryArrayPositionAndFileOffsetIsCorrectThreeLevelsArray() {
     def sqr(x: Long) = x * x
     val f = ctx.createTmpPath("btree")
-    val v = FastSeq.tabulate(1024 * 1024 + 1)(x => sqr(x))
+    val v = RichIndexedSeq.tabulate(1024 * 1024 + 1)(x => sqr(x))
     val branchingFactor = 1024
     IndexBTree.write(v, f, fs, branchingFactor = branchingFactor)
     val bt = new IndexBTree(f, fs, branchingFactor = branchingFactor)
@@ -260,7 +261,7 @@ class IndexBTreeSuite extends HailSuite {
   }
 
   @Test def onDiskBTreeIndexToValueFourLayers() {
-    val longs = FastSeq.tabulate(3 * 3 * 3 * 3)(x => x.toLong)
+    val longs = RichIndexedSeq.tabulate(3 * 3 * 3 * 3)(x => x.toLong)
     val indices = Array(0, 3, 10, 20, 26, 27, 34, 55, 79, 80)
     val f = ctx.createTmpPath("btree")
     val branchingFactor = 3

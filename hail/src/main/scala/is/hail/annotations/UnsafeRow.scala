@@ -1,15 +1,15 @@
 package is.hail.annotations
 
-import java.io.{ObjectInputStream, ObjectOutputStream}
-import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import com.esotericsoftware.kryo.io.{Input, Output}
-import is.hail.annotations.UnsafeRow.read
-import is.hail.types.virtual._
+import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import is.hail.types.physical._
+import is.hail.types.virtual._
 import is.hail.utils._
 import is.hail.variant.Locus
 import org.apache.spark.sql.Row
 import sun.reflect.generics.reflectiveObjects.NotImplementedException
+
+import java.io.{ObjectInputStream, ObjectOutputStream}
 
 trait UnKryoSerializable extends KryoSerializable {
   def write(kryo: Kryo, output: Output): Unit = {
@@ -279,7 +279,7 @@ class SelectFieldsRow(
     old: Row,
     oldPType: TStruct,
     newPType: TStruct
-  ) = this(old, newPType.fieldNames.fmap(name => oldPType.fieldIdx(name)))
+  ) = this(old, newPType.fieldNames.fmap(oldPType.fieldIdx).toArray)
 
   def this(
     old: Row,

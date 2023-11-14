@@ -1,6 +1,7 @@
 package is.hail.sparkextras
 
 import is.hail.utils._
+import is.hail.utils.richUtils.RichArray
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Dependency, NarrowDependency, Partition, TaskContext}
 
@@ -25,8 +26,8 @@ class BlockedRDD[T](@transient var prev: RDD[T],
   assert(partFirst.length == partLast.length)
 
   override protected def getPartitions: Array[Partition] =
-    partFirst.indices fmap[Partition] { i =>
-      BlockedRDDPartition(prev, i, partFirst(i), partLast(i))
+    RichArray.tabulate(partFirst.length) { i =>
+      BlockedRDDPartition(prev, i, partFirst(i), partLast(i)).asInstanceOf[Partition]
     }
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {

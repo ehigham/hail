@@ -73,14 +73,14 @@ case class MatrixType(
   lazy val rowKeyFieldIdx: Array[Int] = rowKey.toArray.fmap(rowType.fieldIdx)
   lazy val (rowValueStruct, _) = rowType.filterSet(rowKey.toSet, include = false)
   def extractRowValue: Annotation => Annotation = rowType.filterSet(rowKey.toSet, include = false)._2
-  lazy val rowValueFieldIdx: Array[Int] = rowValueStruct.fieldNames.fmap(rowType.fieldIdx)
+  lazy val rowValueFieldIdx: IndexedSeq[Int] = rowValueStruct.fieldNames.fmap(rowType.fieldIdx)
 
   lazy val (colKeyStruct, _) = colType.select(colKey)
   def extractColKey: Row => Row = colType.select(colKey)._2
   lazy val colKeyFieldIdx: Array[Int] = colKey.toArray.fmap(colType.fieldIdx)
   lazy val (colValueStruct, _) = colType.filterSet(colKey.toSet, include = false)
   def extractColValue: Annotation => Annotation = colType.filterSet(colKey.toSet, include = false)._2
-  lazy val colValueFieldIdx: Array[Int] = colValueStruct.fieldNames.fmap(colType.fieldIdx)
+  lazy val colValueFieldIdx: IndexedSeq[Int] = colValueStruct.fieldNames.fmap(colType.fieldIdx)
 
   lazy val colsTableType: TableType =
     TableType(colType, colKey, globalType)
@@ -194,7 +194,7 @@ case class MatrixType(
 
   def requireColKeyString() {
     colKeyStruct.types match {
-      case Array(TString) =>
+      case Seq(TString) =>
     }
   }
 

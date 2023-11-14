@@ -1,12 +1,11 @@
 package is.hail.io
 
+import is.hail.io.fs.FS
+import is.hail.utils._
+import is.hail.utils.richUtils.RichArray
+
 import java.io.{Closeable, DataOutputStream}
 import java.util.Arrays
-
-import is.hail.utils._
-import is.hail.io.fs.FS
-
-import scala.collection.mutable
 
 object IndexBTree {
   private[io] def calcDepth(internalAndExternalNodeCount: Long, branchingFactor: Int): Int = {
@@ -30,27 +29,27 @@ object IndexBTree {
     val depth = calcDepth(arr, branchingFactor)
 
     // Write layers above last layer if needed -- padding of -1 included
-    val layers = mutable.ArrayBuffer[IndexedSeq[Long]]()
+    val layers = new BoxedArrayBuilder[Array[Long]]()
     for (i <- 0 until depth - 1) {
       val multiplier = math.pow(branchingFactor, depth - 1 - i).toInt
-      layers.append((0 until math.pow(branchingFactor, i + 1).toInt).fmap { j =>
+      layers += RichArray.tabulate(math.pow(branchingFactor, i + 1).toInt) { j =>
         if (j * multiplier < arr.length)
           arr(j * multiplier)
         else
           -1L
-      })
+      }
     }
 
     // Pad last layer so last block is branchingFactor elements (branchingFactor*8 bytes)
-    val danglingElements = (arr.length % branchingFactor)
+    val danglingElements = arr.length % branchingFactor
     val paddingRequired =
       if (danglingElements == 0) 0
       else branchingFactor - danglingElements
-    val padding = (0 until paddingRequired).fmap { _ => -1L }
+    val padding = RichArray.tabulate(paddingRequired) { _ => -1L }
     // Write last layer
-    layers.append(arr ++ padding)
+    layers += (arr.toArray ++ padding)
 
-    layers.result().fmap(_.toArray)
+    layers.result()
   }
 
   private[io] def btreeBytes(arr: IndexedSeq[Long],

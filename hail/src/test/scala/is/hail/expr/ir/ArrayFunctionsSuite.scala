@@ -3,7 +3,7 @@ package is.hail.expr.ir
 import is.hail.TestUtils._
 import is.hail.expr.ir.TestUtils._
 import is.hail.types.virtual._
-import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq, toRichOption}
+import is.hail.utils.{FastSeq, toRichArray, toRichIndexedSeq}
 import is.hail.{ExecStrategy, HailSuite}
 import org.testng.annotations.{DataProvider, Test}
 

@@ -1,7 +1,7 @@
 package is.hail.types
 
 import is.hail.types.virtual._
-import is.hail.utils.{arrayToRichIndexedSeq, toRichIndexedSeq}
+import is.hail.utils.toRichIndexedSeq
 
 object MapTypes {
   def apply(f: Type => Type)(typ: Type): Type = typ match {

@@ -1,9 +1,10 @@
 package is.hail.methods
 
-import is.hail.{HailSuite, TestUtils}
-import is.hail.utils._
 import breeze.linalg._
 import is.hail.expr.ir.DoubleArrayBuilder
+import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
+import is.hail.{HailSuite, TestUtils}
 import org.testng.annotations.Test
 
 case class SkatAggForR(xs: BoxedArrayBuilder[DenseVector[Double]], weights: DoubleArrayBuilder)
@@ -18,7 +19,7 @@ class SkatSuite extends HailSuite {
     val m = 5 // variants
     val k = 3 // covariates
     
-    val st = FastSeq.tabulate(m){ _ =>
+    val st = RichIndexedSeq.tabulate(m){ _ =>
       SkatTuple(rand.nextDouble(),
         DenseVector(Array.fill(n)(rand.nextDouble())),
         DenseVector(Array.fill(k)(rand.nextDouble())))

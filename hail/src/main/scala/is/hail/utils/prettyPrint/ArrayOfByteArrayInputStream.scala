@@ -1,6 +1,6 @@
 package is.hail.utils.prettyPrint
 
-import is.hail.utils.arrayToRichIndexedSeq
+import is.hail.utils.toRichArray
 
 import java.io.{ByteArrayInputStream, InputStream}
 

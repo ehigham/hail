@@ -2354,7 +2354,7 @@ object EmitStream {
               new StreamProducer {
                 override def method: EmitMethodBuilder[_] = mb
                 override val length: Option[EmitCodeBuilder => Code[Int]] = producers.flatMap(_.length) match {
-                  case Array() => None
+                  case Seq() => None
                   case ls =>
                     val len = mb.genFieldThisRef[Int]("zip_asl_len")
                     val lenTemp = mb.genFieldThisRef[Int]("zip_asl_len_temp")

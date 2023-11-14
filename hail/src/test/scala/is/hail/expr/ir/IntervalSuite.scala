@@ -4,6 +4,7 @@ import is.hail.TestUtils._
 import is.hail.rvd.RVDPartitioner
 import is.hail.types.virtual._
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import is.hail.{ExecStrategy, HailSuite}
 import org.apache.spark.sql.Row
 import org.testng.ITestContext
@@ -211,7 +212,7 @@ class IntervalSuite extends HailSuite {
     def assertComp(point: IndexedSeq[Int], intervalEndpoint: IndexedSeq[Int], leansRight: Boolean, function: String, expected: Boolean) {
       val pointIR = MakeTuple.ordered(point.fmap(I32))
       val endpointIR = MakeTuple.ordered(FastSeq(
-        MakeTuple.ordered(FastSeq.tabulate(3)(i =>
+        MakeTuple.ordered(RichIndexedSeq.tabulate(3)(i =>
           if (i < intervalEndpoint.length) I32(intervalEndpoint(i)) else NA(TInt32))),
         I32(intervalEndpoint.length)))
       val leansRightIR = if (leansRight) True() else False()

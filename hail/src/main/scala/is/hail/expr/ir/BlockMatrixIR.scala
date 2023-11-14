@@ -14,7 +14,7 @@ import is.hail.types.encoded.{EBlockMatrixNDArray, EFloat64, ENumpyBinaryNDArray
 import is.hail.types.virtual._
 import is.hail.types.{BlockMatrixSparsity, BlockMatrixType}
 import is.hail.utils._
-import is.hail.utils.richUtils.RichDenseMatrixDouble
+import is.hail.utils.richUtils.{RichDenseMatrixDouble, RichIndexedSeq}
 import org.json4s.{DefaultFormats, Extraction, Formats, JValue, ShortTypeHints}
 
 import scala.collection.immutable.NumericRange
@@ -489,7 +489,7 @@ case class BlockMatrixDot(left: BlockMatrixIR, right: BlockMatrixIR) extends Blo
       BlockMatrixSparsity.constructFromShapeAndFunction(
         BlockMatrixType.numBlocks(lRows, blockSize),
         BlockMatrixType.numBlocks(rCols, blockSize)) { (i: Int, j: Int) =>
-        FastSeq.tabulate(BlockMatrixType.numBlocks(rCols, blockSize)) { k =>
+        RichIndexedSeq.tabulate(BlockMatrixType.numBlocks(rCols, blockSize)) { k =>
           left.typ.hasBlock(i -> k) && right.typ.hasBlock(k -> j)
         }.reduce(_ || _)
       } else BlockMatrixSparsity.dense
@@ -635,7 +635,7 @@ case class BlockMatrixAgg(
   override lazy val typ: BlockMatrixType = {
     val matrixShape = BlockMatrixIR.tensorShapeToMatrixShape(child)
     val matrixShapeArr = Array[Long](matrixShape._1, matrixShape._2)
-    val shape = IndexedSeq(0, 1).filter(i => !axesToSumOut.contains(i)).fmap({ i: Int => matrixShapeArr(i) }).toFastSeq
+    val shape = FastSeq(0, 1).filter(i => !axesToSumOut.contains(i)).fmap({ i: Int => matrixShapeArr(i) })
     val isRowVector = axesToSumOut == FastSeq(0)
 
     val sparsity = if (child.typ.isSparse) {
@@ -870,7 +870,7 @@ case class BlockMatrixSlice(child: BlockMatrixIR, slices: IndexedSeq[IndexedSeq[
     slices.fmap { case IndexedSeq(start, stop, step) =>
       val size = 1 + (stop - start - 1) / step
       val nBlocks = BlockMatrixType.numBlocks(size, child.typ.blockSize)
-      FastSeq.tabulate(nBlocks) { blockIdx =>
+      RichIndexedSeq.tabulate(nBlocks) { blockIdx =>
         val blockStart = start + blockIdx * child.typ.blockSize * step
         val blockEnd = java.lang.Math.min(start + ((blockIdx + 1) * child.typ.blockSize - 1) * step, stop)
         Array.range(child.typ.getBlockIdx(blockStart), child.typ.getBlockIdx(blockEnd) + 1)

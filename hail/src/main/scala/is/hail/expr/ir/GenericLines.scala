@@ -2,17 +2,17 @@ package is.hail.expr.ir
 
 import is.hail.backend.spark.SparkBackend
 import is.hail.io.compress.BGzipInputStream
-import is.hail.io.fs.{FS, FileListEntry, Positioned, PositionedInputStream, BGZipCompressionCodec}
-import is.hail.io.tabix.{TabixReader, TabixLineIterator}
-import is.hail.types.virtual.{TBoolean, TInt32, TInt64, TString, TStruct, Type}
+import is.hail.io.fs._
+import is.hail.io.tabix.{TabixLineIterator, TabixReader}
+import is.hail.types.virtual._
 import is.hail.utils._
+import is.hail.utils.richUtils.RichArray
 import is.hail.variant.Locus
-
 import org.apache.commons.io.input.{CountingInputStream, ProxyInputStream}
 import org.apache.hadoop.io.compress.SplittableCompressionCodec
-import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
+import org.apache.spark.{Partition, TaskContext}
 
 import scala.annotation.meta.param
 
@@ -437,13 +437,13 @@ class GenericLine(
 class GenericLinesRDDPartition(val index: Int, val context: Any) extends Partition
 
 class GenericLinesRDD(
-  @(transient@param) contexts: Array[Any],
-  body: (Any) => CloseableIterator[GenericLine]
+  @(transient@param) contexts: IndexedSeq[Any],
+  body: Any => CloseableIterator[GenericLine]
 ) extends RDD[GenericLine](SparkBackend.sparkContext("GenericLinesRDD"), Seq()) {
 
   protected def getPartitions: Array[Partition] =
-    contexts.zipWithIndex.fmap { case (c, i) =>
-      new GenericLinesRDDPartition(i, c)
+    RichArray.tabulate(contexts.length) { i =>
+      new GenericLinesRDDPartition(i, contexts(i))
     }
 
   def compute(split: Partition, context: TaskContext): Iterator[GenericLine] = {

@@ -1,10 +1,8 @@
 package is.hail.expr.ir
 
 import is.hail.HailSuite
-import is.hail.types.virtual.{TFloat64, TInt32, TRNGState, TTuple}
-import is.hail.utils.{FastSeq, arrayToRichIndexedSeq}
-import org.apache.spark.sql.Row
-import org.scalatest.testng.TestNGSuite
+import is.hail.types.virtual.{TFloat64, TInt32}
+import is.hail.utils.{FastSeq, toRichArray}
 import org.testng.annotations.{DataProvider, Test}
 
 class FoldConstantsSuite extends HailSuite {

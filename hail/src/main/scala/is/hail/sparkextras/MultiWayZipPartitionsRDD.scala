@@ -1,6 +1,7 @@
 package is.hail.sparkextras
 
-import is.hail.utils.{FastSeq, toRichIndexedSeq}
+import is.hail.utils.richUtils.{RichArray, RichIndexedSeq}
+import is.hail.utils.toRichIndexedSeq
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 
@@ -28,15 +29,14 @@ class MultiWayZipPartitionsRDD[T: ClassTag, V: ClassTag](
 
   override val partitioner = None
 
-  override def getPartitions: Array[Partition] = {
-    (0 until numParts).fmap { i =>
+  override def getPartitions: Array[Partition] =
+    RichArray.tabulate(numParts) { i =>
       MultiWayZipPartition(i, rdds.fmap(rdd => rdd.partitions(i)))
     }
-  }
 
   override def compute(s: Partition, tc: TaskContext) = {
     val partitions = s.asInstanceOf[MultiWayZipPartition].partitions
-    val arr = FastSeq.tabulate(rdds.length)(i => rdds(i).iterator(partitions(i), tc))
+    val arr = RichIndexedSeq.tabulate(rdds.length)(i => rdds(i).iterator(partitions(i), tc))
     f(arr)
   }
 

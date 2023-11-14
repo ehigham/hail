@@ -4,7 +4,7 @@ import is.hail.backend.ExecuteContext
 import is.hail.expr.ir._
 import is.hail.types.RTable
 import is.hail.types.virtual.TStruct
-import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq}
+import is.hail.utils.{FastSeq, toRichIndexedSeq}
 
 object LowerTableIRHelpers {
 

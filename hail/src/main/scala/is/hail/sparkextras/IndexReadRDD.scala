@@ -1,9 +1,10 @@
 package is.hail.sparkextras
 
 import is.hail.backend.spark.SparkBackend
-import is.hail.utils.{Interval, toRichIndexedSeq}
-import org.apache.spark.{Dependency, Partition, RangeDependency, SparkContext, TaskContext}
+import is.hail.utils.Interval
+import is.hail.utils.richUtils.RichArray
 import org.apache.spark.rdd.RDD
+import org.apache.spark.{Partition, TaskContext}
 
 import scala.reflect.ClassTag
 
@@ -15,7 +16,7 @@ class IndexReadRDD[T: ClassTag](
   f: (IndexedFilePartition, TaskContext) => T
 ) extends RDD[T](SparkBackend.sparkContext("IndexReadRDD"), Nil) {
   override protected def getPartitions: Array[Partition] =
-    partFiles.indices fmap[Partition] { i =>
+    RichArray.tabulate(partFiles.length) { i =>
       IndexedFilePartition(i, partFiles(i), intervalBounds.map(_(i)))
     }
 

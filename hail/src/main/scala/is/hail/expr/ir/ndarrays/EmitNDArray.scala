@@ -8,6 +8,7 @@ import is.hail.types.physical.stypes.interfaces._
 import is.hail.types.physical.stypes.{SType, SValue}
 import is.hail.types.virtual._
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 
 abstract class NDArrayProducer {
   outer =>
@@ -208,7 +209,9 @@ object EmitNDArray {
               val childShapeValues = childND.shapes
               val outputNDims = x.typ.nDims
 
-              val requestedShapeValues = FastSeq.tabulate(outputNDims)(i => cb.newLocal[Long](s"ndarray_reindex_request_shape_$i")).toIndexedSeq
+              val requestedShapeValues = RichIndexedSeq.tabulate(outputNDims){ i =>
+                cb.newLocal[Long](s"ndarray_reindex_request_shape_$i")
+              }
 
               emitI(shape, cb, env = env).map(cb) { case tupleValue: SBaseStructValue =>
                 val hasNegativeOne = cb.newLocal[Boolean]("ndarray_reshape_has_neg_one")

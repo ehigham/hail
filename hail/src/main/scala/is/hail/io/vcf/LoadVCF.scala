@@ -1222,7 +1222,7 @@ class ParseLineContext(
   val hasEntryFields = entryType.size > 0
 
   val infoFields: java.util.HashMap[String, Int] = if (infoSignature != null) makeJavaMap(infoSignature.fieldIdx) else null
-  val infoFieldTypes: Array[Type] = if (infoSignature != null) infoSignature.types else null
+  val infoFieldTypes: IndexedSeq[Type] = if (infoSignature != null) infoSignature.types else null
   val infoFieldFlagIndices: Array[Int] = if (infoSignature != null) {
     infoSignature.fields.foldLeft(new IntArrayBuilder()) { case (builder, f) =>
         if (infoFlagFieldNames.contains(f.name)) builder += f.index
@@ -1369,15 +1369,13 @@ object LoadVCF {
       infoFlagFields)
   }
 
-  def getHeaderLines[T](
-    fs: FS,
-    file: String,
-    filterAndReplace: TextInputFilterAndReplace): Array[String] = fs.readLines(file, filterAndReplace) { lines =>
+  def getHeaderLines[T](fs: FS, file: String, filterAndReplace: TextInputFilterAndReplace): Array[String] =
+    fs.readLines(file, filterAndReplace) { lines =>
       lines
         .takeWhile { line => line.value(0) == '#' }
-        .toFastSeq
-        .fmap(_.value)
-  }
+        .map(_.value)
+        .toArray
+    }
 
   def getVCFHeaderInfo(fs: FS, file: String, filter: String, find: String, replace: String): VCFHeaderInfo = {
     parseHeader(getHeaderLines(fs, file, TextInputFilterAndReplace(Option(filter), Option(find), Option(replace))))

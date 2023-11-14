@@ -1,5 +1,6 @@
 package is.hail.utils
 
+import is.hail.utils.richUtils.RichArray
 import org.apache.commons.math3.random.RandomDataGenerator
 
 object UnivHash32 {
@@ -177,10 +178,10 @@ class PolyHash(val coeffs: Array[Int]) extends (Int => Int) {
   }
 
   def fillIntArray(size: Int): Array[Int] =
-    0 until size fmap apply
+    RichArray.tabulate(size)(apply)
 
   def fillLongArray(size: Int): Array[Long] =
-    0 until size fmap { i =>
+    RichArray.tabulate(size) { i =>
       (apply(i << 1).toLong << 32) | (apply((i << 1) | 1) & 0xffffffffL)
     }
 }

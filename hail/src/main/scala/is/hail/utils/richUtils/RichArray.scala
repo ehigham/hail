@@ -1,13 +1,12 @@
 package is.hail.utils.richUtils
 
 import is.hail.io.fs.FS
-import is.hail.HailContext
 import is.hail.io.{DoubleInputBuffer, DoubleOutputBuffer}
 import is.hail.utils._
 
 import scala.reflect.ClassTag
 
-object RichArray {
+object RichArray extends RichArrayOps {
   val defaultBufSize: Int = 4096 << 3
   
   def importFromDoubles(fs: FS, path: String, n: Int): Array[Double] = {
@@ -37,14 +36,19 @@ object RichArray {
   }
 }
 
-final case class RichArray[T](override val a: Array[T]) extends RichFastSeq[T, Array] {
-  def index: Map[T, Int] = a.zipWithIndex.toMap
+final case class RichArray[T](override val a: Array[T])
+  extends RichIndexable[T, Array]
+    with RichArrayOps {
+  override def T: RichIndexableOps[Array] =
+    this
 
-  override implicit val T: FastSeqOps[Array] =
-    new FastSeqOps[Array] {
-      override def length(r: Array[_]): Int = r.length
-      override def at[A](r: Array[A], idx: Int): A = r(idx)
-      override def allocate[A: ClassTag](size: Int): Array[A] = new Array[A](size)
-      override def assign[A](r: Array[A], i: Int, value: A): Unit = r.update(i, value)
-    }
+  def index: Map[T, Int] =
+    a.zipWithIndex.toMap
+}
+
+sealed trait RichArrayOps extends RichIndexableOps[Array]{
+  override def length(r: Array[_]): Int = r.length
+  override def at[A](r: Array[A], idx: Int): A = r(idx)
+  override def allocate[A: ClassTag](size: Int): Array[A] = new Array[A](size)
+  override def assign[A](r: Array[A], idx: Int, a: A): Unit = r.update(idx, a)
 }

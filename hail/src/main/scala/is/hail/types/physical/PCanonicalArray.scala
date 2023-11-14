@@ -9,6 +9,7 @@ import is.hail.types.physical.stypes.concrete.{SIndexablePointer, SIndexablePoin
 import is.hail.types.physical.stypes.interfaces.SIndexableValue
 import is.hail.types.virtual.{TArray, Type}
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 
 // This is a pointer array, whose byteSize is the size of its pointer
 final case class PCanonicalArray(elementType: PType, required: Boolean = false) extends PArray {
@@ -86,8 +87,8 @@ final case class PCanonicalArray(elementType: PType, required: Boolean = false) 
       UnsafeUtils.roundUpAlignment(nMissingBytes(length).toL + lengthHeaderBytes, contentsAlignment)
 
   private lazy val lengthOffsetTable = 10
-  private lazy val elementsOffsetTable: Array[Long] =
-    (0 until lengthOffsetTable).fmap(_elementsOffset)
+  private lazy val elementsOffsetTable: IndexedSeq[Long] =
+    RichIndexedSeq.tabulate(lengthOffsetTable)(_elementsOffset)
 
   def elementsOffset(length: Int): Long = {
     if (length < lengthOffsetTable)

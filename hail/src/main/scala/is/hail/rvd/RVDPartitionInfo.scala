@@ -1,11 +1,11 @@
 package is.hail.rvd
 
-import net.sourceforge.jdistlib.rng.MersenneTwister
-
 import is.hail.annotations.{Region, RegionValue, SafeRow, WritableRegionValue}
 import is.hail.backend.HailStateManager
 import is.hail.types.virtual.Type
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
+import net.sourceforge.jdistlib.rng.MersenneTwister
 
 case class RVDPartitionInfo(
   partitionIndex: Int,
@@ -110,7 +110,7 @@ object RVDPartitionInfo {
 
       RVDPartitionInfo(partitionIndex, i,
         safe(minF.value), safe(maxF.value),
-        FastSeq.tabulate[Any](math.min(i, sampleSize).toInt)(i => safe(samples(i).value)),
+        RichIndexedSeq.tabulate(math.min(i, sampleSize).toInt)(i => safe(samples(i).value)),
         sortedness,
         contextStr)
     }

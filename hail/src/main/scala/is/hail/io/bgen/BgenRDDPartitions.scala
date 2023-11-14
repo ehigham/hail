@@ -1,36 +1,31 @@
 package is.hail.io.bgen
 
-import is.hail.annotations.Region
-import is.hail.asm4s._
-import is.hail.backend.{ExecuteContext, HailTaskContext}
-import is.hail.expr.ir.{EmitCode, EmitFunctionBuilder, IEmitCode, ParamType, TableReader}
-import is.hail.io.fs.FS
+import is.hail.backend.ExecuteContext
 import is.hail.types.virtual._
 import is.hail.utils._
-import is.hail.variant.{Call2, ReferenceGenome}
+import is.hail.utils.richUtils.RichArray
 
 case class FilePartitionInfo(
   metadata: BgenFileMetadata,
-  intervals: Array[Interval],
-  partStarts: Array[Long],
-  partN: Array[Long]
+  intervals: IndexedSeq[Interval],
+  partStarts: IndexedSeq[Long],
+  partN: IndexedSeq[Long]
 )
 
 object BgenRDDPartitions extends Logging {
   def checkFilesDisjoint(ctx: ExecuteContext, fileMetadata: IndexedSeq[BgenFileMetadata], keyType: Type): Array[Interval] = {
     assert(fileMetadata.nonEmpty)
     val pord = keyType.ordering(ctx.stateManager)
-    val bounds = fileMetadata.fmap(md => (md.path, md.rangeBounds))
 
     val overlappingBounds = new BoxedArrayBuilder[(String, Interval, String, Interval)]
     var i = 0
-    while (i < bounds.length) {
+    while (i < fileMetadata.length) {
       var j = 0
       while (j < i) {
-        val b1 = bounds(i)
-        val b2 = bounds(j)
-        if (!b1._2.isDisjointFrom(pord, b2._2))
-          overlappingBounds += ((b1._1, b1._2, b2._1, b2._2))
+        val b1 = fileMetadata(i)
+        val b2 = fileMetadata(j)
+        if (!b1.rangeBounds.isDisjointFrom(pord, b2.rangeBounds))
+          overlappingBounds += ((b1.path, b1.rangeBounds, b2.path, b2.rangeBounds))
         j += 1
       }
       i += 1
@@ -45,7 +40,9 @@ object BgenRDDPartitions extends Logging {
           }.mkString("\n  ")
         })""".stripMargin)
 
-    bounds.fmap(_._2)
+    RichArray.tabulate(fileMetadata.length){ i =>
+      fileMetadata(i).rangeBounds
+    }
   }
 
   def apply(
@@ -89,21 +86,19 @@ object BgenRDDPartitions extends Logging {
 
     nonEmptyFilesAfterFilter.zipWithIndex.fmap { case (file, fileIndex) =>
       val nPartitions = math.min(fileNPartitions(fileIndex), file.nVariants).toInt
-      val partNVariants: Array[Long] = partition(file.nVariants, nPartitions)
-      val partFirstVariantIndex = partNVariants.scan(0L)(_ + _).init
-      val partLastVariantIndex = partFirstVariantIndex.zip(partNVariants).fmap { case (idx, n) => idx + n }
+      val partNVariants = partition(file.nVariants, nPartitions)
+      val partFirstVariantIndex = partNVariants.view.scan(0L)(_ + _).init
+      val partLastVariantIndex = partFirstVariantIndex.zip(partNVariants).map { case (idx, n) => idx + n }
 
-      val allPositions = partFirstVariantIndex ++ partLastVariantIndex.fmap(_ - 1L)
+      val allPositions = (partFirstVariantIndex ++ partLastVariantIndex.map(_ - 1L)).toArray
       val keys = getKeysFromFile(file.indexPath, allPositions)
-      val rangeBounds = (0 until nPartitions).fmap { i =>
-        Interval(
-          keys(i),
-          keys(i + nPartitions),
-          true,
-          true) // this must be true -- otherwise boundaries with duplicates will have the wrong range bounds
+      val rangeBounds = RichArray.tabulate(nPartitions){ i =>
+        Interval(keys(i), keys(i + nPartitions), true,
+          true // this must be true -- otherwise boundaries with duplicates will have the wrong range bounds
+        )
       }
 
-      FilePartitionInfo(file, rangeBounds, partFirstVariantIndex, partNVariants)
+      FilePartitionInfo(file, rangeBounds, partFirstVariantIndex.toArray, partNVariants)
     }
   }
 }

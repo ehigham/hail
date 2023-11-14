@@ -2,10 +2,10 @@ package is.hail.sparkextras
 
 import is.hail.annotations._
 import is.hail.backend.HailStateManager
-import is.hail.rvd.{PartitionBoundOrdering, RVD, RVDContext, RVDPartitioner, RVDType}
+import is.hail.rvd._
 import is.hail.utils._
+import is.hail.utils.richUtils.RichArray
 import org.apache.spark._
-import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
 import scala.annotation.tailrec
@@ -46,11 +46,17 @@ class RepartitionedOrderedRDD2 private (sm: HailStateManager, @transient val pre
 
   override protected def getPartitions: Array[Partition] = {
     require(newRangeBounds.forall{i => typ.kType.virtualType.relaxedTypeCheck(i.start) && typ.kType.virtualType.relaxedTypeCheck(i.end)})
-    newRangeBounds.indices fmap[Partition] { i =>
+    RichArray.tabulate(newRangeBounds.length) { i =>
+      val rb = newRangeBounds(i)
+      val vt = typ.kType.virtualType
+      assert(vt.relaxedTypeCheck(rb.start))
+      assert(vt.relaxedTypeCheck(rb.end))
+
       RepartitionedOrderedRDD2Partition(
         i,
         dependency.getParents(i).toArray.fmap(prevCRDD.partitions),
-        newRangeBounds(i))
+        rb
+      )
     }
   }
 

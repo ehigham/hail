@@ -34,7 +34,7 @@ object AggStateSig {
       case ReservoirSample() => ReservoirSampleStateSig(seqVTypes.head)
       case Densify() => DensifyStateSig(seqVTypes.head)
       case TakeBy(reverse) =>
-        val Array(vt, kt) = seqVTypes
+        val Seq(vt, kt) = seqVTypes
         TakeByStateSig(vt, kt, reverse)
       case CallStats() => CallStatsStateSig()
       case PrevNonnull() => TypedStateSig(seqVTypes.head.setRequired(false))
@@ -43,7 +43,7 @@ object AggStateSig {
       case LinearRegression() => LinearRegressionStateSig()
       case ApproxCDF() => ApproxCDFStateSig()
       case Downsample() =>
-        val Array(_, _, labelType) = seqVTypes
+        val Seq(_, _, labelType) = seqVTypes
         DownsampleStateSig(labelType)
       case ImputeType() => ImputeTypeStateSig()
       case NDArraySum() => NDArraySumStateSig(seqVTypes.head.setRequired(false)) // set required to false to handle empty aggs

@@ -7,7 +7,8 @@ import is.hail.linalg.BlockMatrixMetadata
 import is.hail.rvd.AbstractRVDSpec
 import is.hail.types.virtual._
 import is.hail.types.{MatrixType, TableType}
-import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq, using}
+import is.hail.utils.richUtils.RichArray
+import is.hail.utils.{FastSeq, toRichArray, toRichIndexedSeq, using}
 import is.hail.{HAIL_PRETTY_VERSION, HailSuite}
 import org.json4s.JValue
 import org.testng.annotations.{DataProvider, Test}
@@ -123,7 +124,7 @@ class SemanticHashSuite extends HailSuite {
       ), {
 
         def f(mkType: Int => Type, get: (IR, Int) => IR, isSame: Boolean, reason: String) =
-          (0 until 2 fmap { idx => bindIR(NA(mkType(idx)))(get(_, idx)) }) ++ Array(isSame, reason)
+          RichArray.tabulate(2) { idx => bindIR(NA(mkType(idx)))(get(_, idx)) } ++ Array(isSame, reason)
 
         Array(
           f(

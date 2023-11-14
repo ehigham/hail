@@ -9,6 +9,7 @@ import is.hail.types.physical.{PCanonicalString, PCanonicalStruct, PFloat64, PIn
 import is.hail.types.virtual.{TFloat64, TStruct}
 import is.hail.types.{MatrixType, TableType}
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import is.hail.variant.{AllelePair, Call, Genotype, HardCallView}
 import org.apache.spark.sql.Row
 
@@ -225,7 +226,7 @@ object IBD {
       val view = HardCallView(rowPType)
       it.map { ptr =>
         view.set(ptr)
-        FastSeq.tabulate[Byte](view.getLength) { i =>
+        RichIndexedSeq.tabulate[Byte](view.getLength) { i =>
           view.setGenotype(i)
           if (view.hasGT)
             IBSFFI.gtToCRep(Call.unphasedDiploidGtIndex(view.getGT))

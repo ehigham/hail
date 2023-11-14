@@ -3,16 +3,34 @@ package is.hail.utils.richUtils
 import scala.language.higherKinds
 import scala.reflect.ClassTag
 
-trait FastSeqOps[Repr[_]] {
+trait RichIndexableOps[Repr[_]] {
   @inline def length(r: Repr[_]): Int
   @inline def at[A](r: Repr[A], idx: Int): A
   @inline def allocate[A: ClassTag](size: Int): Repr[A]
-  @inline def assign[A](r: Repr[A], i: Int, value: A): Unit
+  @inline def assign[A](r: Repr[A], i: Int, a: A): Unit
+  @inline def tabulate[A: ClassTag](size: Int)(f: Int => A): Repr[A] = {
+    val r = allocate[A](size)
+    var i = 0
+    while (i < size) {
+      assign(r, i, f(i))
+      i = i + 1
+    }
+    r
+  }
+
+  @inline def fill[A: ClassTag](size: Int)(a: A): Repr[A] = {
+    val r = allocate[A](size)
+    var i = 0
+    while (i < size) {
+      assign(r, i, a)
+      i = i + 1
+    }
+    r
+  }
 }
 
-trait RichFastSeq[A, Repr[_]] {
-
-  implicit def T: FastSeqOps[Repr]
+trait RichIndexable[A, Repr[_]] {
+  def T: RichIndexableOps[Repr]
 
   def a: Repr[A]
 
@@ -27,10 +45,10 @@ trait RichFastSeq[A, Repr[_]] {
     lowerBound(x, start, end, lt, identity[U])
 
   def lowerBound[U, V](x: V, lt: (U, V) => Boolean, k: A => U): Int =
-    lowerBound(x, 0, T.length(a): @inline, lt, k)
+    lowerBound(x, 0, T.length(a), lt, k)
 
   def lowerBound[U >: A, V](x: V, lt: (U, V) => Boolean): Int =
-    lowerBound(x, 0, T.length(a): @inline, lt)
+    lowerBound(x, 0, T.length(a), lt)
 
   /** Returns i in ['start', 'end'] such that
    *   - !('x' < a(i)) (i.e. a(i) <= 'x') for all i in ['start', i), and
@@ -43,10 +61,10 @@ trait RichFastSeq[A, Repr[_]] {
     upperBound(x, start, end, lt, identity[U])
 
   def upperBound[U, V](x: V, lt: (V, U) => Boolean, k: A => U): Int =
-    upperBound(x, 0, T.length(a): @inline, lt, k)
+    upperBound(x, 0, T.length(a), lt, k)
 
   def upperBound[U >: A, V](x: V, lt: (V, U) => Boolean): Int =
-    upperBound(x, 0, T.length(a): @inline, lt)
+    upperBound(x, 0, T.length(a), lt)
 
   /** Returns (l, u) such that
    *   - a(i) < 'x' for all i in [0, l),
@@ -100,7 +118,7 @@ trait RichFastSeq[A, Repr[_]] {
     var right = end
     while (left < right) {
       val mid = (left + right) >>> 1 // works even when sum overflows
-      if (p(k(T.at(a, mid): @inline)))
+      if (p(k(T.at(a, mid))))
         right = mid
       else
         left = mid + 1
@@ -112,7 +130,7 @@ trait RichFastSeq[A, Repr[_]] {
     partitionPoint(p, start, end, identity[U])
 
   def partitionPoint[U](p: U => Boolean, k: A => U): Int =
-    partitionPoint(p, 0, T.length(a): @inline, k)
+    partitionPoint(p, 0, T.length(a), k)
 
   def partitionPoint[U >: A](p: U => Boolean): Int =
     partitionPoint(p, identity[U])
@@ -131,15 +149,15 @@ trait RichFastSeq[A, Repr[_]] {
                                  notFound: Int => R
                                 ): R = {
     var left = 0
-    var right = T.length(a): @inline
+    var right = T.length(a)
     while (left < right) {
       // a(i) < x for all i in [0, left)
       // x < a(i) for all i in [right, a.size)
       val mid = (left + right) >>> 1 // works even when sum overflows
-      if (ltVU(x, k(T.at(a, mid): @inline)))
+      if (ltVU(x, k(T.at(a, mid))))
       // x < a(i) for all i in [mid, a.size)
         right = mid
-      else if (ltUV(k(T.at(a, mid): @inline), x))
+      else if (ltUV(k(T.at(a, mid)), x))
       // a(i) < x for all i in [0, mid]
         left = mid + 1
       else
@@ -150,14 +168,14 @@ trait RichFastSeq[A, Repr[_]] {
     notFound(left)
   }
 
-  def treeReduce(f: (A, A) => A)(implicit ev: A <:< Null): A =
-    (T.length(a): @inline) match {
+  def treeReduce(f: (A, A) => A)(implicit ev: A <:< AnyRef): A =
+    T.length(a) match {
       case 0 => null.asInstanceOf[A]
       case length =>
         var res = T.at(a, 0)
         var i = 1
         while (i < length) {
-          res = f(res, T.at(a, i): @inline)
+          res = f(res, T.at(a, i))
           i = i + 1
         }
 
@@ -165,27 +183,46 @@ trait RichFastSeq[A, Repr[_]] {
     }
 
   def elementsSameObjects(b: Repr[A])(implicit ev: A <:< AnyRef): Boolean = {
-    val alen = T.length(a): @inline
-    if (alen != (T.length(b): @inline)) return false
+    val alen = T.length(a)
+    if (alen != T.length(b)) return false
 
     var i = 0
     while (i < alen) {
-      if ((T.at(a, i): @inline) != (T.at(b, i): @inline)) return false
+      if (T.at(a, i) != T.at(b, i)) return false
       i += 1
     }
 
     true
   }
 
-  def fmap[B: ClassTag](f: A => B): Repr[B] = {
-    val len = T.length(a): @inline
-    val b = T.allocate[B](len): @inline
-    var i = 0
-    while (i < len) {
-      T.assign(b, i, f(T.at(a, i): @inline): @inline): @inline
-      i += 1
+  def fmap[B: ClassTag](f: A => B): Repr[B] = 
+    T.tabulate[B](T.length(a)) { idx =>
+      f(T.at(a, idx))
     }
-    b
+
+  def concatMap[B: ClassTag](b: Repr[A])(f: A => B): Repr[B] = {
+    val alen = T.length(a)
+    val blen = T.length(b)
+
+    val r = T.allocate[B](alen + blen)
+    var i = 0
+    while (i < alen) {
+      T.assign(r, i, f(T.at(a, i)))
+      i += i
+    }
+
+    var j = 0
+    while (j < blen) {
+      T.assign(r, j + alen, f(T.at(b, j)))
+      j += 1
+    }
+
+    r
   }
+
+  def zipMap[B, C: ClassTag](b: Repr[B])(f: (A, B) => C): Repr[C] =
+    T.tabulate[C](Math.min(T.length(a), T.length(b))) { idx =>
+      f(T.at(a, idx), T.at(b, idx))
+    }
 
 }

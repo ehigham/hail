@@ -1,10 +1,10 @@
 package is.hail.io.compress
 
-import is.hail.utils.arrayToRichIndexedSeq
+import is.hail.utils.toRichArray
+import org.apache.hadoop.io.compress.CompressionOutputStream
 
 import java.io.OutputStream
 import java.util.zip.{CRC32, Deflater}
-import org.apache.hadoop.io.compress.CompressionOutputStream
 
 class BGzipConstants {
   val blockHeaderLength = 18 // Number of bytes in the gzip block before the deflated data.

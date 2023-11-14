@@ -2,13 +2,13 @@ package is.hail
 
 import is.hail.backend.Backend
 import is.hail.backend.spark.SparkBackend
-import is.hail.expr.ir.BaseIR
 import is.hail.expr.ir.functions.IRFunctionRegistry
 import is.hail.io.fs.FS
 import is.hail.io.vcf._
 import is.hail.types.virtual._
 import is.hail.utils._
-import org.apache.log4j.{ConsoleAppender, LogManager, PatternLayout, PropertyConfigurator}
+import is.hail.utils.richUtils.RichArray
+import org.apache.log4j.{LogManager, PropertyConfigurator}
 import org.apache.spark._
 import org.apache.spark.executor.InputMetrics
 import org.apache.spark.rdd.RDD
@@ -17,7 +17,6 @@ import org.json4s.jackson.JsonMethods
 
 import java.io.InputStream
 import java.util.Properties
-import scala.collection.mutable
 import scala.reflect.ClassTag
 
 case class FilePartition(index: Int, file: String) extends Partition
@@ -145,7 +144,9 @@ object HailContext {
 
     new RDD[T](SparkBackend.sparkContext("readPartition"), Nil) {
       override def getPartitions: Array[Partition] =
-        (0 until nPartitions) fmap (i => FilePartition(i, partFiles(i)).asInstanceOf[Partition])
+        RichArray.tabulate(nPartitions) { i =>
+          FilePartition(i, partFiles(i)).asInstanceOf[Partition]
+        }
 
       override def compute(split: Partition, context: TaskContext): Iterator[T] = {
         val p = split.asInstanceOf[FilePartition]

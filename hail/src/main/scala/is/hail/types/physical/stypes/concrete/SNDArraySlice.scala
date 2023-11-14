@@ -8,7 +8,8 @@ import is.hail.types.physical.stypes.interfaces._
 import is.hail.types.physical.stypes.primitives.SInt64
 import is.hail.types.physical.{PCanonicalNDArray, PType}
 import is.hail.types.virtual.{TNDArray, Type}
-import is.hail.utils.{FastSeq, toRichIndexedSeq, toRichIterable}
+import is.hail.utils.richUtils.RichIndexedSeq
+import is.hail.utils.{toRichIndexedSeq, toRichIterable}
 
 final case class SNDArraySlice(pType: PCanonicalNDArray) extends SNDArray {
   override def nDims: Int = pType.nDims
@@ -104,8 +105,8 @@ class SNDArraySliceValue(
 object SNDArraySliceSettable {
   def apply(sb: SettableBuilder, st: SNDArraySlice, name: String): SNDArraySliceSettable = {
     new SNDArraySliceSettable(st,
-      FastSeq.tabulate(st.pType.nDims)(i => sb.newSettable[Long](s"${name}_nd_shape_$i")),
-      FastSeq.tabulate(st.pType.nDims)(i => sb.newSettable[Long](s"${name}_nd_strides_$i")),
+      RichIndexedSeq.tabulate(st.pType.nDims)(i => sb.newSettable[Long](s"${name}_nd_shape_$i")),
+      RichIndexedSeq.tabulate(st.pType.nDims)(i => sb.newSettable[Long](s"${name}_nd_strides_$i")),
       sb.newSettable[Long](s"${name}_nd_first_element")
     )
   }

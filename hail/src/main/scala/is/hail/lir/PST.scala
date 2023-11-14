@@ -1,7 +1,8 @@
 package is.hail.lir
 
 import is.hail.expr.ir.{BooleanArrayBuilder, IntArrayBuilder}
-import is.hail.utils.{BoxedArrayBuilder, FastSeq, toRichIndexedSeq}
+import is.hail.utils.BoxedArrayBuilder
+import is.hail.utils.richUtils.RichArray
 
 import scala.collection.mutable
 
@@ -151,7 +152,7 @@ class PSTBuilder(
   private val blockLinearIdx = new Array[Int](nBlocks)
 
   private def linearize(): Unit = {
-    val pending = 0 until nBlocks fmap { i =>
+    val pending = RichArray.tabulate(nBlocks) { i =>
       var n = 0
       for (p <- cfg.pred(i)) {
         if (!backEdges(p -> i))

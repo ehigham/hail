@@ -7,7 +7,7 @@ import is.hail.types.physical.stypes.interfaces.{SBaseStruct, SBaseStructSettabl
 import is.hail.types.physical.stypes.{EmitType, SType, SValue}
 import is.hail.types.physical.{PBaseStruct, PType}
 import is.hail.types.virtual.{TBaseStruct, Type}
-import is.hail.utils.{FastSeq, arrayToRichIndexedSeq}
+import is.hail.utils.{FastSeq, toRichArray}
 
 
 final case class SBaseStructPointer(pType: PBaseStruct) extends SBaseStruct {

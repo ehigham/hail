@@ -8,7 +8,7 @@ import is.hail.types.physical.stypes.interfaces._
 import is.hail.types.physical.stypes.primitives.SInt64Value
 import is.hail.types.physical.{PCanonicalNDArray, PNDArray, PType}
 import is.hail.types.virtual._
-import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq, toRichIterable}
+import is.hail.utils.{FastSeq, toRichIndexedSeq, toRichIterable}
 
 object SUnreachable {
   def fromVirtualType(t: Type): SType = {

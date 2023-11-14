@@ -5,7 +5,7 @@ import is.hail.expr.ir.agg.{Extract, PhysicalAggSig, TakeStateSig}
 import is.hail.expr.ir.{Requiredness, _}
 import is.hail.types._
 import is.hail.types.virtual._
-import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq}
+import is.hail.utils.{FastSeq, toRichArray, toRichIndexedSeq}
 
 
 object LowerAndExecuteShuffles {

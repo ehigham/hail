@@ -177,7 +177,7 @@ object ExtendedOrdering {
       }
     }
 
-  def rowOrdering(fieldOrd: Array[ExtendedOrdering], _missingEqual: Boolean = true): ExtendedOrdering =
+  def rowOrdering(fieldOrd: IndexedSeq[ExtendedOrdering], _missingEqual: Boolean = true): ExtendedOrdering =
     new ExtendedOrdering {
       outer =>
 

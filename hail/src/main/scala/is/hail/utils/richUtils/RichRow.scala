@@ -1,6 +1,6 @@
 package is.hail.utils.richUtils
 
-import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq}
+import is.hail.utils.toRichIndexedSeq
 import org.apache.spark.sql.Row
 
 import scala.collection.mutable
@@ -8,12 +8,13 @@ import scala.collection.mutable
 class RichRow(r: Row) {
 
   def update(i: Int, a: Any): Row = {
-    val arr = (0 until r.size) fmap r.get
+    val arr = RichArray.tabulate(r.size)(r.get)
     arr(i) = a
     Row.fromSeq(arr)
   }
 
-  def select(indices: Array[Int]): Row = Row.fromSeq(indices.fmap(r.get))
+  def select(indices: IndexedSeq[Int]): Row =
+    Row.fromSeq(indices.fmap(r.get))
 
   def deleteField(i: Int): Row = {
     require(i >= 0 && i < r.length)
@@ -37,7 +38,7 @@ class RichRow(r: Row) {
 
   def truncate(newSize: Int): Row = {
     require(newSize <= r.size)
-    Row.fromSeq(FastSeq.tabulate(newSize){ i => r.get(i) })
+    Row.fromSeq(RichIndexedSeq.tabulate(newSize) { r.get })
   }
 }
 

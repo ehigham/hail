@@ -13,7 +13,8 @@ import is.hail.types.physical.stypes.PTypeReferenceSingleCodeType
 import is.hail.types.physical.{PArray, PStruct}
 import is.hail.types.virtual.TStruct
 import is.hail.types.{RTable, TableType, VirtualTypeWithReq}
-import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq}
+import is.hail.utils.richUtils.{RichArray, RichIndexedSeq}
+import is.hail.utils.{FastSeq, toRichIndexedSeq}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Dependency, Partition, SparkContext, TaskContext}
 import org.json4s.JValue
@@ -129,7 +130,7 @@ object TableStageToRVD {
     val (decodedContextPType: PStruct, makeContextDec) = contextSpec.buildDecoder(ctx, contextPType.virtualType)
 
     val makeContextEnc = contextSpec.buildEncoder(ctx, contextPType)
-    val encodedContexts = FastSeq.tabulate(nContexts) { i =>
+    val encodedContexts = RichIndexedSeq.tabulate(nContexts) { i =>
       assert(contextsPType.isElementDefined(contextsAddr, i))
       val baos = new ByteArrayOutputStream()
       val enc = makeContextEnc(baos, ctx.theHailClassLoader)
@@ -179,7 +180,9 @@ class TableStageToRDD(
   extends RDD[(Array[Byte], Int)](sc, deps) {
 
   override def getPartitions: Array[Partition] =
-    collection.indices fmap (i => TableStageToRDDPartition(collection(i), i).asInstanceOf[Partition])
+    RichArray.tabulate(collection.length) { i =>
+      TableStageToRDDPartition(collection(i), i).asInstanceOf[Partition]
+    }
 
   override def compute(partition: Partition, context: TaskContext): Iterator[(Array[Byte], Int)] = {
     val sp = partition.asInstanceOf[TableStageToRDDPartition]

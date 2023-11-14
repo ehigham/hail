@@ -4,13 +4,14 @@ import is.hail.annotations.Region
 import is.hail.asm4s._
 import is.hail.expr.ir.EmitCodeBuilder
 import is.hail.linalg.{BLAS, LAPACK}
+import is.hail.types.physical._
 import is.hail.types.physical.stypes.concrete.{SNDArraySlice, SNDArraySliceValue}
 import is.hail.types.physical.stypes.primitives.SInt64Value
 import is.hail.types.physical.stypes.{EmitType, SSettable, SType, SValue}
-import is.hail.types.physical._
 import is.hail.types.virtual.TInt32
 import is.hail.types.{RNDArray, TypeWithRequiredness}
-import is.hail.utils.{FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq, toRichIterable, valueToRichCodeRegion}
+import is.hail.utils.richUtils.{RichArray, RichIndexedSeq}
+import is.hail.utils.{FastSeq, toRichIndexedSeq, toRichIterable, valueToRichCodeRegion}
 
 import scala.collection.mutable
 
@@ -27,7 +28,7 @@ object SNDArray {
 
   def coiterate(cb: EmitCodeBuilder, arrays: (SNDArrayValue, String)*)(body: IndexedSeq[SValue] => Unit): Unit = {
     if (arrays.isEmpty) return
-    val indexVars = FastSeq.tabulate(arrays(0)._1.st.nDims)(i => s"i$i").toFastSeq
+    val indexVars = RichIndexedSeq.tabulate(arrays(0)._1.st.nDims)(i => s"i$i").toFastSeq
     val indices = Array.range(0, arrays(0)._1.st.nDims).toFastSeq
     coiterate(cb, indexVars, arrays.map { case (array, name) => (array, indices, name) }: _*)(body)
   }
@@ -59,7 +60,7 @@ object SNDArray {
   )(body: IndexedSeq[Value[Long]] => Unit
   ): Unit = {
     val indexSizes = new Array[Settable[Int]](indexVars.length)
-    val indexCoords = FastSeq.tabulate(indexVars.length) { i => cb.newLocal[Int](indexVars(i)) }
+    val indexCoords = RichIndexedSeq.tabulate(indexVars.length) { i => cb.newLocal[Int](indexVars(i)) }
 
     case class ArrayInfo(
       array: SNDArrayValue,
@@ -131,7 +132,7 @@ object SNDArray {
                                          incrementers: IndexedSeq[EmitCodeBuilder => Unit], context: String)
                                         (f: (EmitCodeBuilder, IndexedSeq[Value[Long]]) => Unit): Unit = {
 
-    val indices = FastSeq.tabulate(shape.length) { dimIdx => cb.newLocal[Long](s"${ context }_foreach_dim_$dimIdx", 0L) }
+    val indices = RichIndexedSeq.tabulate(shape.length) { dimIdx => cb.newLocal[Long](s"${ context }_foreach_dim_$dimIdx", 0L) }
 
     def recurLoopBuilder(dimIdx: Int, innerLambda: () => Unit): Unit = {
       if (dimIdx == shape.length) {
@@ -172,7 +173,7 @@ object SNDArray {
                                          incrementers: IndexedSeq[EmitCodeBuilder => Unit], context: String)
                                         (f: (EmitCodeBuilder, IndexedSeq[Value[Long]]) => Unit): Unit = {
 
-    val indices = FastSeq.tabulate(shape.length) { dimIdx => cb.newLocal[Long](s"${ context }_foreach_dim_$dimIdx", 0L) }
+    val indices = RichIndexedSeq.tabulate(shape.length) { dimIdx => cb.newLocal[Long](s"${ context }_foreach_dim_$dimIdx", 0L) }
 
     def recurLoopBuilder(dimIdx: Int, innerLambda: () => Unit): Unit = {
       if (dimIdx == -1) {
@@ -206,7 +207,7 @@ object SNDArray {
   def unstagedForEachIndex(shape: IndexedSeq[Long])
                           (f: IndexedSeq[Long] => Unit): Unit = {
 
-    val indices = shape.fmap { _ => 0L}
+    val indices = RichArray.fill(shape.length)(0L)
 
     def recurLoopBuilder(dimIdx: Int, innerLambda: () => Unit): Unit = {
       if (dimIdx == shape.length) {
@@ -897,7 +898,7 @@ trait SNDArrayValue extends SValue {
     coiterateMutate(cb, region, false, arrays: _*)(body)
 
   def coiterateMutate(cb: EmitCodeBuilder, region: Value[Region], deepCopy: Boolean, arrays: (SNDArrayValue, String)*)(body: IndexedSeq[SValue] => SValue): Unit = {
-    val indexVars = FastSeq.tabulate(st.nDims)(i => s"i$i").toFastSeq
+    val indexVars = RichIndexedSeq.tabulate(st.nDims)(i => s"i$i").toFastSeq
     val indices = Array.range(0, st.nDims).toFastSeq
     coiterateMutate(cb, region, deepCopy, indexVars, indices, arrays.toFastSeq.fmap { case (array, name) => (array, indices, name) }: _*)(body)
   }

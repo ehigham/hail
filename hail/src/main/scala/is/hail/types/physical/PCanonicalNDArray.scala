@@ -9,6 +9,7 @@ import is.hail.types.physical.stypes.concrete._
 import is.hail.types.physical.stypes.interfaces._
 import is.hail.types.virtual.{TNDArray, Type}
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import org.apache.spark.sql.Row
 
 final case class PCanonicalNDArray(elementType: PType, nDims: Int, required: Boolean = false) extends PNDArray  {
@@ -25,7 +26,7 @@ final case class PCanonicalNDArray(elementType: PType, nDims: Int, required: Boo
     sb.append(s",$nDims]")
   }
 
-  lazy val shapeType: PCanonicalTuple = PCanonicalTuple(true, FastSeq.tabulate(nDims)(_ => PInt64Required):_*)
+  lazy val shapeType: PCanonicalTuple = PCanonicalTuple(true, RichIndexedSeq.fill(nDims)(PInt64Required):_*)
   lazy val strideType: PCanonicalTuple = shapeType
 
   def loadShape(ndAddr: Long, idx: Int): Long = {
@@ -347,9 +348,9 @@ final case class PCanonicalNDArray(elementType: PType, nDims: Int, required: Boo
   def loadCheapSCode(cb: EmitCodeBuilder, addr: Code[Long]): SNDArrayPointerValue = {
     val a = cb.memoize(addr)
     val shapeTuple = shapeType.loadCheapSCode(cb, representation.loadField(a, "shape"))
-    val shape = FastSeq.tabulate(nDims)(i => SizeValueDyn(shapeTuple.loadField(cb, i).get(cb).asLong.value))
+    val shape = RichIndexedSeq.tabulate(nDims)(i => SizeValueDyn(shapeTuple.loadField(cb, i).get(cb).asLong.value))
     val strideTuple = strideType.loadCheapSCode(cb, representation.loadField(a, "strides"))
-    val strides = FastSeq.tabulate(nDims)(strideTuple.loadField(cb, _).get(cb).asLong.value)
+    val strides = RichIndexedSeq.tabulate(nDims)(strideTuple.loadField(cb, _).get(cb).asLong.value)
     val firstDataAddress = cb.memoize(dataFirstElementPointer(a))
     new SNDArrayPointerValue(sType, a, shape, strides, firstDataAddress)
   }

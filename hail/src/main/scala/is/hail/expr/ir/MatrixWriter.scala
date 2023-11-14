@@ -24,7 +24,7 @@ import is.hail.types.physical.stypes.primitives._
 import is.hail.types.physical.stypes.{EmitType, SValue}
 import is.hail.types.virtual._
 import is.hail.utils._
-import is.hail.utils.richUtils.ByteTrackingOutputStream
+import is.hail.utils.richUtils.{ByteTrackingOutputStream, RichIndexedSeq}
 import is.hail.variant.{Call, ReferenceGenome}
 import org.apache.spark.sql.Row
 import org.json4s.jackson.JsonMethods
@@ -257,7 +257,7 @@ case class SplitPartitionNativeWriter(spec1: AbstractTypedCodecSpec,
   def returnType: Type = TStruct("filePath" -> TString, "partitionCounts" -> TInt64, "distinctlyKeyed" -> TBoolean, "firstKey" -> keyType, "lastKey" -> keyType)
   def unionTypeRequiredness(r: TypeWithRequiredness, ctxType: TypeWithRequiredness, streamType: RIterable): Unit = {
     val rs = r.asInstanceOf[RStruct]
-    val rKeyType = streamType.elementType.asInstanceOf[RStruct].select(keyFieldNames.toArray)
+    val rKeyType = streamType.elementType.asInstanceOf[RStruct].select(keyFieldNames)
     rs.field("firstKey").union(false)
     rs.field("firstKey").unionFrom(rKeyType)
     rs.field("lastKey").union(false)
@@ -1056,8 +1056,8 @@ case class MatrixBGENWriter(
 
     ts.mapContexts { oldCtx =>
       val d = digitsNeeded(ts.numPartitions)
-      val partFiles = ToStream(Literal(TArray(TString), FastSeq.tabulate(ts.numPartitions)(i => s"$folder/${ partFile(d, i) }-").toFastSeq))
-      val numVariants = if (writeHeader) ToStream(ts.countPerPartition()) else ToStream(MakeArray(FastSeq.tabulate(ts.numPartitions)(_ => NA(TInt64)): _*))
+      val partFiles = ToStream(Literal(TArray(TString), RichIndexedSeq.tabulate(ts.numPartitions)(i => s"$folder/${ partFile(d, i) }-")))
+      val numVariants = if (writeHeader) ToStream(ts.countPerPartition()) else ToStream(MakeArray(RichIndexedSeq.tabulate(ts.numPartitions)(_ => NA(TInt64)): _*))
 
       val ctxElt = Ref(genUID(), tcoerce[TStream](oldCtx.typ).elementType)
       val pf = Ref(genUID(), tcoerce[TStream](partFiles.typ).elementType)
@@ -1611,7 +1611,7 @@ case class MatrixNativeMultiWriter(
     val contextUnionType = TStruct("matrixId" -> TInt32, "options" -> unionType)
 
     val emptyUnionIRs: IndexedSeq[(Int, IR)] =
-      FastSeq.tabulate(unionType.size)(i => i -> NA(unionType.types(i)))
+      RichIndexedSeq.tabulate(unionType.size)(i => i -> NA(unionType.types(i)))
 
     val concatenatedContexts =
       flatten(

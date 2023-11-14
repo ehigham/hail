@@ -1,6 +1,6 @@
 package is.hail.sparkextras
 
-import is.hail.utils.arrayToRichIndexedSeq
+import is.hail.utils.toRichArray
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{Partition, TaskContext}
 

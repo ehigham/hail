@@ -16,15 +16,16 @@ import is.hail.io.index.StagedIndexReader
 import is.hail.linalg.{BlockMatrix, BlockMatrixMetadata, BlockMatrixReadRowBlockedRDD}
 import is.hail.rvd._
 import is.hail.sparkextras.ContextRDD
+import is.hail.types._
 import is.hail.types.physical._
 import is.hail.types.physical.stypes._
 import is.hail.types.physical.stypes.concrete._
 import is.hail.types.physical.stypes.interfaces._
 import is.hail.types.physical.stypes.primitives.{SInt64, SInt64Value}
-import is.hail.types._
 import is.hail.types.virtual._
 import is.hail.utils._
 import is.hail.utils.prettyPrint.ArrayOfByteArrayInputStream
+import is.hail.utils.richUtils.RichIndexedSeq
 import org.apache.spark.TaskContext
 import org.apache.spark.sql.Row
 import org.json4s.JsonAST.JString
@@ -1728,7 +1729,7 @@ case class TableParallelize(rowsAndGlobal: IR, nPartitions: Option[Int] = None) 
 
     val bae = new ByteArrayEncoder(ctx.theHailClassLoader, makeEnc)
     var idx = 0
-    val encRows = FastSeq.tabulate(nSplits) { splitIdx =>
+    val encRows = RichIndexedSeq.tabulate(nSplits) { splitIdx =>
       val n = parts(splitIdx)
       bae.reset()
       val stop = idx + n
@@ -1886,7 +1887,7 @@ case class TableRange(n: Int, nPartitions: Int) extends TableIR {
       new RVD(
         RVDType(localRowType, Array("idx")),
         new RVDPartitioner(ctx.stateManager, Array("idx"), typ.rowType,
-          FastSeq.tabulate(nPartitionsAdj) { i =>
+          RichIndexedSeq.tabulate(nPartitionsAdj) { i =>
             val start = partStarts(i)
             val end = partStarts(i + 1)
             Interval(Row(start), Row(end), includesStart = true, includesEnd = false)

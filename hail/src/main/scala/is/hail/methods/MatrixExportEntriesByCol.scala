@@ -1,6 +1,5 @@
 package is.hail.methods
 
-import java.io.{BufferedOutputStream, OutputStreamWriter}
 import is.hail.HailContext
 import is.hail.annotations.{UnsafeIndexedSeq, UnsafeRow}
 import is.hail.backend.ExecuteContext
@@ -8,11 +7,14 @@ import is.hail.backend.spark.SparkBackend
 import is.hail.expr.TableAnnotationImpex
 import is.hail.expr.ir.MatrixValue
 import is.hail.expr.ir.functions.MatrixToValueFunction
-import is.hail.types.{MatrixType, RTable, TypeWithRequiredness}
 import is.hail.types.virtual.{TVoid, Type}
+import is.hail.types.{MatrixType, RTable, TypeWithRequiredness}
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import org.apache.spark.TaskContext
 import org.apache.spark.sql.Row
+
+import java.io.{BufferedOutputStream, OutputStreamWriter}
 
 case class MatrixExportEntriesByCol(parallelism: Int, path: String, bgzip: Boolean,
   headerJsonInFile: Boolean, useStringKeyAsFileName: Boolean) extends MatrixToValueFunction {
@@ -32,7 +34,7 @@ case class MatrixExportEntriesByCol(parallelism: Int, path: String, bgzip: Boole
         fatal("export_entries_by_col cannot export with 'use_string_key_as_file_name' with duplicate keys")
       ids
     } else
-      FastSeq.tabulate(mv.nCols)(i => partFile(padding, i))
+      RichIndexedSeq.tabulate(mv.nCols)(i => partFile(padding, i))
 
     val allColValuesJSON = mv.colValues.javaValue.fmap(TableAnnotationImpex.exportAnnotation(_, mv.typ.colType)).toArray
 
@@ -71,7 +73,7 @@ case class MatrixExportEntriesByCol(parallelism: Int, path: String, bgzip: Boole
 
         val partFolder = partFileBase + partFile(d, i, TaskContext.get())
 
-        val filePaths = FastSeq.tabulate(endIdx - startIdx) { j =>
+        val filePaths = RichIndexedSeq.tabulate(endIdx - startIdx) { j =>
           val finalPath = partFolder + "/" + j.toString + extension
           val tempPath = ExecuteContext.createTmpPathNoCleanup(localTempDir, "EEBC", extension = extension)
           (tempPath, finalPath)

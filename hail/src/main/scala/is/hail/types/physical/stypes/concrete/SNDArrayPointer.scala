@@ -7,6 +7,7 @@ import is.hail.types.physical.stypes.interfaces._
 import is.hail.types.physical.stypes.{SType, SValue}
 import is.hail.types.physical.{PCanonicalNDArray, PType}
 import is.hail.types.virtual.Type
+import is.hail.utils.richUtils.RichIndexedSeq
 import is.hail.utils.{FastSeq, toRichIndexedSeq, toRichIterable}
 
 final case class SNDArrayPointer(pType: PCanonicalNDArray) extends SNDArray {
@@ -109,8 +110,8 @@ class SNDArrayPointerValue(
 object SNDArrayPointerSettable {
   def apply(sb: SettableBuilder, st: SNDArrayPointer, name: String): SNDArrayPointerSettable = {
     new SNDArrayPointerSettable(st, sb.newSettable[Long](name),
-      FastSeq.tabulate(st.pType.nDims)(i => sb.newSettable[Long](s"${name}_nd_shape_$i")),
-      FastSeq.tabulate(st.pType.nDims)(i => sb.newSettable[Long](s"${name}_nd_strides_$i")),
+      RichIndexedSeq.tabulate(st.pType.nDims)(i => sb.newSettable[Long](s"${name}_nd_shape_$i")),
+      RichIndexedSeq.tabulate(st.pType.nDims)(i => sb.newSettable[Long](s"${name}_nd_strides_$i")),
       sb.newSettable[Long](s"${name}_nd_first_element")
     )
   }

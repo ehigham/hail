@@ -10,6 +10,7 @@ import is.hail.types.physical.stypes.SValue
 import is.hail.types.physical.stypes.concrete.SStackStruct
 import is.hail.types.physical.stypes.interfaces.SBinaryValue
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 
 trait AggregatorState {
   def kb: EmitClassBuilder[_]
@@ -171,8 +172,9 @@ class PrimitiveRVAState(val vtypes: Array[VirtualTypeWithReq], val kb: EmitClass
   assert(emitTypes.forall(_.st.isPrimitive))
 
   val nFields: Int = emitTypes.length
-  val fields: IndexedSeq[EmitSettable] =
-    FastSeq.tabulate(nFields) { i => kb.newEmitField(s"primitiveRVA_${ i }_v", emitTypes(i)) }
+  val fields = RichIndexedSeq.tabulate(nFields) { i =>
+    kb.newEmitField(s"primitiveRVA_${ i }_v", emitTypes(i))
+  }
   val storageType = PCanonicalTuple(true, emitTypes.fmap(_.typeWithRequiredness.canonicalPType): _*)
   val sStorageType = storageType.sType
 

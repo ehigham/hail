@@ -173,7 +173,7 @@ object TypeCheck {
         assert(edges.typ.isInstanceOf[TArray])
         val edgeType = tcoerce[TArray](edges.typ).elementType
         assert(edgeType.isInstanceOf[TBaseStruct])
-        val Array(leftType, rightType) = edgeType.asInstanceOf[TBaseStruct].types
+        val Seq(leftType, rightType) = edgeType.asInstanceOf[TBaseStruct].types
         assert(leftType == rightType)
         tieBreaker.foreach { case (_, _, tb) => assert(tb.typ == TFloat64) }
       case StreamIota(start, step, _) =>

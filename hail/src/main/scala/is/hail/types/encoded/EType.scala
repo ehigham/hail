@@ -9,6 +9,7 @@ import is.hail.types.physical._
 import is.hail.types.physical.stypes.{SType, SValue}
 import is.hail.types.virtual._
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import org.json4s.CustomSerializer
 import org.json4s.JsonAST.JString
 
@@ -288,7 +289,7 @@ object EType {
     case t: TBaseStruct =>
       val rstruct = tcoerce[RBaseStruct](r)
       assert(t.size == rstruct.size, s"different number of fields: ${t} ${r}")
-      EBaseStruct(FastSeq.tabulate(t.size) { i =>
+      EBaseStruct(RichIndexedSeq.tabulate(t.size) { i =>
         val f = rstruct.fields(i)
         if (f.index != i)
           throw new AssertionError(s"${t} [$i]")

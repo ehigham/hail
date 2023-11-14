@@ -19,6 +19,7 @@ import is.hail.types.physical.stypes.primitives._
 import is.hail.types.virtual._
 import is.hail.types.{TypeWithRequiredness, VirtualTypeWithReq, tcoerce}
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import is.hail.variant.ReferenceGenome
 
 import java.io._
@@ -1389,7 +1390,7 @@ class Emit[C](
           FastSeq(tupleOrLong.asInt64.value)
         } else {
           val tuple = tupleOrLong.asBaseStruct
-          FastSeq.tabulate(tuple.st.size) { i =>
+          RichIndexedSeq.tabulate(tuple.st.size) { i =>
             tuple.loadField(cb, i)
               .get(cb, "RNGSplit tuple components are required")
               .asInt64
@@ -2843,7 +2844,7 @@ object NDArrayEmitter {
   def zeroBroadcastedDims2(mb: EmitMethodBuilder[_], loopVars: IndexedSeq[Value[Long]], nDims: Int, shapeArray: IndexedSeq[Value[Long]]): IndexedSeq[Value[Long]] = {
     val broadcasted = 0L
     val notBroadcasted = 1L
-    FastSeq.tabulate(nDims)(dim => new Value[Long] {
+    RichIndexedSeq.tabulate(nDims)(dim => new Value[Long] {
       def get: Code[Long] = (shapeArray(dim) > 1L).mux(notBroadcasted, broadcasted) * loopVars(dim)
     })
   }

@@ -8,6 +8,7 @@ import is.hail.linalg.BlockMatrix
 import is.hail.types.encoded.{EBlockMatrixNDArray, EFloat64Required}
 import is.hail.types.virtual._
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import is.hail.{ExecStrategy, HailSuite}
 import org.testng.annotations.Test
 
@@ -166,7 +167,7 @@ class BlockMatrixIRSuite extends HailSuite {
     val etype = EBlockMatrixNDArray(EFloat64Required, required = true)
     val path = "src/test/resources/blockmatrix_example/0/parts/part-0-28-0-0-0feb7ac2-ab02-6cd4-5547-bfcb94dacb33"
     val matrix = BlockMatrix.read(fs, "src/test/resources/blockmatrix_example/0").toBreezeMatrix()
-    val expected = FastSeq.tabulate(2)(i => FastSeq.tabulate(2)(j => matrix(i, j)).toFastSeq).toFastSeq
+    val expected = RichIndexedSeq.tabulate(2)(i => RichIndexedSeq.tabulate(2)(j => matrix(i, j)).toFastSeq).toFastSeq
 
     val typ = TNDArray(TFloat64, Nat(2))
     val spec = TypedCodecSpec(etype, typ, BlockMatrix.bufferSpec)

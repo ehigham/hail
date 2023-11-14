@@ -1,15 +1,14 @@
 package is.hail.io
 
-import java.io._
-import java.util
-import java.util.UUID
-import java.util.function.Supplier
-
+import com.github.luben.zstd.{Zstd, ZstdDecompressCtx}
 import is.hail.annotations.{Memory, Region}
 import is.hail.io.compress.LZ4
 import is.hail.utils._
+import is.hail.utils.richUtils.RichArray
 
-import com.github.luben.zstd.{Zstd, ZstdDecompressCtx}
+import java.io._
+import java.util.UUID
+import java.util.function.Supplier
 
 trait InputBuffer extends Closeable {
   def close(): Unit
@@ -129,7 +128,7 @@ final class StreamInputBuffer(in: InputStream) extends InputBuffer {
   }
 
   def readBytesArray(n: Int): Array[Byte] =
-    (0 until n).fmap(_ => readByte())
+    RichArray.tabulate(n)(_ => readByte())
 
   def skipByte(): Unit = {
     val bytesRead = in.skip(1)
@@ -325,9 +324,8 @@ final class TracingInputBuffer(
     Region.storeBytes(toOff, readBytesArray(n))
   }
 
-  def readBytesArray(n: Int): Array[Byte] = {
-    (0 until n).fmap(_ => readByte())
-  }
+  def readBytesArray(n: Int): Array[Byte] =
+    RichArray.tabulate(n)(_ => readByte())
 
   override def skipBoolean(): Unit = skipByte()
 

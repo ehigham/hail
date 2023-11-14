@@ -4,11 +4,12 @@ import is.hail.annotations.{Annotation, Region, ScalaToRegionValue}
 import is.hail.asm4s._
 import is.hail.expr.ir.EmitFunctionBuilder
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import org.testng.annotations.Test
 
 class PContainerTest extends PhysicalTestUtils {
   def nullInByte(nElements: Int, missingElement: Int) = {
-    FastSeq.tabulate(nElements)(i => {
+    RichIndexedSeq.tabulate(nElements)(i => {
       if (i == missingElement - 1)
         null
       else

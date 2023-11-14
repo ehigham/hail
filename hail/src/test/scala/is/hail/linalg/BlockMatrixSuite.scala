@@ -10,6 +10,7 @@ import is.hail.expr.ir.{CompileAndEvaluate, GetField, TableCollect, TableLiteral
 import is.hail.linalg.BlockMatrix.ops._
 import is.hail.types.virtual.{TFloat64, TInt64, TStruct}
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import is.hail.{HailSuite, TestUtils}
 import org.apache.spark.sql.Row
 import org.testng.annotations.Test
@@ -344,13 +345,13 @@ class BlockMatrixSuite extends HailSuite {
     forAll(squareBlockMatrixGen()) { (m: BlockMatrix) =>
       val lm = m.toBreezeMatrix()
       val diagonalLength = math.min(lm.rows, lm.cols)
-      val diagonal = FastSeq.tabulate(diagonalLength)(i => lm(i, i))
+      val diagonal = RichIndexedSeq.tabulate(diagonalLength)(i => lm(i, i))
 
-      if (m.diagonal().toSeq == diagonal.toSeq)
+      if (m.diagonal().toSeq == diagonal)
         true
       else {
         println(s"lm: $lm")
-        println(s"${ m.diagonal().toSeq } != ${ diagonal.toSeq }")
+        println(s"${ m.diagonal().toSeq } != ${ diagonal }")
         false
       }
     }.check()
@@ -827,7 +828,7 @@ class BlockMatrixSuite extends HailSuite {
     val banded = bm.filterBand(0, 0, false)
     val rowFilt = banded.filterRows((0L until nRows.toLong by 2L).toArray)
     val summed = rowFilt.rowSum().toBreezeMatrix().toArray
-    val expected = FastSeq.tabulate(nRows)(x => if (x % 2 == 0) 2.0 else 0) ++ FastSeq.tabulate(nCols - nRows)(x => 0.0)
+    val expected = RichIndexedSeq.tabulate(nRows)(x => if (x % 2 == 0) 2.0 else 0) ++ RichIndexedSeq.tabulate(nCols - nRows)(x => 0.0)
     assert(summed sameElements expected)
   }
 

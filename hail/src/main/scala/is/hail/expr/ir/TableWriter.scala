@@ -21,7 +21,7 @@ import is.hail.types.physical.stypes.primitives.{SBooleanValue, SInt64, SInt64Va
 import is.hail.types.physical.stypes.{EmitType, SCode, SValue}
 import is.hail.types.virtual._
 import is.hail.utils._
-import is.hail.utils.richUtils.ByteTrackingOutputStream
+import is.hail.utils.richUtils.{ByteTrackingOutputStream, RichIndexedSeq}
 import is.hail.variant.ReferenceGenome
 import org.json4s.{DefaultFormats, Formats, JBool, JObject, ShortTypeHints}
 
@@ -67,7 +67,7 @@ object TableNativeWriter {
     RelationalWriter.scoped(path, overwrite, Some(ts.tableType))(
       ts.mapContexts { oldCtx =>
         val d = digitsNeeded(ts.numPartitions)
-        val partFiles = Literal(TArray(TString), FastSeq.tabulate(ts.numPartitions)(i => s"${ partFile(d, i) }-").toFastSeq)
+        val partFiles = Literal(TArray(TString), RichIndexedSeq.tabulate(ts.numPartitions)(i => s"${ partFile(d, i) }-"))
 
         zip2(oldCtx, ToStream(partFiles), ArrayZipBehavior.AssertSameLength) { (ctxElt, pf) =>
           MakeStruct(FastSeq(
@@ -144,7 +144,7 @@ case class PartitionNativeWriter(spec: AbstractTypedCodecSpec,
 
   def unionTypeRequiredness(r: TypeWithRequiredness, ctxType: TypeWithRequiredness, streamType: RIterable): Unit = {
     val rs = r.asInstanceOf[RStruct]
-    val rKeyType = streamType.elementType.asInstanceOf[RStruct].select(keyFields.toArray)
+    val rKeyType = streamType.elementType.asInstanceOf[RStruct].select(keyFields)
     rs.field("firstKey").union(false)
     rs.field("firstKey").unionFrom(rKeyType)
     rs.field("lastKey").union(false)
@@ -493,7 +493,7 @@ case class TableTextWriter(
 
     ts.mapContexts { oldCtx =>
       val d = digitsNeeded(ts.numPartitions)
-      val partFiles = Literal(TArray(TString), FastSeq.tabulate(ts.numPartitions)(i => s"$folder/${ partFile(d, i) }-").toFastSeq)
+      val partFiles = Literal(TArray(TString), RichIndexedSeq.tabulate(ts.numPartitions)(i => s"$folder/${ partFile(d, i) }-"))
 
       zip2(oldCtx, ToStream(partFiles), ArrayZipBehavior.AssertSameLength) { (ctxElt, pf) =>
         MakeStruct(FastSeq(
@@ -672,7 +672,7 @@ case class TableNativeFanoutWriter(
 
     val writeTables = ts.mapContexts { oldCtx =>
       val d = digitsNeeded(ts.numPartitions)
-      val partFiles = Literal(TArray(TString), FastSeq.tabulate(ts.numPartitions)(i => s"${ partFile(d, i) }-").toFastSeq)
+      val partFiles = Literal(TArray(TString), RichIndexedSeq.tabulate(ts.numPartitions)(i => s"${ partFile(d, i) }-"))
 
       zip2(oldCtx, ToStream(partFiles), ArrayZipBehavior.AssertSameLength) { (ctxElt, pf) =>
         MakeStruct(FastSeq(

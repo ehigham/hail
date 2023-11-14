@@ -4,6 +4,7 @@ import is.hail.expr.ir._
 import is.hail.linalg.BlockMatrix
 import is.hail.types.virtual._
 import is.hail.utils._
+import is.hail.utils.richUtils.RichArray
 import org.apache.spark.sql.Row
 
 object BlockMatrixSparsity {
@@ -375,14 +376,14 @@ case class BlockMatrixType(
   }
 
   private[this] def getBlockDependencies(keep: Array[Array[Long]]): Array[Array[Int]] =
-    keep.fmap(keeps => Array.range(BlockMatrixType.getBlockIdx(keeps.head, blockSize), BlockMatrixType.getBlockIdx(keeps.last, blockSize) + 1)).toArray
+    keep.fmap(keeps => Array.range(BlockMatrixType.getBlockIdx(keeps.head, blockSize), BlockMatrixType.getBlockIdx(keeps.last, blockSize) + 1))
 
-  def rowBlockDependents(keepRows: Array[Array[Long]]): IndexedSeq[Array[Int]] =
-    if (keepRows.isEmpty) FastSeq.tabulate(nRowBlocks)(i => Array(i))
+  def rowBlockDependents(keepRows: Array[Array[Long]]): Array[Array[Int]] =
+    if (keepRows.isEmpty) RichArray.tabulate(nRowBlocks)(Array(_))
     else getBlockDependencies(keepRows)
 
-  def colBlockDependents(keepCols: Array[Array[Long]]): IndexedSeq[Array[Int]] =
-    if (keepCols.isEmpty) FastSeq.tabulate(nColBlocks)(i => Array(i))
+  def colBlockDependents(keepCols: Array[Array[Long]]): Array[Array[Int]] =
+    if (keepCols.isEmpty) RichArray.tabulate(nColBlocks)(Array(_))
     else getBlockDependencies(keepCols)
 
   override def pretty(sb: StringBuilder, indent0: Int, compact: Boolean): Unit = {

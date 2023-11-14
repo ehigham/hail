@@ -9,6 +9,7 @@ import is.hail.types.physical.stypes.EmitType
 import is.hail.types.physical.stypes.concrete.SIndexablePointer
 import is.hail.types.physical.stypes.interfaces.{SBaseStruct, SInterval, SNDArray, SStream}
 import is.hail.types.virtual._
+import is.hail.utils.richUtils.RichIndexedSeq
 import is.hail.utils.{FastSeq, Interval, toMapFast, toRichIndexedSeq}
 import org.apache.spark.sql.Row
 
@@ -462,10 +463,10 @@ case class RStruct(fields: IndexedSeq[RField]) extends RBaseStruct {
   def hasField(name: String): Boolean = fieldType.contains(name)
   def copy(newChildren: IndexedSeq[BaseTypeWithRequiredness]): RStruct = {
     assert(newChildren.length == fields.length)
-    RStruct.fromNamesAndTypes(FastSeq.tabulate(fields.length)(i => fields(i).name -> tcoerce[TypeWithRequiredness](newChildren(i))))
+    RStruct.fromNamesAndTypes(RichIndexedSeq.tabulate(fields.length)(i => fields(i).name -> tcoerce[TypeWithRequiredness](newChildren(i))))
   }
-  def select(newFields: Array[String]): RStruct =
-    RStruct(FastSeq.tabulate(newFields.length)(i => RField(newFields(i), field(newFields(i)), i)))
+  def select(newFields: IndexedSeq[String]): RStruct =
+    RStruct(RichIndexedSeq.tabulate(newFields.length)(i => RField(newFields(i), field(newFields(i)), i)))
   def _toString: String = s"RStruct[${ fields.fmap(f => s"${ f.name }: ${ f.typ.toString }").mkString(",") }]"
 }
 
@@ -492,7 +493,7 @@ case class RUnion(cases: IndexedSeq[(String, TypeWithRequiredness)]) extends Typ
   def _unionEmitType(emitType: EmitType): Unit = ???
   def copy(newChildren: IndexedSeq[BaseTypeWithRequiredness]): RUnion = {
     assert(newChildren.length == cases.length)
-    RUnion(FastSeq.tabulate(cases.length)(i => cases(i)._1 -> tcoerce[TypeWithRequiredness](newChildren(i))))
+    RUnion(RichIndexedSeq.tabulate(cases.length)(i => cases(i)._1 -> tcoerce[TypeWithRequiredness](newChildren(i))))
   }
   def canonicalPType(t: Type): PType = ???
   def _toString: String = s"RStruct[${ cases.fmap { case (n, t) => s"${ n }: ${ t.toString }" }.mkString(",") }]"

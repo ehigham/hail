@@ -8,6 +8,7 @@ import is.hail.rvd.RVDPartitioner
 import is.hail.types.virtual._
 import is.hail.types.{BlockMatrixSparsity, BlockMatrixType, TypeWithRequiredness, tcoerce}
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 
 object BlockMatrixStage {
   def empty(eltType: Type): BlockMatrixStage =
@@ -45,15 +46,15 @@ abstract class BlockMatrixStage(val broadcastVals: IndexedSeq[Ref], val ctxType:
 
   def collectLocal(typ: BlockMatrixType, staticID: String, dynamicID: IR = NA(TString)): IR = {
     val blocksRowMajor = Array.range(0, typ.nRowBlocks).flatMap { i =>
-      FastSeq.tabulate(typ.nColBlocks)(j => i -> j).filter(typ.hasBlock)
+      (0 until typ.nColBlocks).view.map(j => i -> j).filter(typ.hasBlock)
     }
     val cda = collectBlocks(staticID, dynamicID)((_, b) => b, blocksRowMajor)
     val blockResults = Ref(genUID(), cda.typ)
 
     val rows = if (typ.isSparse) {
       val blockMap = blocksRowMajor.zipWithIndex.toMap
-      MakeArray(FastSeq.tabulate[IR](typ.nRowBlocks) { i =>
-        NDArrayConcat(MakeArray(FastSeq.tabulate[IR](typ.nColBlocks) { j =>
+      MakeArray(RichIndexedSeq.tabulate[IR](typ.nRowBlocks) { i =>
+        NDArrayConcat(MakeArray(RichIndexedSeq.tabulate[IR](typ.nColBlocks) { j =>
           if (blockMap.contains(i -> j))
             ArrayRef(blockResults, i * typ.nColBlocks + j)
           else {
@@ -990,7 +991,7 @@ object LowerBlockMatrixIR {
 
       case x@BlockMatrixBroadcast(child, IndexedSeq(axis, axis2), _, _) if (axis == axis2) => // diagonal as row/col vector
         val diagLen = math.min(child.typ.nRowBlocks, child.typ.nColBlocks)
-        val diagType = x.typ.copy(sparsity = BlockMatrixSparsity(Some(FastSeq.tabulate(diagLen)(i => (i, i)))))
+        val diagType = x.typ.copy(sparsity = BlockMatrixSparsity(Some(RichIndexedSeq.tabulate(diagLen)(i => (i, i)))))
         val rowPos = if (child.typ.nColBlocks > diagLen)
           ToArray(mapIR(rangeIR(child.typ.nColBlocks + 1))(i => minIR(i, diagLen)))
         else
@@ -1171,7 +1172,7 @@ object LowerBlockMatrixIR {
         new BlockMatrixStage(left.broadcastVals ++ right.broadcastVals, newCtxType) {
           def blockContext(idx: (Int, Int)): IR = {
             val (i, j) = idx
-            MakeArray(FastSeq.tabulate[Option[IR]](leftIR.typ.nColBlocks) { k =>
+            MakeArray(RichIndexedSeq.tabulate[Option[IR]](leftIR.typ.nColBlocks) { k =>
               if (leftIR.typ.hasBlock(i -> k) && rightIR.typ.hasBlock(k -> j))
                 Some(MakeTuple.ordered(FastSeq(
                   left.blockContext(i -> k), right.blockContext(k -> j))))

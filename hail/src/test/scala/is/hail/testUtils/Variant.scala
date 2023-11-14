@@ -1,11 +1,9 @@
 package is.hail.testUtils
 
 import is.hail.annotations.Annotation
-import is.hail.types.virtual.{TArray, TLocus, TString, TStruct}
-import is.hail.utils.{arrayToRichIndexedSeq, toRichIndexedSeq}
+import is.hail.utils.{toRichArray, toRichIndexedSeq}
 import is.hail.variant._
 import org.apache.spark.sql.Row
-import org.json4s._
 
 import scala.collection.JavaConverters._
 

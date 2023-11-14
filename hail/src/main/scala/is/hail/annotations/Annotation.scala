@@ -2,6 +2,7 @@ package is.hail.annotations
 
 import is.hail.types.virtual._
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import org.apache.spark.sql.Row
 
 object Annotation {
@@ -18,11 +19,11 @@ object Annotation {
     t match {
       case t: TBaseStruct =>
         val r = a.asInstanceOf[Row]
-        Row.fromSeq(FastSeq.tabulate(r.size)(i => Annotation.copy(t.types(i), r(i))))
+        Row.fromSeq(RichIndexedSeq.tabulate(r.size)(i => Annotation.copy(t.types(i), r(i))))
 
       case t: TArray =>
         val arr = a.asInstanceOf[IndexedSeq[Annotation]]
-        FastSeq.tabulate(arr.length)(i => Annotation.copy(t.elementType, arr(i))).toFastSeq
+        RichIndexedSeq.tabulate(arr.length)(i => Annotation.copy(t.elementType, arr(i)))
 
       case t: TSet =>
         a.asInstanceOf[Set[Annotation]].map(Annotation.copy(t.elementType, _))
@@ -38,7 +39,7 @@ object Annotation {
       case t: TNDArray =>
         val nd = a.asInstanceOf[NDArray]
         val rme = nd.getRowMajorElements()
-        SafeNDArray(nd.shape, FastSeq.tabulate(rme.length)(i => Annotation.copy(t.elementType, rme(i))).toFastSeq)
+        SafeNDArray(nd.shape, RichIndexedSeq.tabulate(rme.length)(i => Annotation.copy(t.elementType, rme(i))))
 
       case TInt32 | TInt64 | TFloat32 | TFloat64 | TBoolean | TString | TCall | _: TLocus | TBinary => a
     }

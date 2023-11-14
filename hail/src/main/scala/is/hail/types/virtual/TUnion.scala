@@ -42,11 +42,11 @@ object TUnion {
 }
 
 final case class TUnion(cases: IndexedSeq[Case]) extends Type {
-  lazy val types: Array[Type] = cases.fmap(_.typ)
+  lazy val types: IndexedSeq[Type] = cases.fmap(_.typ)
 
   lazy val caseIdx: collection.Map[String, Int] = toMapFast(cases)(_.name, _.index)
 
-  lazy val caseNames: Array[String] = cases.fmap(_.name)
+  lazy val caseNames: IndexedSeq[String] = cases.fmap(_.name)
 
   def size: Int = cases.length
 

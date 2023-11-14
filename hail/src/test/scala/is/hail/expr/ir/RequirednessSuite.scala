@@ -5,13 +5,13 @@ import is.hail.expr.Nat
 import is.hail.expr.ir.agg.CallStatsState
 import is.hail.io.{BufferSpec, TypedCodecSpec}
 import is.hail.stats.fetStruct
+import is.hail.types._
 import is.hail.types.physical._
 import is.hail.types.physical.stypes.EmitType
 import is.hail.types.physical.stypes.interfaces.SStream
 import is.hail.types.physical.stypes.primitives.SInt32
 import is.hail.types.virtual._
-import is.hail.types._
-import is.hail.utils.{BoxedArrayBuilder, FastSeq, arrayToRichIndexedSeq, toRichIndexedSeq}
+import is.hail.utils.{BoxedArrayBuilder, FastSeq, toRichArray, toRichIndexedSeq}
 import org.apache.spark.sql.Row
 import org.testng.annotations.{DataProvider, Test}
 

@@ -1,6 +1,6 @@
 package is.hail.io
 
-import is.hail.utils.arrayToRichIndexedSeq
+import is.hail.utils.toRichArray
 import org.scalatest.testng.TestNGSuite
 import org.testng.annotations.Test
 

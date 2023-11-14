@@ -2,6 +2,7 @@ package is.hail.expr.ir
 
 import is.hail.asm4s.AsmFunction2
 import is.hail.utils.FastSeq
+import is.hail.utils.richUtils.RichIndexedSeq
 import org.scalatest.testng.TestNGSuite
 import org.testng.annotations.{DataProvider, Test}
 
@@ -25,7 +26,7 @@ class MissingArrayBuilderSuite extends TestNGSuite {
   }
 
   def getResult[B <: MissingArrayBuilder, T >: Null : ClassTag](ab: B)(f: (B, Int) => T): IndexedSeq[T] =
-    FastSeq.tabulate[T](ab.size) { i =>
+    RichIndexedSeq.tabulate[T](ab.size) { i =>
       if (ab.isMissing(i)) null
       else f(ab, i)
     }

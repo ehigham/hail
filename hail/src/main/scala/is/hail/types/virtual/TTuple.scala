@@ -15,9 +15,10 @@ object TTuple {
 case class TupleField(index: Int, typ: Type)
 
 final case class TTuple(_types: IndexedSeq[TupleField]) extends TBaseStruct {
-  lazy val types: Array[Type] = _types.fmap(_.typ)
-
-  lazy val fields: IndexedSeq[Field] = _types.zipWithIndex.fmap { case (tf, i) => Field(s"${ tf.index }", tf.typ, i) }
+  override lazy val types: IndexedSeq[Type] =
+    _types.fmap(_.typ)
+  override lazy val fields: IndexedSeq[Field] =
+    _types.zipMap(_types.indices) { case (tf, i) => Field(s"${ tf.index }", tf.typ, i) }
 
   lazy val fieldIndex: Map[Int, Int] = _types.zipWithIndex.fmap { case (tf, idx) => tf.index -> idx }.toMap
 

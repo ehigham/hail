@@ -10,6 +10,7 @@ import is.hail.expr.ir._
 import is.hail.io.fs.FS
 import is.hail.types.virtual._
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.Row
 import org.scalatest.testng.TestNGSuite
@@ -252,7 +253,7 @@ class HailSuite extends TestNGSuite {
             if (execStrats.contains(strat)) throw e
         }
       }
-      val expectedArray = FastSeq.tabulate(expected.rows)(i => FastSeq.tabulate(expected.cols)(j => expected(i, j)).toFastSeq).toFastSeq
+      val expectedArray = RichIndexedSeq.tabulate(expected.rows)(i => RichIndexedSeq.tabulate(expected.cols)(j => expected(i, j)).toFastSeq).toFastSeq
       assertNDEvals(BlockMatrixCollect(bm), expectedArray)(filteredExecStrats.filterNot(ExecStrategy.interpretOnly))
     }
   }

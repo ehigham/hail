@@ -4,6 +4,7 @@ import breeze.linalg.DenseMatrix
 import is.hail.HailSuite
 import is.hail.check.Gen
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import org.testng.annotations.Test
 
 class RowMatrixSuite extends HailSuite {
@@ -185,7 +186,7 @@ class RowMatrixSuite extends HailSuite {
   @Test
   def exportBig() {
     val rowArrays: IndexedSeq[IndexedSeq[Double]] =
-      FastSeq.tabulate(20)( r => FastSeq.tabulate(30)(c => 30 * c + r))
+      RichIndexedSeq.tabulate(20)( r => RichIndexedSeq.tabulate(30)(c => 30 * c + r))
     val rowMatrix = rowArrayToRowMatrix(rowArrays)
     
     exportImportAssert(rowMatrix.export(ctx, _, ",", header=None, addIndex = false, exportType = ExportType.CONCATENATED),

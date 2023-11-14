@@ -1,9 +1,8 @@
 package is.hail.types.virtual
 
-import is.hail.annotations.{Annotation, AnnotationPathException, _}
+import is.hail.annotations._
 import is.hail.backend.HailStateManager
 import is.hail.expr.ir.{Env, IRParser, IntArrayBuilder}
-import is.hail.types.physical.{PField, PStruct}
 import is.hail.utils._
 import org.apache.spark.sql.Row
 import org.json4s.CustomSerializer
@@ -41,9 +40,11 @@ object TStruct {
 final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
   assert(fields.zipWithIndex.forall { case (f, i) => f.index == i })
 
-  lazy val types: Array[Type] = fields.fmap(_.typ).toArray
+  override lazy val types: IndexedSeq[Type] =
+    fields.fmap(_.typ)
 
-  lazy val fieldNames: Array[String] = fields.fmap(_.name).toArray
+  lazy val fieldNames: IndexedSeq[String] =
+    fields.fmap(_.name)
 
   def size: Int = fields.length
 

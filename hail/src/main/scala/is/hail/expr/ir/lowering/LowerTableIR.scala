@@ -12,6 +12,7 @@ import is.hail.types._
 import is.hail.types.physical.{PCanonicalBinary, PCanonicalTuple}
 import is.hail.types.virtual._
 import is.hail.utils._
+import is.hail.utils.richUtils.RichIndexedSeq
 import org.apache.spark.sql.Row
 
 class LowererUnsupportedOperation(msg: String = null) extends Exception(msg)
@@ -547,13 +548,13 @@ class TableStage(
       SortField("__partNum", Ascending) +: right.key.fmap(k => SortField(k, Ascending)),
       rightTableRType)
     val sorted = sortedReader.lower(ctx, sortedReader.fullType)
-    assert(sorted.kType.fieldNames.sameElements("__partNum" +: right.key))
+    assert(sorted.kType.fieldNames == ("__partNum" +: right.key))
     val newRightPartitioner = new RVDPartitioner(
       ctx.stateManager,
       Some(1),
       TStruct.concat(TStruct("__partNum" -> TInt32), right.kType),
-      FastSeq.tabulate[Interval](partitioner.numPartitions)(i => Interval(Row(i), Row(i), true, true))
-      )
+      RichIndexedSeq.tabulate(partitioner.numPartitions)(i => Interval(Row(i), Row(i), true, true))
+    )
     val repartitioned = sorted.repartitionNoShuffle(ctx, newRightPartitioner)
       .changePartitionerNoRepartition(RVDPartitioner.unkeyed(ctx.stateManager, newRightPartitioner.numPartitions))
       .mapPartition(None) { part =>
@@ -905,7 +906,7 @@ object LowerTableIR {
 
         val contextType = TStruct("start" -> TInt32, "end" -> TInt32)
 
-        val ranges = FastSeq.tabulate(nPartitionsAdj)(i => partStarts(i) -> partStarts(i + 1))
+        val ranges = RichIndexedSeq.tabulate(nPartitionsAdj)(i => partStarts(i) -> partStarts(i + 1))
 
         TableStage(
           MakeStruct(FastSeq()),

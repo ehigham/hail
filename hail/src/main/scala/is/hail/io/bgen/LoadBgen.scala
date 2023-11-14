@@ -250,7 +250,7 @@ object LoadBgen {
     indexFiles
   }
 
-  def getFileHeaders(fs: FS, files: IndexedSeq[String]): Array[BgenHeader] =
+  def getFileHeaders(fs: FS, files: Array[String]): Array[BgenHeader] =
     files.fmap(LoadBgen.readState(fs, _))
 
   def getReferenceGenome(fileMetadata: Array[BgenFileMetadata]): Option[String] =
