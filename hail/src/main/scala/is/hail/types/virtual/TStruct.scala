@@ -2,41 +2,46 @@ package is.hail.types.virtual
 
 import is.hail.annotations._
 import is.hail.backend.HailStateManager
-import is.hail.expr.ir.{Env, IRParser, IntArrayBuilder}
+import is.hail.expr.ir.{Env, IntArrayBuilder, IRParser}
 import is.hail.utils._
-import org.apache.spark.sql.Row
+
 import org.json4s.CustomSerializer
 import org.json4s.JsonAST.JString
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
-class TStructSerializer extends CustomSerializer[TStruct](format => (
-  { case JString(s) => IRParser.parseStructType(s) },
-  { case t: TStruct => JString(t.parsableString()) }))
+import org.apache.spark.sql.Row
+
+class TStructSerializer extends CustomSerializer[TStruct](format =>
+      (
+        { case JString(s) => IRParser.parseStructType(s) },
+        { case t: TStruct => JString(t.parsableString()) },
+      )
+    )
 
 object TStruct {
   val empty: TStruct = TStruct()
 
   def apply(args: (String, Type)*): TStruct =
-    TStruct(args
-      .iterator
-      .zipWithIndex
-      .map { case ((n, t), i) => Field(n, t, i) }
-      .toArray)
+    TStruct(args.iterator.zipWithIndex.map { case ((n, t), i) => Field(n, t, i) }.toArray)
 
   def apply(names: java.util.List[String], types: java.util.List[Type]): TStruct = {
     val sNames = names.asScala.toArray
     val sTypes = types.asScala.toArray
     if (sNames.length != sTypes.length)
-      fatal(s"number of names does not match number of types: found ${ sNames.length } names and ${ sTypes.length } types")
+      fatal(
+        s"number of names does not match number of types: found ${sNames.length} names and ${sTypes.length} types"
+      )
 
     TStruct(sNames.zip(sTypes): _*)
   }
 
   def concat(struct1: TStruct, struct2: TStruct): TStruct = {
-    struct2.fieldNames.foreach { field => assert(!struct1.hasField(field)) }
-    TStruct(struct1.fields ++ struct2.fields.map(field => field.copy(index = field.index + struct1.size)))
+    struct2.fieldNames.foreach(field => assert(!struct1.hasField(field)))
+    TStruct(
+      struct1.fields ++ struct2.fields.map(field => field.copy(index = field.index + struct1.size))
+    )
   }
 }
 
@@ -55,18 +60,19 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
     TBaseStruct.getOrdering(sm, types, missingEqual)
 
   override def canCompare(other: Type): Boolean = other match {
-    case t: TStruct => size == t.size && fields.zip(t.fields).forall { case (f1, f2) =>
-      f1.name == f2.name && f1.typ.canCompare(f2.typ)
-    }
+    case t: TStruct =>
+      size == t.size && fields.zip(t.fields).forall { case (f1, f2) =>
+        f1.name == f2.name && f1.typ.canCompare(f2.typ)
+      }
     case _ => false
   }
 
   override def unify(concrete: Type): Boolean = concrete match {
     case TStruct(cfields) =>
       fields.length == cfields.length &&
-        (fields, cfields).zipped.forall { case (f, cf) =>
-          f.unify(cf)
-        }
+      (fields, cfields).zipped.forall { case (f, cf) =>
+        f.unify(cf)
+      }
     case _ => false
   }
 
@@ -84,13 +90,15 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
 
   def fieldOption(path: IndexedSeq[String]): Option[Field] =
     if (path.isEmpty) None
-    else (1 until path.length).foldLeft(selfField(path.head)) {
-      case (Some(f), i) => f.typ match {
-        case s: TStruct => s.selfField(path(i))
+    else
+      (1 until path.length).foldLeft(selfField(path.head)) {
+        case (Some(f), i) =>
+          f.typ match {
+            case s: TStruct => s.selfField(path(i))
+            case _ => return None
+          }
         case _ => return None
       }
-      case _ => return None
-    }
 
   override def queryTyped(p: List[String]): (Type, Querier) = {
     if (p.isEmpty)
@@ -100,12 +108,15 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
         case Some(f) =>
           val (t, q) = f.typ.queryTyped(p.tail)
           val localIndex = f.index
-          (t, (a: Any) =>
-            if (a == null)
-              null
-            else
-              q(a.asInstanceOf[Row].get(localIndex)))
-        case None => throw new AnnotationPathException(s"struct has no field ${ p.head }")
+          (
+            t,
+            (a: Any) =>
+              if (a == null)
+                null
+              else
+                q(a.asInstanceOf[Row].get(localIndex)),
+          )
+        case None => throw new AnnotationPathException(s"struct has no field ${p.head}")
       }
     }
   }
@@ -116,7 +127,6 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
 
     val missing: Annotation =
       null.asInstanceOf[Annotation]
-
 
     def updateField(typ: TStruct, idx: Int)(f: Inserter)(a: Annotation, v: Any): Annotation =
       a match {
@@ -132,9 +142,8 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
       val arr = new Array[Any](typ.size + 1)
       a match {
         case r: Row =>
-          for (i <- 0 until typ.size) {
+          for (i <- 0 until typ.size)
             arr.update(i, r.get(i))
-          }
         case _ =>
       }
       arr(typ.size) = f(missing, v)
@@ -142,24 +151,25 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
     }
 
     val (newType, inserter) =
-      path
-        .view
-        .scanLeft((this, identity[Type] _, identity[Inserter] _)) {
-          case ((parent, _, _), name) =>
-            parent.selfField(name) match {
-              case Some(Field(name, t, idx)) =>
-                (
-                  t match { case s: TStruct => s case _ => TStruct.empty },
-                  typ => parent.updateKey(name, idx, typ),
-                  updateField(parent, idx)
-                )
-              case None =>
-                (
-                  TStruct.empty,
-                  typ => parent.appendKey(name, typ),
-                  addField(parent)
-                )
-            }
+      path.view
+        .scanLeft((this, identity[Type] _, identity[Inserter] _)) { case ((parent, _, _), name) =>
+          parent.selfField(name) match {
+            case Some(Field(name, t, idx)) =>
+              (
+                t match {
+                  case s: TStruct => s
+                  case _ => TStruct.empty
+                },
+                typ => parent.updateKey(name, idx, typ),
+                updateField(parent, idx),
+              )
+            case None =>
+              (
+                TStruct.empty,
+                typ => parent.appendKey(name, typ),
+                addField(parent),
+              )
+          }
         }
         .foldRight((signature, ((_, toIns) => toIns): Inserter)) {
           case ((_, insertField, transform), (newType, inserter)) =>
@@ -170,7 +180,10 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
   }
 
   def structInsert(signature: Type, p: IndexedSeq[String]): TStruct = {
-    require(p.nonEmpty || signature.isInstanceOf[TStruct], s"tried to remap top-level struct to non-struct $signature")
+    require(
+      p.nonEmpty || signature.isInstanceOf[TStruct],
+      s"tried to remap top-level struct to non-struct $signature",
+    )
     val (t, _) = insert(signature, p)
     t
   }
@@ -216,7 +229,7 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
     // In fieldIdxBuilder, positive integers are field indices from the left.
     // Negative integers are the complement of field indices from the right.
 
-    val rightFieldIdx = other.fields.map { f => f.name -> (f.index -> f.typ) }.toMap
+    val rightFieldIdx = other.fields.map(f => f.name -> (f.index -> f.typ)).toMap
     val leftFields = fieldNames.toSet
 
     fields.foreach { f =>
@@ -295,10 +308,9 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
     val notFound = set.filter(name => selfField(name).isEmpty).map(prettyIdentifier)
     if (notFound.nonEmpty)
       fatal(
-        s"""invalid struct filter operation: ${
-          plural(notFound.size, s"field ${ notFound.head }", s"fields [ ${ notFound.mkString(", ") } ]")
-        } not found
-           |  Existing struct fields: [ ${ fields.map(f => prettyIdentifier(f.name)).mkString(", ") } ]""".stripMargin)
+        s"""invalid struct filter operation: ${plural(notFound.size, s"field ${notFound.head}", s"fields [ ${notFound.mkString(", ")} ]")} not found
+           |  Existing struct fields: [ ${fields.map(f => prettyIdentifier(f.name)).mkString(", ")} ]""".stripMargin
+      )
 
     val fn = (f: Field) =>
       if (include)
@@ -309,10 +321,9 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
   }
 
   def ++(that: TStruct): TStruct = {
-    val overlapping = fields.map(_.name).toSet.intersect(
-      that.fields.map(_.name).toSet)
+    val overlapping = fields.map(_.name).toSet.intersect(that.fields.map(_.name).toSet)
     if (overlapping.nonEmpty)
-      fatal(s"overlapping fields in struct concatenation: ${ overlapping.mkString(", ") }")
+      fatal(s"overlapping fields in struct concatenation: ${overlapping.mkString(", ")}")
 
     TStruct(fields.map(f => (f.name, f.typ)) ++ that.fields.map(f => (f.name, f.typ)): _*)
   }
@@ -320,7 +331,8 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
   def filter(f: (Field) => Boolean): (TStruct, (Annotation) => Annotation) = {
     val included = fields.map(f)
 
-    val newFields = fields.zip(included)
+    val newFields = fields
+      .zip(included)
       .flatMap { case (field, incl) =>
         if (incl)
           Some(field)
@@ -338,11 +350,10 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
       else {
         val r = a.asInstanceOf[Row]
         val newValues = included.zipWithIndex
-          .flatMap {
-            case (incl, i) =>
-              if (incl)
-                Some(r.get(i))
-              else None
+          .flatMap { case (incl, i) =>
+            if (incl)
+              Some(r.get(i))
+            else None
           }
         assert(newValues.length == newSize)
         Annotation.fromSeq(newValues)
@@ -357,7 +368,7 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
       sb.append(prettyIdentifier(field.name))
       sb.append(": ")
       field.typ.pyString(sb)
-    }) { sb.append(", ")}
+    })(sb.append(", "))
     sb.append('}')
   }
 
@@ -381,14 +392,10 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
   }
 
   def select(keep: IndexedSeq[String]): (TStruct, (Row) => Row) = {
-    val t = TStruct(keep.map { n =>
-      n -> field(n).typ
-    }: _*)
+    val t = TStruct(keep.map(n => n -> field(n).typ): _*)
 
     val keepIdx = keep.map(fieldIdx)
-    val selectF: Row => Row = { r =>
-      Row.fromSeq(keepIdx.map(r.get))
-    }
+    val selectF: Row => Row = { r => Row.fromSeq(keepIdx.map(r.get)) }
     (t, selectF)
   }
 
@@ -405,7 +412,8 @@ final case class TStruct(fields: IndexedSeq[Field]) extends TBaseStruct {
       return identity
 
     val subStruct = subtype.asInstanceOf[TStruct]
-    val subsetFields = subStruct.fields.map(f => (fieldIdx(f.name), fieldType(f.name).valueSubsetter(f.typ)))
+    val subsetFields =
+      subStruct.fields.map(f => (fieldIdx(f.name), fieldType(f.name).valueSubsetter(f.typ)))
 
     { (a: Any) =>
       val r = a.asInstanceOf[Row]

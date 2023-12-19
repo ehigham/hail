@@ -2,6 +2,7 @@ package is.hail.io
 
 import is.hail.annotations.RegionValueBuilder
 import is.hail.io.fs.{HadoopFS, WrappedSeekableDataInputStream}
+
 import org.apache.commons.logging.{Log, LogFactory}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -26,7 +27,7 @@ abstract class KeySerializedValueRecord[K] extends Serializable {
 }
 
 abstract class IndexedBinaryBlockReader[T](job: Configuration, split: FileSplit)
-  extends RecordReader[LongWritable, T] {
+    extends RecordReader[LongWritable, T] {
 
   val LOG: Log = LogFactory.getLog(classOf[IndexedBinaryBlockReader[T]].getName)
   val partitionStart: Long = split.getStart
@@ -39,8 +40,8 @@ abstract class IndexedBinaryBlockReader[T](job: Configuration, split: FileSplit)
     val fs: FileSystem = file.getFileSystem(job)
     val is = fs.open(file)
     new HadoopFSDataBinaryReader(
-      new WrappedSeekableDataInputStream(
-        HadoopFS.toSeekableInputStream(is)))
+      new WrappedSeekableDataInputStream(HadoopFS.toSeekableInputStream(is))
+    )
   }
 
   def createKey(): LongWritable = new LongWritable()
@@ -49,12 +50,11 @@ abstract class IndexedBinaryBlockReader[T](job: Configuration, split: FileSplit)
 
   def getPos: Long = pos
 
-  def getProgress: Float = {
+  def getProgress: Float =
     if (partitionStart == end)
       0.0f
     else
       Math.min(1.0f, (pos - partitionStart) / (end - partitionStart).toFloat)
-  }
 
   def close() = bfis.close()
 

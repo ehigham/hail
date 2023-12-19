@@ -12,8 +12,16 @@ object StagedArrayBuilder {
   val END_SERIALIZATION: Int = 0x12345678
 }
 
-class StagedArrayBuilder(eltType: PType, kb: EmitClassBuilder[_], region: Value[Region], var initialCapacity: Int = 8) {
-  val eltArray = PCanonicalArray(eltType.setRequired(false), required = true) // element type must be optional for serialization to work
+class StagedArrayBuilder(
+  eltType: PType,
+  kb: EmitClassBuilder[_],
+  region: Value[Region],
+  var initialCapacity: Int = 8,
+) {
+  val eltArray = PCanonicalArray(
+    eltType.setRequired(false),
+    required = true,
+  ) // element type must be optional for serialization to work
   val stateType = PCanonicalTuple(true, PInt32Required, PInt32Required, eltArray)
 
   val size: Settable[Int] = kb.genFieldThisRef[Int]("size")
@@ -32,7 +40,6 @@ class StagedArrayBuilder(eltType: PType, kb: EmitClassBuilder[_], region: Value[
     cb.assign(data, Region.loadAddress(dataOffset(tmpOff)))
   }
 
-
   def cloneFrom(cb: EmitCodeBuilder, other: StagedArrayBuilder): Unit = {
     cb.assign(tmpOff, other.tmpOff)
     cb.assign(size, other.size)
@@ -44,12 +51,19 @@ class StagedArrayBuilder(eltType: PType, kb: EmitClassBuilder[_], region: Value[
     cb.assign(tmpOff, src)
     cb.assign(size, Region.loadInt(currentSizeOffset(tmpOff)))
     cb.assign(capacity, Region.loadInt(capacityOffset(tmpOff)))
-    cb.assign(data, eltArray.store(cb, region, eltArray.loadCheapSCode(cb, Region.loadAddress(dataOffset(tmpOff))), deepCopy = true))
+    cb.assign(
+      data,
+      eltArray.store(
+        cb,
+        region,
+        eltArray.loadCheapSCode(cb, Region.loadAddress(dataOffset(tmpOff))),
+        deepCopy = true,
+      ),
+    )
   }
 
-  def reallocateData(cb: EmitCodeBuilder): Unit = {
+  def reallocateData(cb: EmitCodeBuilder): Unit =
     cb.assign(data, eltArray.store(cb, region, eltArray.loadCheapSCode(cb, data), deepCopy = true))
-  }
 
   def storeTo(cb: EmitCodeBuilder, dest: Code[Long]): Unit = {
     cb.assign(tmpOff, dest)
@@ -64,7 +78,8 @@ class StagedArrayBuilder(eltType: PType, kb: EmitClassBuilder[_], region: Value[
 
       cb += ob.writeInt(size)
       cb += ob.writeInt(capacity)
-      codecSpec.encodedType.buildEncoder(eltArray.sType, kb)
+      codecSpec.encodedType
+        .buildEncoder(eltArray.sType, kb)
         .apply(cb, eltArray.loadCheapSCode(cb, data), ob)
       cb += ob.writeInt(const(StagedArrayBuilder.END_SERIALIZATION))
     }
@@ -77,12 +92,14 @@ class StagedArrayBuilder(eltType: PType, kb: EmitClassBuilder[_], region: Value[
       cb.assign(size, ib.readInt())
       cb.assign(capacity, ib.readInt())
 
-      val decValue = codecSpec.encodedType.buildDecoder(eltArray.virtualType, kb)
+      val decValue = codecSpec.encodedType
+        .buildDecoder(eltArray.virtualType, kb)
         .apply(cb, region, ib)
       cb.assign(data, eltArray.store(cb, region, decValue, deepCopy = false))
 
-      cb.if_(ib.readInt() cne StagedArrayBuilder.END_SERIALIZATION,
-        cb._fatal(s"StagedArrayBuilder serialization failed")
+      cb.if_(
+        ib.readInt() cne StagedArrayBuilder.END_SERIALIZATION,
+        cb._fatal(s"StagedArrayBuilder serialization failed"),
       )
     }
   }
@@ -92,8 +109,9 @@ class StagedArrayBuilder(eltType: PType, kb: EmitClassBuilder[_], region: Value[
     resize(cb)
   }
 
-  def setMissing(cb: EmitCodeBuilder): Unit = incrementSize(cb) // all elements set to missing on initialization
-
+  def setMissing(cb: EmitCodeBuilder): Unit = incrementSize(
+    cb
+  ) // all elements set to missing on initialization
 
   def append(cb: EmitCodeBuilder, elt: SValue, deepCopy: Boolean = true): Unit = {
     eltArray.setElementPresent(cb, data, size)
@@ -101,13 +119,24 @@ class StagedArrayBuilder(eltType: PType, kb: EmitClassBuilder[_], region: Value[
     incrementSize(cb)
   }
 
-  def overwrite(cb: EmitCodeBuilder, elt: EmitValue, idx: Value[Int], deepCopy: Boolean = true): Unit = {
-    elt.toI(cb).consume(cb,
-      PContainer.unsafeSetElementMissing(cb, eltArray, data, idx),
-      value => eltType.storeAtAddress(cb, eltArray.elementOffset(data, capacity, idx), region, value, deepCopy))
-  }
+  def overwrite(cb: EmitCodeBuilder, elt: EmitValue, idx: Value[Int], deepCopy: Boolean = true)
+    : Unit =
+    elt
+      .toI(cb).consume(
+        cb,
+        PContainer.unsafeSetElementMissing(cb, eltArray, data, idx),
+        value =>
+          eltType.storeAtAddress(
+            cb,
+            eltArray.elementOffset(data, capacity, idx),
+            region,
+            value,
+            deepCopy,
+          ),
+      )
 
-  def initializeWithCapacity(cb: EmitCodeBuilder, capacity: Code[Int]): Unit = initialize(cb, 0, capacity)
+  def initializeWithCapacity(cb: EmitCodeBuilder, capacity: Code[Int]): Unit =
+    initialize(cb, 0, capacity)
 
   def initialize(cb: EmitCodeBuilder): Unit = initialize(cb, const(0), const(initialCapacity))
 
@@ -121,7 +150,6 @@ class StagedArrayBuilder(eltType: PType, kb: EmitClassBuilder[_], region: Value[
   def elementOffset(cb: EmitCodeBuilder, idx: Value[Int]): Value[Long] =
     cb.memoize(eltArray.elementOffset(data, capacity, idx))
 
-
   def loadElement(cb: EmitCodeBuilder, idx: Value[Int]): EmitCode = {
     val m = eltArray.isElementMissing(data, idx)
     EmitCode(Code._empty, m, eltType.loadCheapSCode(cb, eltArray.loadElement(data, capacity, idx)))
@@ -129,10 +157,11 @@ class StagedArrayBuilder(eltType: PType, kb: EmitClassBuilder[_], region: Value[
 
   private def resize(cb: EmitCodeBuilder): Unit = {
     val newDataOffset = kb.genFieldThisRef[Long]("new_data_offset")
-    cb.if_(size.ceq(capacity),
-      {
+    cb.if_(
+      size.ceq(capacity), {
         cb.assign(capacity, capacity * 2)
         cb.assign(data, eltArray.padWithMissing(cb, region, size, capacity, data))
-      })
+      },
+    )
   }
 }

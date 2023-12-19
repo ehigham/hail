@@ -13,8 +13,8 @@ case class TableCalculateNewPartitions(
   def typ(childType: types.TableType): Type = TArray(TInterval(childType.keyType))
 
   def unionRequiredness(childType: types.RTable, resultType: types.TypeWithRequiredness): Unit = {
-    val rinterval = types.tcoerce[types.RInterval](
-      types.tcoerce[types.RIterable](resultType).elementType)
+    val rinterval =
+      types.tcoerce[types.RInterval](types.tcoerce[types.RIterable](resultType).elementType)
     val rstart = types.tcoerce[types.RStruct](rinterval.startType)
     val rend = types.tcoerce[types.RStruct](rinterval.endType)
     childType.keyFields.foreach { k =>
@@ -32,7 +32,14 @@ case class TableCalculateNewPartitions(
       if (ki.isEmpty)
         FastSeq()
       else
-        RVD.calculateKeyRanges(ctx, rvd.typ, ki, nPartitions, rvd.typ.key.length).rangeBounds.toIndexedSeq
+        RVD
+          .calculateKeyRanges(
+            ctx,
+            rvd.typ,
+            ki,
+            nPartitions,
+            rvd.typ.key.length,
+          ).rangeBounds.toIndexedSeq
     }
   }
 }

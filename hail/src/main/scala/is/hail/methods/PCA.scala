@@ -1,38 +1,45 @@
 package is.hail.methods
 
-import breeze.linalg.{*, DenseMatrix, DenseVector}
 import is.hail.HailContext
 import is.hail.annotations._
 import is.hail.backend.ExecuteContext
-import is.hail.expr.ir.functions.MatrixToTableFunction
 import is.hail.expr.ir.{MatrixValue, TableValue}
+import is.hail.expr.ir.functions.MatrixToTableFunction
 import is.hail.rvd.{RVD, RVDType}
 import is.hail.sparkextras.ContextRDD
 import is.hail.types._
 import is.hail.types.physical.{PCanonicalStruct, PStruct}
 import is.hail.types.virtual._
 import is.hail.utils._
+
+import breeze.linalg.{*, DenseMatrix, DenseVector}
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.linalg.distributed.{IndexedRow, IndexedRowMatrix}
 import org.apache.spark.sql.Row
 
 case class PCA(entryField: String, k: Int, computeLoadings: Boolean) extends MatrixToTableFunction {
-  override def typ(childType: MatrixType): TableType = {
+  override def typ(childType: MatrixType): TableType =
     TableType(
       childType.rowKeyStruct ++ TStruct("loadings" -> TArray(TFloat64)),
       childType.rowKey,
-      TStruct("eigenvalues" -> TArray(TFloat64), "scores" -> TArray(childType.colKeyStruct ++ TStruct("scores" -> TArray(TFloat64)))))
-  }
+      TStruct(
+        "eigenvalues" -> TArray(TFloat64),
+        "scores" -> TArray(childType.colKeyStruct ++ TStruct("scores" -> TArray(TFloat64))),
+      ),
+    )
 
   def preservesPartitionCounts: Boolean = false
 
   def execute(ctx: ExecuteContext, mv: MatrixValue): TableValue = {
     if (k < 1)
-      fatal(s"""requested invalid number of components: $k
-               |  Expect componenents >= 1""".stripMargin)
+      fatal(
+        s"""requested invalid number of components: $k
+           |  Expect componenents >= 1""".stripMargin
+      )
 
     val rowMatrix = mv.toRowMatrix(entryField)
-    val indexedRows = rowMatrix.rows.map { case (i, a) => IndexedRow(i, Vectors.dense(a)) }
+    val indexedRows = rowMatrix.rows
+      .map { case (i, a) => IndexedRow(i, Vectors.dense(a)) }
       .cache()
     val irm = new IndexedRowMatrix(indexedRows, rowMatrix.nRows, rowMatrix.nCols)
 
@@ -41,20 +48,25 @@ case class PCA(entryField: String, k: Int, computeLoadings: Boolean) extends Mat
     val svd = irm.computeSVD(k, computeLoadings)
     if (svd.s.size < k)
       fatal(
-        s"Found only ${ svd.s.size } non-zero (or nearly zero) eigenvalues, " +
-          s"but user requested ${ k } principal components.")
+        s"Found only ${svd.s.size} non-zero (or nearly zero) eigenvalues, " +
+          s"but user requested $k principal components."
+      )
 
     def collectRowKeys(): Array[Annotation] = {
       val rowKeyIdx = mv.typ.rowKeyFieldIdx
       val rowKeyTypes = mv.typ.rowKeyStruct.types
 
-      mv.rvd.toUnsafeRows.map[Any] { r =>
-        Row.fromSeq(rowKeyIdx.map(i => Annotation.copy(rowKeyTypes(i), r(i))))
-      }
+      mv.rvd.toUnsafeRows
+        .map[Any](r => Row.fromSeq(rowKeyIdx.map(i => Annotation.copy(rowKeyTypes(i), r(i)))))
         .collect()
     }
 
-    val rowType = PCanonicalStruct.canonical(TStruct(mv.typ.rowKey.zip(mv.typ.rowKeyStruct.types): _*) ++ TStruct("loadings" -> TArray(TFloat64)))
+    val rowType = PCanonicalStruct
+      .canonical(
+        TStruct(mv.typ.rowKey.zip(mv.typ.rowKeyStruct.types): _*) ++ TStruct(
+          "loadings" -> TArray(TFloat64)
+        )
+      )
       .setRequired(true)
       .asInstanceOf[PStruct]
     val rowKeysBc = HailContext.backend.broadcast(collectRowKeys())
@@ -99,7 +111,7 @@ case class PCA(entryField: String, k: Int, computeLoadings: Boolean) extends Mat
         svd.V.asInstanceOf[org.apache.spark.mllib.linalg.DenseMatrix].values
       else
         svd.V.toArray
-    
+
     val V = new DenseMatrix[Double](svd.V.numRows, svd.V.numCols, data)
     val S = DenseVector(svd.s.toArray)
 
@@ -107,7 +119,7 @@ case class PCA(entryField: String, k: Int, computeLoadings: Boolean) extends Mat
     val scaledEigenvectors = V(*, ::) *:* S
 
     val scores = (0 until mv.nCols).iterator.map { i =>
-      (0 until k).iterator.map { j => scaledEigenvectors(i, j) }.toFastSeq
+      (0 until k).iterator.map(j => scaledEigenvectors(i, j)).toFastSeq
     }.toFastSeq
 
     val g1 = f1(mv.globals.value, eigenvalues.toFastSeq)
@@ -115,9 +127,12 @@ case class PCA(entryField: String, k: Int, computeLoadings: Boolean) extends Mat
       f3(mv.typ.extractColKey(cv.asInstanceOf[Row]), scores(i))
     }
     val newGlobal = f2(g1, globalScores)
-    
-    TableValue(ctx,
+
+    TableValue(
+      ctx,
       TableType(rowType.virtualType, mv.typ.rowKey, newGlobalType.asInstanceOf[TStruct]),
-      BroadcastRow(ctx, newGlobal.asInstanceOf[Row], newGlobalType.asInstanceOf[TStruct]), rvd)
+      BroadcastRow(ctx, newGlobal.asInstanceOf[Row], newGlobalType.asInstanceOf[TStruct]),
+      rvd,
+    )
   }
 }

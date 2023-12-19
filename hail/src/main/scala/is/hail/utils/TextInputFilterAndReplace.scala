@@ -1,6 +1,10 @@
 package is.hail.utils
 
-case class TextInputFilterAndReplace(filterPattern: Option[String] = None, findPattern: Option[String] = None, replacePattern: Option[String] = None) {
+case class TextInputFilterAndReplace(
+  filterPattern: Option[String] = None,
+  findPattern: Option[String] = None,
+  replacePattern: Option[String] = None,
+) {
   require(!(findPattern.isDefined ^ replacePattern.isDefined))
 
   private val fpRegex = filterPattern.map(_.r).orNull
@@ -17,21 +21,18 @@ case class TextInputFilterAndReplace(filterPattern: Option[String] = None, findP
   }
 
   def transformer(): String => String = {
-    if (fpRegex != null && find != null) {
-      (s: String) =>
-        if (fpRegex.findFirstIn(s).isEmpty)
-          null
-        else
-          s.replaceAll(find, replace)
-    } else if (fpRegex != null) {
-      (s: String) =>
-        if (fpRegex.findFirstIn(s).isEmpty)
-          s
-        else
-          null
-    } else if (find != null) {
-      (s: String) => s.replaceAll(find, replace)
-    } else
+    if (fpRegex != null && find != null) { (s: String) =>
+      if (fpRegex.findFirstIn(s).isEmpty)
+        null
+      else
+        s.replaceAll(find, replace)
+    } else if (fpRegex != null) { (s: String) =>
+      if (fpRegex.findFirstIn(s).isEmpty)
+        s
+      else
+        null
+    } else if (find != null) { (s: String) => s.replaceAll(find, replace) }
+    else
       (s: String) => s
   }
 }

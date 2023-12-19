@@ -1,7 +1,10 @@
 package is.hail
 
-import is.hail.asm4s.{ArrayInfo, BooleanInfo, ClassInfo, DoubleInfo, FloatInfo, IntInfo, LongInfo, TypeInfo}
+import is.hail.asm4s.{
+  ArrayInfo, BooleanInfo, ClassInfo, DoubleInfo, FloatInfo, IntInfo, LongInfo, TypeInfo,
+}
 import is.hail.utils.FastSeq
+
 import org.objectweb.asm.Opcodes._
 
 package object lir {
@@ -14,7 +17,7 @@ package object lir {
         throw new RuntimeException(s"genName has invalid character(s): $baseName")
       s"__$tag$counter$baseName"
     } else
-      s"__$tag${ counter }null"
+      s"__$tag${counter}null"
   }
 
   def setChildren(x: X, cs: IndexedSeq[ValueX]): Unit = {
@@ -85,14 +88,12 @@ package object lir {
 
   def insn0(op: Int, _ti: TypeInfo[_]): ValueX = insn(op, _ti, FastSeq.empty)
 
-  def insn1(op: Int): (ValueX) => ValueX = (c) =>
-    insn(op, null, FastSeq(c))
+  def insn1(op: Int): (ValueX) => ValueX = (c) => insn(op, null, FastSeq(c))
 
   def insn1(op: Int, _ti: TypeInfo[_], lineNumber: Int = 0): (ValueX) => ValueX = (c) =>
     insn(op, _ti, FastSeq(c), lineNumber)
 
-  def insn2(op: Int): (ValueX, ValueX) => ValueX = (c1, c2) =>
-    insn(op, null, FastSeq(c1, c2))
+  def insn2(op: Int): (ValueX, ValueX) => ValueX = (c1, c2) => insn(op, null, FastSeq(c1, c2))
 
   def insn3(op: Int): (ValueX, ValueX, ValueX) => ValueX = (c1, c2, c3) =>
     insn(op, null, FastSeq(c1, c2, c3))
@@ -132,9 +133,13 @@ package object lir {
   }
 
   def methodStmt(
-    op: Int, owner: String, name: String, desc: String, isInterface: Boolean,
+    op: Int,
+    owner: String,
+    name: String,
+    desc: String,
+    isInterface: Boolean,
     returnTypeInfo: TypeInfo[_],
-    args: IndexedSeq[ValueX]
+    args: IndexedSeq[ValueX],
   ): StmtX = {
     val x = new MethodStmtX(op, new MethodLit(owner, name, desc, isInterface, returnTypeInfo))
     setChildren(x, args)
@@ -142,7 +147,9 @@ package object lir {
   }
 
   def methodStmt(
-    op: Int, method: Method, args: IndexedSeq[ValueX]
+    op: Int,
+    method: Method,
+    args: IndexedSeq[ValueX],
   ): StmtX = {
     val x = new MethodStmtX(op, method)
     setChildren(x, args)
@@ -150,9 +157,13 @@ package object lir {
   }
 
   def methodInsn(
-    op: Int, owner: String, name: String, desc: String, isInterface: Boolean,
+    op: Int,
+    owner: String,
+    name: String,
+    desc: String,
+    isInterface: Boolean,
     returnTypeInfo: TypeInfo[_],
-    args: IndexedSeq[ValueX]
+    args: IndexedSeq[ValueX],
   ): ValueX = {
     val x = new MethodX(op, new MethodLit(owner, name, desc, isInterface, returnTypeInfo))
     setChildren(x, args)
@@ -160,7 +171,9 @@ package object lir {
   }
 
   def methodInsn(
-    op: Int, m: MethodRef, args: IndexedSeq[ValueX]
+    op: Int,
+    m: MethodRef,
+    args: IndexedSeq[ValueX],
   ): ValueX = {
     val x = new MethodX(op, m)
     setChildren(x, args)
@@ -234,18 +247,28 @@ package object lir {
 
   def newInstance(
     ti: TypeInfo[_],
-    owner: String, name: String, desc: String, returnTypeInfo: TypeInfo[_],
-    args: IndexedSeq[ValueX]
+    owner: String,
+    name: String,
+    desc: String,
+    returnTypeInfo: TypeInfo[_],
+    args: IndexedSeq[ValueX],
   ): ValueX =
     newInstance(ti, owner, name, desc, returnTypeInfo, args, 0)
 
   def newInstance(
     ti: TypeInfo[_],
-    owner: String, name: String, desc: String, returnTypeInfo: TypeInfo[_],
+    owner: String,
+    name: String,
+    desc: String,
+    returnTypeInfo: TypeInfo[_],
     args: IndexedSeq[ValueX],
-    lineNumber: Int
+    lineNumber: Int,
   ): ValueX = {
-    val x = new NewInstanceX(ti, new MethodLit(owner, name, desc, isInterface = false, returnTypeInfo), lineNumber)
+    val x = new NewInstanceX(
+      ti,
+      new MethodLit(owner, name, desc, isInterface = false, returnTypeInfo),
+      lineNumber,
+    )
     setChildren(x, args)
     x
   }
@@ -253,7 +276,8 @@ package object lir {
   def newInstance(ti: TypeInfo[_], method: Method, args: IndexedSeq[ValueX]): ValueX =
     newInstance(ti, method, args, 0)
 
-  def newInstance(ti: TypeInfo[_], method: Method, args: IndexedSeq[ValueX], lineNumber: Int): ValueX = {
+  def newInstance(ti: TypeInfo[_], method: Method, args: IndexedSeq[ValueX], lineNumber: Int)
+    : ValueX = {
     val x = new NewInstanceX(ti, method, lineNumber)
     setChildren(x, args)
     x

@@ -81,8 +81,7 @@ class RichCodeInputBuffer(
     else if (n < 5)
       Code.memoize(toOff, "ib_ready_bytes_to") { toOff =>
         Code.memoize(ib, "ib_ready_bytes_in") { ib =>
-          Code((0 until n).map(i =>
-            Region.storeByte(toOff.get + i.toLong, ib.readByte())))
+          Code((0 until n).map(i => Region.storeByte(toOff.get + i.toLong, ib.readByte())))
         }
       }
     else

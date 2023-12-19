@@ -5,7 +5,7 @@ object InitializeLocals {
     m: Method,
     blocks: Blocks,
     locals: Locals,
-    liveness: Liveness
+    liveness: Liveness,
   ): Unit = {
     val entryIdx = blocks.index(m.entry)
     val entryUsedIn = liveness.liveIn(entryIdx)
@@ -15,8 +15,7 @@ object InitializeLocals {
       val l = locals(i)
       if (!l.isInstanceOf[Parameter]) {
         // println(s"  init $l ${l.ti}")
-        m.entry.prepend(
-          store(locals(i), defaultValue(l.ti)))
+        m.entry.prepend(store(locals(i), defaultValue(l.ti)))
       }
       i = entryUsedIn.nextSetBit(i + 1)
     }

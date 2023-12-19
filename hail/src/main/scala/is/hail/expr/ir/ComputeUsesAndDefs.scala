@@ -2,10 +2,11 @@ package is.hail.expr.ir
 
 import scala.collection.mutable
 
-case class UsesAndDefs(uses: Memo[mutable.Set[RefEquality[BaseRef]]],
-                       defs: Memo[BaseIR],
-                       free: mutable.Set[RefEquality[BaseRef]]
-                      )
+case class UsesAndDefs(
+  uses: Memo[mutable.Set[RefEquality[BaseRef]]],
+  defs: Memo[BaseIR],
+  free: mutable.Set[RefEquality[BaseRef]],
+)
 
 object ComputeUsesAndDefs {
   def apply(ir0: BaseIR, errorIfFreeVariables: Boolean = true): UsesAndDefs = {
@@ -31,15 +32,14 @@ object ComputeUsesAndDefs {
               }
             case None =>
               if (errorIfFreeVariables)
-                throw new RuntimeException(s"found variable with no definition: ${ r.name }")
+                throw new RuntimeException(s"found variable with no definition: ${r.name}")
               else
                 free += RefEquality(r)
           }
         case _ =>
       }
 
-      ir.children
-        .zipWithIndex
+      ir.children.zipWithIndex
         .foreach { case (child, i) =>
           val e = ChildEnvWithoutBindings(ir, i, env)
           val b = NewBindings(ir, i, env).mapValues[BaseIR](_ => ir)

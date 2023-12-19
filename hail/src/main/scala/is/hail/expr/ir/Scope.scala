@@ -26,7 +26,6 @@ object UsesScanEnv {
   }
 }
 
-
 object Scope {
   val EVAL: Int = 0
   val AGG: Int = 1
@@ -49,21 +48,22 @@ object Scope {
         case RelationalLet(_, value, body) =>
           compute(value, EVAL)
           compute(body, scope)
-        case _ => ir.children.zipWithIndex.foreach {
-          case (child: IR, i) =>
-            val usesAgg = UsesAggEnv(ir, i)
-            val usesScan = UsesScanEnv(ir, i)
-            if (usesAgg) {
-              assert(!usesScan)
-              assert(scope == EVAL)
-              compute(child, AGG)
-            } else if (usesScan) {
-              assert(scope == EVAL)
-              compute(child, SCAN)
-            } else
-              compute(child, scope)
-          case (child, _) => compute(child, EVAL)
-        }
+        case _ =>
+          ir.children.zipWithIndex.foreach {
+            case (child: IR, i) =>
+              val usesAgg = UsesAggEnv(ir, i)
+              val usesScan = UsesScanEnv(ir, i)
+              if (usesAgg) {
+                assert(!usesScan)
+                assert(scope == EVAL)
+                compute(child, AGG)
+              } else if (usesScan) {
+                assert(scope == EVAL)
+                compute(child, SCAN)
+              } else
+                compute(child, scope)
+            case (child, _) => compute(child, EVAL)
+          }
       }
     }
 

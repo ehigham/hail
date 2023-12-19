@@ -11,12 +11,15 @@ case class TableFilterPartitions(parts: Seq[Int], keep: Boolean) extends TableTo
   override def typ(childType: TableType): TableType = childType
 
   override def execute(ctx: ExecuteContext, tv: TableValue): TableValue = {
-    val newRVD = if (keep)
-      tv.rvd.subsetPartitions(parts.toArray)
-    else {
-      val subtract = parts.toSet
-      tv.rvd.subsetPartitions((0 until tv.rvd.getNumPartitions).filter(i => !subtract.contains(i)).toArray)
-    }
+    val newRVD =
+      if (keep)
+        tv.rvd.subsetPartitions(parts.toArray)
+      else {
+        val subtract = parts.toSet
+        tv.rvd.subsetPartitions(
+          (0 until tv.rvd.getNumPartitions).filter(i => !subtract.contains(i)).toArray
+        )
+      }
     tv.copy(rvd = newRVD)
   }
 }

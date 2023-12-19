@@ -1,5 +1,6 @@
 package is.hail.backend
 
+import is.hail.{HailContext, HailFeatureFlags}
 import is.hail.annotations.{Region, RegionPool}
 import is.hail.asm4s.HailClassLoader
 import is.hail.backend.local.LocalTaskContext
@@ -7,7 +8,6 @@ import is.hail.expr.ir.lowering.IrMetadata
 import is.hail.io.fs.FS
 import is.hail.utils._
 import is.hail.variant.ReferenceGenome
-import is.hail.{HailContext, HailFeatureFlags}
 
 import java.io._
 import java.security.SecureRandom
@@ -40,7 +40,11 @@ class NonOwningTempFileManager(owner: TempFileManager) extends TempFileManager {
 object ExecuteContext {
   def scoped[T]()(f: ExecuteContext => T): T = {
     val (result, _) = ExecutionTimer.time("ExecuteContext.scoped") { timer =>
-      HailContext.sparkBackend("ExecuteContext.scoped").withExecuteContext(timer, selfContainedExecution = false)(f)
+      HailContext
+        .sparkBackend("ExecuteContext.scoped").withExecuteContext(
+          timer,
+          selfContainedExecution = false,
+        )(f)
     }
     result
   }
@@ -60,20 +64,22 @@ object ExecuteContext {
     f: ExecuteContext => T
   ): T = {
     RegionPool.scoped { pool =>
-      using(new ExecuteContext(
-        tmpdir,
-        localTmpdir,
-        backend,
-        fs,
-        Region(pool = pool),
-        timer,
-        tempFileManager,
-        theHailClassLoader,
-        referenceGenomes,
-        flags,
-        backendContext,
-        IrMetadata(None)
-      ))(f(_))
+      using(
+        new ExecuteContext(
+          tmpdir,
+          localTmpdir,
+          backend,
+          fs,
+          Region(pool = pool),
+          timer,
+          tempFileManager,
+          theHailClassLoader,
+          referenceGenomes,
+          flags,
+          backendContext,
+          IrMetadata(None),
+        )
+      )(f(_))
     }
   }
 
@@ -112,15 +118,19 @@ class ExecuteContext(
   val referenceGenomes: Map[String, ReferenceGenome],
   val flags: HailFeatureFlags,
   val backendContext: BackendContext,
-  var irMetadata: IrMetadata
+  var irMetadata: IrMetadata,
 ) extends Closeable {
 
-  val rngNonce: Long = try {
-    java.lang.Long.decode(getFlag("rng_nonce"))
-  } catch {
-    case exc: NumberFormatException =>
-      fatal(s"Could not parse flag rng_nonce as a 64-bit signed integer: ${getFlag("rng_nonce")}", exc)
-  }
+  val rngNonce: Long =
+    try
+      java.lang.Long.decode(getFlag("rng_nonce"))
+    catch {
+      case exc: NumberFormatException =>
+        fatal(
+          s"Could not parse flag rng_nonce as a 64-bit signed integer: ${getFlag("rng_nonce")}",
+          exc,
+        )
+    }
 
   val stateManager = HailStateManager(referenceGenomes)
 
@@ -136,23 +146,22 @@ class ExecuteContext(
   val memo: mutable.Map[Any, Any] = new mutable.HashMap[Any, Any]()
 
   val taskContext: HailTaskContext = new LocalTaskContext(0, 0)
-  def scopedExecution[T](f: (HailClassLoader, FS, HailTaskContext, Region) => T): T = {
+
+  def scopedExecution[T](f: (HailClassLoader, FS, HailTaskContext, Region) => T): T =
     using(new LocalTaskContext(0, 0))(f(theHailClassLoader, fs, _, r))
-  }
 
   def createTmpPath(prefix: String, extension: String = null, local: Boolean = false): String = {
-    val path = ExecuteContext.createTmpPathNoCleanup(if (local) localTmpdir else tmpdir, prefix, extension)
+    val path =
+      ExecuteContext.createTmpPathNoCleanup(if (local) localTmpdir else tmpdir, prefix, extension)
     tempFileManager.own(path)
     path
   }
 
-  def ownCloseable(c: Closeable): Unit = {
+  def ownCloseable(c: Closeable): Unit =
     cleanupFunctions += c.close
-  }
 
-  def ownCleanup(cleanupFunction: () => Unit): Unit = {
+  def ownCleanup(cleanupFunction: () => Unit): Unit =
     cleanupFunctions += cleanupFunction
-  }
 
   def getFlag(name: String): String = flags.get(name)
 
@@ -170,9 +179,9 @@ class ExecuteContext(
 
     var exception: Exception = null
     for (cleanupFunction <- cleanupFunctions) {
-      try {
+      try
         cleanupFunction()
-      } catch {
+      catch {
         case exc: Exception =>
           if (exception == null) {
             exception = new RuntimeException("ExecuteContext could not cleanup all resources")

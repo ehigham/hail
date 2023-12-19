@@ -1,10 +1,11 @@
 package is.hail.variant
 
 import is.hail.TestUtils
-import is.hail.check.Prop._
 import is.hail.check.Gen
+import is.hail.check.Prop._
 import is.hail.testUtils.Variant
 import is.hail.utils._
+
 import org.scalatest.testng.TestNGSuite
 import org.testng.annotations.Test
 
@@ -35,9 +36,11 @@ class GenotypeSuite extends TestNGSuite {
   }
 
   @Test def testGtFromLinear() {
-    val gen = for (nGenotype <- Gen.choose(2, 5).map(triangleNumberOf);
-      dosageGen = Gen.partition(nGenotype, 32768);
-      result <- dosageGen) yield result
+    val gen = for {
+      nGenotype <- Gen.choose(2, 5).map(triangleNumberOf)
+      dosageGen = Gen.partition(nGenotype, 32768)
+      result <- dosageGen
+    } yield result
 
     val p = forAll(gen) { gp =>
       val gt = Option(uniqueMaxIndex(gp))
@@ -70,11 +73,11 @@ class GenotypeSuite extends TestNGSuite {
     assert((0 until 9).forall { gt =>
       val c = Call2.fromUnphasedDiploidGtIndex(gt)
       !Call.isPhased(c) &&
-        Call.ploidy(c) == 2 &&
-        Call.isDiploid(c) &&
-        Call.isUnphasedDiploid(c) &&
-        Call.unphasedDiploidGtIndex(c) == gt &&
-        Call.alleleRepr(c) == gt
+      Call.ploidy(c) == 2 &&
+      Call.isDiploid(c) &&
+      Call.isUnphasedDiploid(c) &&
+      Call.unphasedDiploidGtIndex(c) == gt &&
+      Call.alleleRepr(c) == gt
     })
 
     val c0 = Call2(0, 0, phased = true)
@@ -88,28 +91,38 @@ class GenotypeSuite extends TestNGSuite {
     assert(x.forall { case (c, unphasedGt, alleleRepr) =>
       val alleles = Call.alleles(c)
       c != Call2.fromUnphasedDiploidGtIndex(unphasedGt) &&
-        Call.isPhased(c) &&
-        Call.ploidy(c) == 2
+      Call.isPhased(c) &&
+      Call.ploidy(c) == 2
       Call.isDiploid(c) &&
-        !Call.isUnphasedDiploid(c) &&
-        Call.unphasedDiploidGtIndex(Call2(alleles(0), alleles(1))) == unphasedGt &&
-        Call.alleleRepr(c) == alleleRepr
+      !Call.isUnphasedDiploid(c) &&
+      Call.unphasedDiploidGtIndex(Call2(alleles(0), alleles(1))) == unphasedGt &&
+      Call.alleleRepr(c) == alleleRepr
     })
-    
-    assert(Call.isHomRef(c0) && !Call.isHet(c0) && !Call.isHomVar(c0) && 
-      !Call.isHetNonRef(c0) && !Call.isHetRef(c0) && !Call.isNonRef(c0))
 
-    assert(!Call.isHomRef(c1a) && Call.isHet(c1a) && !Call.isHomVar(c1a) &&
-      !Call.isHetNonRef(c1a) && Call.isHetRef(c1a) && Call.isNonRef(c1a))
+    assert(
+      Call.isHomRef(c0) && !Call.isHet(c0) && !Call.isHomVar(c0) &&
+        !Call.isHetNonRef(c0) && !Call.isHetRef(c0) && !Call.isNonRef(c0)
+    )
 
-    assert(!Call.isHomRef(c1b) && Call.isHet(c1b) && !Call.isHomVar(c1b) &&
-      !Call.isHetNonRef(c1b) && Call.isHetRef(c1b) && Call.isNonRef(c1b))
+    assert(
+      !Call.isHomRef(c1a) && Call.isHet(c1a) && !Call.isHomVar(c1a) &&
+        !Call.isHetNonRef(c1a) && Call.isHetRef(c1a) && Call.isNonRef(c1a)
+    )
 
-    assert(!Call.isHomRef(c2) && !Call.isHet(c2) && Call.isHomVar(c2) &&
-      !Call.isHetNonRef(c2) && !Call.isHetRef(c2) && Call.isNonRef(c2))
+    assert(
+      !Call.isHomRef(c1b) && Call.isHet(c1b) && !Call.isHomVar(c1b) &&
+        !Call.isHetNonRef(c1b) && Call.isHetRef(c1b) && Call.isNonRef(c1b)
+    )
 
-    assert(!Call.isHomRef(c4) && Call.isHet(c4) && !Call.isHomVar(c4) &&
-      Call.isHetNonRef(c4) && !Call.isHetRef(c4) && Call.isNonRef(c4))
+    assert(
+      !Call.isHomRef(c2) && !Call.isHet(c2) && Call.isHomVar(c2) &&
+        !Call.isHetNonRef(c2) && !Call.isHetRef(c2) && Call.isNonRef(c2)
+    )
+
+    assert(
+      !Call.isHomRef(c4) && Call.isHet(c4) && !Call.isHomVar(c4) &&
+        Call.isHetNonRef(c4) && !Call.isHetRef(c4) && Call.isNonRef(c4)
+    )
 
     assert(Call.parse("-") == Call0())
     assert(Call.parse("|-") == Call0(true))

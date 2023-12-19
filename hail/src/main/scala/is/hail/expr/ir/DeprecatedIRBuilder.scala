@@ -22,13 +22,12 @@ object DeprecatedIRBuilder {
 
   implicit def booleanToProxy(b: Boolean): IRProxy = if (b) True() else False()
 
-  implicit def ref(s: Symbol): IRProxy = (env: E) =>
-    Ref(s.name, env.lookup(s.name))
+  implicit def ref(s: Symbol): IRProxy = (env: E) => Ref(s.name, env.lookup(s.name))
 
   implicit def symbolToSymbolProxy(s: Symbol): SymbolProxy = new SymbolProxy(s)
 
   implicit def arrayToProxy(seq: IndexedSeq[IRProxy]): IRProxy = (env: E) => {
-    val irs = seq.map(_ (env))
+    val irs = seq.map(_(env))
     val elType = irs.head.typ
     MakeArray(irs, TArray(elType))
   }
@@ -40,12 +39,10 @@ object DeprecatedIRBuilder {
 
   def irArrayLen(a: IRProxy): IRProxy = (env: E) => ArrayLen(a(env))
 
-
   def irIf(cond: IRProxy)(cnsq: IRProxy)(altr: IRProxy): IRProxy = (env: E) =>
     If(cond(env), cnsq(env), altr(env))
 
-  def irDie(message: IRProxy, typ: Type): IRProxy = (env: E) =>
-    Die(message(env), typ, -1)
+  def irDie(message: IRProxy, typ: Type): IRProxy = (env: E) => Die(message(env), typ, -1)
 
   def makeArray(first: IRProxy, rest: IRProxy*): IRProxy =
     arrayToProxy((first +: rest).toArray[IRProxy])
@@ -61,12 +58,13 @@ object DeprecatedIRBuilder {
   }
 
   def makeTuple(values: IRProxy*): IRProxy = (env: E) =>
-    MakeTuple.ordered(values.toArray.map(_ (env)))
+    MakeTuple.ordered(values.toArray.map(_(env)))
 
   def applyAggOp(
-                  op: AggOp,
-                  initOpArgs: IndexedSeq[IRProxy] = FastSeq(),
-                  seqOpArgs: IndexedSeq[IRProxy] = FastSeq()): IRProxy = (env: E) => {
+    op: AggOp,
+    initOpArgs: IndexedSeq[IRProxy] = FastSeq(),
+    seqOpArgs: IndexedSeq[IRProxy] = FastSeq(),
+  ): IRProxy = (env: E) => {
 
     val i = initOpArgs.map(x => x(env))
     val s = seqOpArgs.map(x => x(env))
@@ -121,7 +119,12 @@ object DeprecatedIRBuilder {
       keyBy(FastSeq())
         .collect()
         .apply('rows)
-        .map(Symbol(uid) ~> makeTuple(Symbol(uid).selectFields(keyFields: _*), Symbol(uid).selectFields(valueFields: _*)))
+        .map(
+          Symbol(uid) ~> makeTuple(
+            Symbol(uid).selectFields(keyFields: _*),
+            Symbol(uid).selectFields(valueFields: _*),
+          )
+        )
         .toDict
     }
 
@@ -130,16 +133,14 @@ object DeprecatedIRBuilder {
   }
 
   class IRProxy(val ir: E => IR) extends AnyVal with Dynamic {
-    def apply(idx: IRProxy): IRProxy = (env: E) =>
-      ArrayRef(ir(env), idx(env))
+    def apply(idx: IRProxy): IRProxy = (env: E) => ArrayRef(ir(env), idx(env))
 
     def invoke(name: String, rt: Type, args: IRProxy*): IRProxy = { env: E =>
-      val irArgs = Array(ir(env)) ++ args.map(_ (env))
+      val irArgs = Array(ir(env)) ++ args.map(_(env))
       is.hail.expr.ir.invoke(name, rt, irArgs: _*)
     }
 
-    def selectDynamic(field: String): IRProxy = (env: E) =>
-      GetField(ir(env), field)
+    def selectDynamic(field: String): IRProxy = (env: E) => GetField(ir(env), field)
 
     def +(other: IRProxy): IRProxy = (env: E) => ApplyBinaryPrimOp(Add(), ir(env), other(env))
 
@@ -147,9 +148,11 @@ object DeprecatedIRBuilder {
 
     def *(other: IRProxy): IRProxy = (env: E) => ApplyBinaryPrimOp(Multiply(), ir(env), other(env))
 
-    def /(other: IRProxy): IRProxy = (env: E) => ApplyBinaryPrimOp(FloatingPointDivide(), ir(env), other(env))
+    def /(other: IRProxy): IRProxy = (env: E) =>
+      ApplyBinaryPrimOp(FloatingPointDivide(), ir(env), other(env))
 
-    def floorDiv(other: IRProxy): IRProxy = (env: E) => ApplyBinaryPrimOp(RoundToNegInfDivide(), ir(env), other(env))
+    def floorDiv(other: IRProxy): IRProxy = (env: E) =>
+      ApplyBinaryPrimOp(RoundToNegInfDivide(), ir(env), other(env))
 
     def &&(other: IRProxy): IRProxy = invoke("land", TBoolean, ir, other)
 
@@ -217,8 +220,11 @@ object DeprecatedIRBuilder {
 
     def insertFields(fields: (Symbol, IRProxy)*): IRProxy = insertFieldsList(fields)
 
-    def insertFieldsList(fields: Seq[(Symbol, IRProxy)], ordering: Option[IndexedSeq[String]] = None): IRProxy = (env: E) =>
-      InsertFields(ir(env), fields.map { case (s, fir) => (s.name, fir(env))}, ordering)
+    def insertFieldsList(
+      fields: Seq[(Symbol, IRProxy)],
+      ordering: Option[IndexedSeq[String]] = None,
+    ): IRProxy = (env: E) =>
+      InsertFields(ir(env), fields.map { case (s, fir) => (s.name, fir(env)) }, ordering)
 
     def selectFields(fields: String*): IRProxy = (env: E) =>
       SelectFields(ir(env), fields.toArray[String])
@@ -231,17 +237,20 @@ object DeprecatedIRBuilder {
 
     def dropFields(fields: Symbol*): IRProxy = dropFieldList(fields.map(_.name).toArray[String])
 
-    def insertStruct(other: IRProxy, ordering: Option[IndexedSeq[String]] = None): IRProxy = (env: E) => {
-      val right = other(env)
-      val sym = genUID()
-      Let(FastSeq(sym -> right),
-        InsertFields(
-          ir(env),
-          right.typ.asInstanceOf[TStruct].fieldNames.map(f => f -> GetField(Ref(sym, right.typ), f)),
-          ordering
+    def insertStruct(other: IRProxy, ordering: Option[IndexedSeq[String]] = None): IRProxy =
+      (env: E) => {
+        val right = other(env)
+        val sym = genUID()
+        Let(
+          FastSeq(sym -> right),
+          InsertFields(
+            ir(env),
+            right.typ
+              .asInstanceOf[TStruct].fieldNames.map(f => f -> GetField(Ref(sym, right.typ), f)),
+            ordering,
+          ),
         )
-      )
-    }
+      }
 
     def len: IRProxy = (env: E) => ArrayLen(ir(env))
 
@@ -256,7 +265,9 @@ object DeprecatedIRBuilder {
     def filter(pred: LambdaProxy): IRProxy = (env: E) => {
       val array = ir(env)
       val eltType = array.typ.asInstanceOf[TArray].elementType
-      ToArray(StreamFilter(ToStream(array), pred.s.name, pred.body(env.bind(pred.s.name -> eltType))))
+      ToArray(
+        StreamFilter(ToStream(array), pred.s.name, pred.body(env.bind(pred.s.name -> eltType)))
+      )
     }
 
     def map(f: LambdaProxy): IRProxy = (env: E) => {
@@ -267,13 +278,20 @@ object DeprecatedIRBuilder {
 
     def aggExplode(f: LambdaProxy): IRProxy = (env: E) => {
       val array = ir(env)
-      AggExplode(ToStream(array), f.s.name, f.body(env.bind(f.s.name, array.typ.asInstanceOf[TArray].elementType)), isScan = false)
+      AggExplode(
+        ToStream(array),
+        f.s.name,
+        f.body(env.bind(f.s.name, array.typ.asInstanceOf[TArray].elementType)),
+        isScan = false,
+      )
     }
 
     def flatMap(f: LambdaProxy): IRProxy = (env: E) => {
       val array = ir(env)
       val eltType = array.typ.asInstanceOf[TArray].elementType
-      ToArray(StreamFlatMap(ToStream(array), f.s.name, ToStream(f.body(env.bind(f.s.name -> eltType)))))
+      ToArray(
+        StreamFlatMap(ToStream(array), f.s.name, ToStream(f.body(env.bind(f.s.name -> eltType))))
+      )
     }
 
     def streamAgg(f: LambdaProxy): IRProxy = (env: E) => {
@@ -288,11 +306,23 @@ object DeprecatedIRBuilder {
       ToArray(StreamAggScan(ToStream(array), f.s.name, f.body(env.bind(f.s.name -> eltType))))
     }
 
-    def arraySlice(start: IRProxy, stop: Option[IRProxy], step: IRProxy): IRProxy = {
-      (env: E) => ArraySlice(this.ir(env), start.ir(env), stop.map(inner => inner.ir(env)), step.ir(env), ErrorIDs.NO_ERROR)
+    def arraySlice(start: IRProxy, stop: Option[IRProxy], step: IRProxy): IRProxy = { (env: E) =>
+      ArraySlice(
+        this.ir(env),
+        start.ir(env),
+        stop.map(inner => inner.ir(env)),
+        step.ir(env),
+        ErrorIDs.NO_ERROR,
+      )
     }
 
-    def aggElements(elementsSym: Symbol, indexSym: Symbol, knownLength: Option[IRProxy])(aggBody: IRProxy): IRProxy = (env: E) => {
+    def aggElements(
+      elementsSym: Symbol,
+      indexSym: Symbol,
+      knownLength: Option[IRProxy],
+    )(
+      aggBody: IRProxy
+    ): IRProxy = (env: E) => {
       val array = ir(env)
       val eltType = array.typ.asInstanceOf[TArray].elementType
       AggArrayPerElement(
@@ -300,11 +330,13 @@ object DeprecatedIRBuilder {
         elementsSym.name,
         indexSym.name,
         aggBody.apply(env.bind(elementsSym.name -> eltType, indexSym.name -> TInt32)),
-        knownLength.map(_ (env)),
-        isScan = false)
+        knownLength.map(_(env)),
+        isScan = false,
+      )
     }
 
-    def sort(ascending: IRProxy, onKey: Boolean = false): IRProxy = (env: E) => ArraySort(ToStream(ir(env)), ascending(env), onKey)
+    def sort(ascending: IRProxy, onKey: Boolean = false): IRProxy = (env: E) =>
+      ArraySort(ToStream(ir(env)), ascending(env), onKey)
 
     def groupByKey: IRProxy = (env: E) => GroupByKey(ToStream(ir(env)))
 
@@ -312,15 +344,16 @@ object DeprecatedIRBuilder {
 
     def toDict: IRProxy = (env: E) => ToDict(ToStream(ir(env)))
 
-    def parallelize(nPartitions: Option[Int] = None): TableIR = TableParallelize(ir(Env.empty), nPartitions)
+    def parallelize(nPartitions: Option[Int] = None): TableIR =
+      TableParallelize(ir(Env.empty), nPartitions)
 
     def arrayStructToDict(keyFields: IndexedSeq[String]): IRProxy = {
       val element = Symbol(genUID())
       ir
-        .map(element ~>
-          makeTuple(
-            element.selectFields(keyFields: _*),
-            element.dropFieldList(keyFields)))
+        .map(
+          element ~>
+            makeTuple(element.selectFields(keyFields: _*), element.dropFieldList(keyFields))
+        )
         .toDict
     }
 
@@ -344,9 +377,22 @@ object DeprecatedIRBuilder {
           val name = sym.name
           val value = binding(env)
           scope match {
-            case Scope.EVAL => Let(FastSeq(name -> value), bind(rest, body, env.bind(name -> value.typ), scope))
-            case Scope.AGG => AggLet(name, value, bind(rest, body, env.bind(name -> value.typ), scope), isScan = false)
-            case Scope.SCAN => AggLet(name, value, bind(rest, body, env.bind(name -> value.typ), scope), isScan = true)
+            case Scope.EVAL =>
+              Let(FastSeq(name -> value), bind(rest, body, env.bind(name -> value.typ), scope))
+            case Scope.AGG =>
+              AggLet(
+                name,
+                value,
+                bind(rest, body, env.bind(name -> value.typ), scope),
+                isScan = false,
+              )
+            case Scope.SCAN =>
+              AggLet(
+                name,
+                value,
+                bind(rest, body, env.bind(name -> value.typ), scope),
+                isScan = true,
+              )
           }
         case Seq() =>
           body(env)
@@ -384,16 +430,18 @@ object DeprecatedIRBuilder {
   }
 
   object MapIRProxy {
-    def apply(f: (IRProxy) => IRProxy)(x: IRProxy): IRProxy = (e: E) => {
-      MapIR(x => f(x)(e))(x(e))
-    }
+    def apply(f: (IRProxy) => IRProxy)(x: IRProxy): IRProxy = (e: E) => MapIR(x => f(x)(e))(x(e))
   }
 
-  def subst(x: IRProxy, env: BindingEnv[IRProxy]): IRProxy = (e: E) => {
-    Subst(x(e), BindingEnv(env.eval.mapValues(_ (e)),
-      agg = env.agg.map(_.mapValues(_ (e))),
-      scan = env.scan.map(_.mapValues(_ (e)))))
-  }
+  def subst(x: IRProxy, env: BindingEnv[IRProxy]): IRProxy = (e: E) =>
+    Subst(
+      x(e),
+      BindingEnv(
+        env.eval.mapValues(_(e)),
+        agg = env.agg.map(_.mapValues(_(e))),
+        scan = env.scan.map(_.mapValues(_(e))),
+      ),
+    )
 
   def lift(f: (IR) => IRProxy)(x: IRProxy): IRProxy = (e: E) => f(x(e))(e)
 }

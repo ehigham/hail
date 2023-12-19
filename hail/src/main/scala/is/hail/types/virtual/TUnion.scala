@@ -5,6 +5,7 @@ import is.hail.backend.HailStateManager
 import is.hail.check.Gen
 import is.hail.expr.ir.IRParser
 import is.hail.utils._
+
 import org.json4s.CustomSerializer
 import org.json4s.JsonAST.JString
 
@@ -30,19 +31,18 @@ final case class Case(name: String, typ: Type, index: Int) {
   }
 }
 
-class TUnionSerializer extends CustomSerializer[TUnion](format => (
-  { case JString(s) => IRParser.parseUnionType(s) },
-  { case t: TUnion => JString(t.parsableString()) }))
+class TUnionSerializer extends CustomSerializer[TUnion](format =>
+      (
+        { case JString(s) => IRParser.parseUnionType(s) },
+        { case t: TUnion => JString(t.parsableString()) },
+      )
+    )
 
 object TUnion {
   val empty: TUnion = TUnion(FastSeq())
 
   def apply(args: (String, Type)*): TUnion =
-    TUnion(args
-      .iterator
-      .zipWithIndex
-      .map { case ((n, t), i) => Case(n, t, i) }
-      .toArray)
+    TUnion(args.iterator.zipWithIndex.map { case ((n, t), i) => Case(n, t, i) }.toArray)
 }
 
 final case class TUnion(cases: IndexedSeq[Case]) extends Type {
@@ -57,9 +57,9 @@ final case class TUnion(cases: IndexedSeq[Case]) extends Type {
   override def unify(concrete: Type): Boolean = concrete match {
     case TUnion(cfields) =>
       cases.length == cfields.length &&
-        (cases, cfields).zipped.forall { case (f, cf) =>
-          f.unify(cf)
-        }
+      (cases, cfields).zipped.forall { case (f, cf) =>
+        f.unify(cf)
+      }
     case _ => false
   }
 
@@ -98,7 +98,7 @@ final case class TUnion(cases: IndexedSeq[Case]) extends Type {
       sb.append(prettyIdentifier(field.name))
       sb.append(": ")
       field.typ.pyString(sb)
-    }) { sb.append(", ")}
+    })(sb.append(", "))
     sb.append('}')
   }
 

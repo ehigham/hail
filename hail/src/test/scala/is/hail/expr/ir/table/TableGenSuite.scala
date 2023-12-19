@@ -1,14 +1,15 @@
 package is.hail.expr.ir.table
 
+import is.hail.{ExecStrategy, HailSuite}
 import is.hail.TestUtils.loweredExecute
 import is.hail.backend.ExecuteContext
-import is.hail.expr.ir.TestUtils.IRAggCollect
 import is.hail.expr.ir._
+import is.hail.expr.ir.TestUtils.IRAggCollect
 import is.hail.expr.ir.lowering.{DArrayLowering, LowerTableIR}
 import is.hail.rvd.RVDPartitioner
 import is.hail.types.virtual._
 import is.hail.utils.{FastSeq, HailException, Interval}
-import is.hail.{ExecStrategy, HailSuite}
+
 import org.apache.spark.SparkException
 import org.apache.spark.sql.Row
 import org.scalatest.Matchers._
@@ -32,7 +33,10 @@ class TableGenSuite extends HailSuite {
   @Test(groups = Array("construction", "typecheck"))
   def testWithInvalidGlobalsType: Unit = {
     val ex = intercept[IllegalArgumentException] {
-      mkTableGen(globals = Some(Str("oh noes :'(")), body = Some(MakeStream(IndexedSeq(), TStream(TStruct())))).typecheck()
+      mkTableGen(
+        globals = Some(Str("oh noes :'(")),
+        body = Some(MakeStream(IndexedSeq(), TStream(TStruct()))),
+      ).typecheck()
     }
     ex.getMessage should include("globals")
     ex.getMessage should include(s"Expected: ${classOf[TStruct].getName}")
@@ -52,7 +56,8 @@ class TableGenSuite extends HailSuite {
   @Test(groups = Array("construction", "typecheck"))
   def testWithInvalidBodyElementType: Unit = {
     val ex = intercept[IllegalArgumentException] {
-      mkTableGen(body = Some(MakeStream(IndexedSeq(Str("oh noes :'(")), TStream(TString)))).typecheck()
+      mkTableGen(body = Some(MakeStream(IndexedSeq(Str("oh noes :'(")), TStream(TString))))
+        .typecheck()
     }
     ex.getMessage should include("body.elementType")
     ex.getMessage should include(s"Expected: ${classOf[TStruct].getName}")
@@ -62,7 +67,9 @@ class TableGenSuite extends HailSuite {
   @Test(groups = Array("construction", "typecheck"))
   def testWithInvalidPartitionerKeyType: Unit = {
     val ex = intercept[IllegalArgumentException] {
-      mkTableGen(partitioner = Some(RVDPartitioner.empty(ctx.stateManager, TStruct("does-not-exist" -> TInt32)))).typecheck()
+      mkTableGen(partitioner =
+        Some(RVDPartitioner.empty(ctx.stateManager, TStruct("does-not-exist" -> TInt32)))
+      ).typecheck()
     }
     ex.getMessage should include("partitioner")
   }
@@ -70,7 +77,9 @@ class TableGenSuite extends HailSuite {
   @Test(groups = Array("construction", "typecheck"))
   def testWithTooLongPartitionerKeyType: Unit = {
     val ex = intercept[IllegalArgumentException] {
-      mkTableGen(partitioner = Some(RVDPartitioner.empty(ctx.stateManager, TStruct("does-not-exist" -> TInt32)))).typecheck()
+      mkTableGen(partitioner =
+        Some(RVDPartitioner.empty(ctx.stateManager, TStruct("does-not-exist" -> TInt32)))
+      ).typecheck()
     }
     ex.getMessage should include("partitioner")
   }
@@ -93,15 +102,15 @@ class TableGenSuite extends HailSuite {
   @Test(groups = Array("lowering"))
   def testNumberOfContextsMatchesPartitions: Unit = {
     val errorId = 42
-    val table = TestUtils.collect(mkTableGen(
-      partitioner = Some(RVDPartitioner.unkeyed(ctx.stateManager, 0)),
-      errorId = Some(errorId)
-    ))
+    val table = TestUtils.collect(
+      mkTableGen(
+        partitioner = Some(RVDPartitioner.unkeyed(ctx.stateManager, 0)),
+        errorId = Some(errorId),
+      )
+    )
     val lowered = LowerTableIR(table, DArrayLowering.All, ctx, LoweringAnalyses(table, ctx))
     val ex = intercept[HailException] {
-      ExecuteContext.scoped() { ctx =>
-        loweredExecute(ctx, lowered, Env.empty, FastSeq(), None)
-      }
+      ExecuteContext.scoped()(ctx => loweredExecute(ctx, lowered, Env.empty, FastSeq(), None))
     }
     ex.errorId shouldBe errorId
     ex.getMessage should include("partitioner contains 0 partitions, got 2 contexts.")
@@ -110,17 +119,24 @@ class TableGenSuite extends HailSuite {
   @Test(groups = Array("lowering"))
   def testRowsAreCorrectlyKeyed: Unit = {
     val errorId = 56
-    val table = TestUtils.collect(mkTableGen(
-      partitioner = Some(new RVDPartitioner(ctx.stateManager, TStruct("a" -> TInt32), FastSeq(
-        Interval(Row(0), Row(0), true, false), Interval(Row(1), Row(1), true, false)
-      ))),
-      errorId = Some(errorId)
-    ))
+    val table = TestUtils.collect(
+      mkTableGen(
+        partitioner = Some(
+          new RVDPartitioner(
+            ctx.stateManager,
+            TStruct("a" -> TInt32),
+            FastSeq(
+              Interval(Row(0), Row(0), true, false),
+              Interval(Row(1), Row(1), true, false),
+            ),
+          )
+        ),
+        errorId = Some(errorId),
+      )
+    )
     val lowered = LowerTableIR(table, DArrayLowering.All, ctx, LoweringAnalyses(table, ctx))
     val ex = intercept[SparkException] {
-      ExecuteContext.scoped() { ctx =>
-        loweredExecute(ctx, lowered, Env.empty, FastSeq(), None)
-      }
+      ExecuteContext.scoped()(ctx => loweredExecute(ctx, lowered, Env.empty, FastSeq(), None))
     }.getCause.asInstanceOf[HailException]
 
     ex.errorId shouldBe errorId
@@ -137,14 +153,16 @@ class TableGenSuite extends HailSuite {
   @Test(groups = Array("optimization", "prune"))
   def testPruneGlobals: Unit = {
     val cname = "contexts"
-    val start = mkTableGen(cname = Some(cname), body = Some {
-      val elem = MakeStruct(IndexedSeq("a" -> Ref(cname, TInt32)))
-      MakeStream(IndexedSeq(elem), TStream(elem.typ))
-    })
-
-    val TableAggregate(pruned, _) = PruneDeadFields(ctx,
-      TableAggregate(start, IRAggCollect(Ref("row", start.typ.rowType)))
+    val start = mkTableGen(
+      cname = Some(cname),
+      body = Some {
+        val elem = MakeStruct(IndexedSeq("a" -> Ref(cname, TInt32)))
+        MakeStream(IndexedSeq(elem), TStream(elem.typ))
+      },
     )
+
+    val TableAggregate(pruned, _) =
+      PruneDeadFields(ctx, TableAggregate(start, IRAggCollect(Ref("row", start.typ.rowType))))
 
     pruned.typ should not be start.typ
     pruned.typ.globalType shouldBe TStruct()
@@ -159,14 +177,15 @@ class TableGenSuite extends HailSuite {
     pruned.typ.rowType shouldBe TStruct()
   }
 
-  def mkTableGen(contexts: Option[IR] = None,
-                 globals: Option[IR] = None,
-                 cname: Option[String] = None,
-                 gname: Option[String] = None,
-                 body: Option[IR] = None,
-                 partitioner: Option[RVDPartitioner] = None,
-                 errorId: Option[Int] = None
-                ): TableGen = {
+  def mkTableGen(
+    contexts: Option[IR] = None,
+    globals: Option[IR] = None,
+    cname: Option[String] = None,
+    gname: Option[String] = None,
+    body: Option[IR] = None,
+    partitioner: Option[RVDPartitioner] = None,
+    errorId: Option[Int] = None,
+  ): TableGen = {
     val theGlobals = globals.getOrElse(MakeStruct(IndexedSeq("g" -> 0)))
     val contextName = cname.getOrElse(genUID())
     val globalsName = gname.getOrElse(genUID())
@@ -177,13 +196,19 @@ class TableGenSuite extends HailSuite {
       contextName,
       globalsName,
       body.getOrElse {
-        val elem = MakeStruct(IndexedSeq(
-          "a" -> ApplyBinaryPrimOp(Multiply(), Ref(contextName, TInt32), GetField(theGlobals, "g"))
-        ))
+        val elem = MakeStruct(
+          IndexedSeq(
+            "a" -> ApplyBinaryPrimOp(
+              Multiply(),
+              Ref(contextName, TInt32),
+              GetField(theGlobals, "g"),
+            )
+          )
+        )
         MakeStream(IndexedSeq(elem), TStream(elem.typ))
       },
       partitioner.getOrElse(RVDPartitioner.unkeyed(ctx.stateManager, 2)),
-      errorId.getOrElse(ErrorIDs.NO_ERROR)
+      errorId.getOrElse(ErrorIDs.NO_ERROR),
     )
   }
 }

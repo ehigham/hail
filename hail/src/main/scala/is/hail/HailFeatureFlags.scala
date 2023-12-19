@@ -2,6 +2,7 @@ package is.hail
 
 import is.hail.backend.ExecutionCache
 import is.hail.utils._
+
 import org.json4s.JsonAST.{JArray, JObject, JString}
 
 import scala.collection.mutable
@@ -50,8 +51,8 @@ object HailFeatureFlags {
   def fromMap(m: Map[String, String]): HailFeatureFlags =
     new HailFeatureFlags(
       mutable.Map(
-        HailFeatureFlags.defaults.map {
-          case (flagName, (_, default)) => (flagName, m.getOrElse(flagName, default))
+        HailFeatureFlags.defaults.map { case (flagName, (_, default)) =>
+          (flagName, m.getOrElse(flagName, default))
         }.toFastSeq: _*
       )
     )
@@ -73,11 +74,12 @@ class HailFeatureFlags private (
   def exists(flag: String): Boolean = flags.contains(flag)
 
   def toJSONEnv: JArray =
-    JArray(flags.filter { case (_, v) =>
-      v != null
-    }.map{ case (name, v) =>
-      JObject(
-        "name" -> JString(HailFeatureFlags.defaults(name)._1),
-        "value" -> JString(v))
-    }.toList)
+    JArray(
+      flags
+        .filter { case (_, v) =>
+          v != null
+        }.map { case (name, v) =>
+          JObject("name" -> JString(HailFeatureFlags.defaults(name)._1), "value" -> JString(v))
+        }.toList
+    )
 }

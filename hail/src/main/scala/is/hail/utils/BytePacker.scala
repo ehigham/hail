@@ -12,7 +12,8 @@ class BytePacker {
   def getSpace(size: Long, alignment: Long): Option[Long] = {
 
     // disregard spaces smaller than size
-    slots.iteratorFrom(size -> 0)
+    slots
+      .iteratorFrom(size -> 0)
       .foreach { x =>
         val spaceSize = x._1
         val start = x._2
