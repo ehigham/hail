@@ -15,15 +15,16 @@ import is.hail.shadedazure.com.azure.storage.blob.models._
 import is.hail.shadedazure.com.azure.storage.blob.specialized.BlockBlobClient
 import is.hail.utils._
 
-import org.json4s.Formats
-import org.json4s.jackson.JsonMethods
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 import java.io.{ByteArrayOutputStream, FileNotFoundException, OutputStream}
 import java.net.URI
 import java.nio.file.Paths
 import java.time.Duration
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+
+import org.json4s.Formats
+import org.json4s.jackson.JsonMethods
 
 abstract class AzureStorageFSURL(
   val account: String,

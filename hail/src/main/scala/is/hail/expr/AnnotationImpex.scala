@@ -6,14 +6,13 @@ import is.hail.types.virtual._
 import is.hail.utils.{Interval, _}
 import is.hail.variant._
 
-import org.json4s._
-import org.json4s.jackson.{JsonMethods, Serialization}
-
 import scala.collection.mutable
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 import org.json4s
+import org.json4s._
+import org.json4s.jackson.{JsonMethods, Serialization}
 
 object SparkAnnotationImpex {
   val invalidCharacters: Set[Char] = " ,;{}()\n\t=".toSet

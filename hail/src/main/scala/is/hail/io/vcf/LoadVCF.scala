@@ -13,7 +13,7 @@ import is.hail.expr.ir.{
 import is.hail.expr.ir.lowering.TableStage
 import is.hail.expr.ir.streams.StreamProducer
 import is.hail.io.{VCFAttributes, VCFMetadata}
-import is.hail.io.fs.{FileListEntry, FS}
+import is.hail.io.fs.{FS, FileListEntry}
 import is.hail.io.tabix._
 import is.hail.io.vcf.LoadVCF.{getHeaderLines, parseHeader}
 import is.hail.rvd.{RVDPartitioner, RVDType}
@@ -25,19 +25,17 @@ import is.hail.types.virtual._
 import is.hail.utils._
 import is.hail.variant._
 
-import org.json4s.{DefaultFormats, Formats, JValue}
-import org.json4s.JsonAST.{JArray, JObject, JString}
-import org.json4s.jackson.JsonMethods
-
 import scala.annotation.meta.param
 import scala.annotation.switch
 import scala.collection.JavaConverters._
-import scala.language.implicitConversions
 
 import htsjdk.variant.vcf._
 import org.apache.spark.{Partition, TaskContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Row
+import org.json4s.{DefaultFormats, Formats, JValue}
+import org.json4s.JsonAST.{JArray, JObject, JString}
+import org.json4s.jackson.JsonMethods
 
 class BufferedLineIterator(bit: BufferedIterator[String])
     extends htsjdk.tribble.readers.LineIterator {
@@ -47,7 +45,7 @@ class BufferedLineIterator(bit: BufferedIterator[String])
 
   override def next(): String = bit.next()
 
-  override def remove() {
+  override def remove(): Unit = {
     throw new UnsupportedOperationException
   }
 }
@@ -587,7 +585,7 @@ final class VCFLine(
     v
   }
 
-  def parseAddCall(rvb: RegionValueBuilder) {
+  def parseAddCall(rvb: RegionValueBuilder): Unit = {
     if (pos == line.length)
       parseError("empty call")
 
@@ -653,7 +651,7 @@ final class VCFLine(
     v * mul
   }
 
-  def parseAddFormatInt(rvb: RegionValueBuilder) {
+  def parseAddFormatInt(rvb: RegionValueBuilder): Unit = {
     if (formatFieldMissing()) {
       rvb.setMissing()
       pos += 1
@@ -669,7 +667,7 @@ final class VCFLine(
     line.substring(start, end)
   }
 
-  def parseAddFormatString(rvb: RegionValueBuilder) {
+  def parseAddFormatString(rvb: RegionValueBuilder): Unit = {
     if (formatFieldMissing()) {
       rvb.setMissing()
       pos += 1
@@ -682,7 +680,7 @@ final class VCFLine(
     VCFUtils.parseVcfDouble(s).toFloat
   }
 
-  def parseAddFormatFloat(rvb: RegionValueBuilder) {
+  def parseAddFormatFloat(rvb: RegionValueBuilder): Unit = {
     if (formatFieldMissing()) {
       rvb.setMissing()
       pos += 1
@@ -696,7 +694,7 @@ final class VCFLine(
     VCFUtils.parseVcfDouble(s)
   }
 
-  def parseAddFormatDouble(rvb: RegionValueBuilder) {
+  def parseAddFormatDouble(rvb: RegionValueBuilder): Unit = {
     if (formatFieldMissing()) {
       rvb.setMissing()
       pos += 1
@@ -739,7 +737,7 @@ final class VCFLine(
     s.toDouble
   }
 
-  def parseArrayElement[T](ab: MissingArrayBuilder[T], eltParser: () => T) {
+  def parseArrayElement[T](ab: MissingArrayBuilder[T], eltParser: () => T): Unit = {
     if (formatArrayElementMissing()) {
       if (arrayElementsRequired)
         parseError(
@@ -752,7 +750,7 @@ final class VCFLine(
     }
   }
 
-  def parseIntArrayElement() {
+  def parseIntArrayElement(): Unit = {
     if (formatArrayElementMissing()) {
       if (arrayElementsRequired)
         parseError(
@@ -765,7 +763,7 @@ final class VCFLine(
     }
   }
 
-  def parseFloatArrayElement() {
+  def parseFloatArrayElement(): Unit = {
     if (formatArrayElementMissing()) {
       if (arrayElementsRequired)
         parseError(
@@ -778,7 +776,7 @@ final class VCFLine(
     }
   }
 
-  def parseDoubleArrayElement() {
+  def parseDoubleArrayElement(): Unit = {
     if (formatArrayElementMissing()) {
       if (arrayElementsRequired)
         parseError(
@@ -791,7 +789,7 @@ final class VCFLine(
     }
   }
 
-  def parseStringArrayElement() {
+  def parseStringArrayElement(): Unit = {
     if (formatArrayElementMissing()) {
       if (arrayElementsRequired)
         parseError(
@@ -804,7 +802,7 @@ final class VCFLine(
     }
   }
 
-  def parseAddFormatArrayInt(rvb: RegionValueBuilder) {
+  def parseAddFormatArrayInt(rvb: RegionValueBuilder): Unit = {
     if (formatFieldMissing()) {
       rvb.setMissing()
       pos += 1
@@ -833,7 +831,7 @@ final class VCFLine(
     }
   }
 
-  def parseAddFormatArrayString(rvb: RegionValueBuilder) {
+  def parseAddFormatArrayString(rvb: RegionValueBuilder): Unit = {
     if (formatFieldMissing()) {
       rvb.setMissing()
       pos += 1
@@ -858,7 +856,7 @@ final class VCFLine(
     }
   }
 
-  def parseAddFormatArrayFloat(rvb: RegionValueBuilder) {
+  def parseAddFormatArrayFloat(rvb: RegionValueBuilder): Unit = {
     if (formatFieldMissing()) {
       rvb.setMissing()
       pos += 1
@@ -886,7 +884,7 @@ final class VCFLine(
     }
   }
 
-  def parseAddFormatArrayDouble(rvb: RegionValueBuilder) {
+  def parseAddFormatArrayDouble(rvb: RegionValueBuilder): Unit = {
     if (formatFieldMissing()) {
       rvb.setMissing()
       pos += 1
@@ -941,7 +939,7 @@ final class VCFLine(
     v * mul
   }
 
-  def parseAddInfoInt(rvb: RegionValueBuilder) {
+  def parseAddInfoInt(rvb: RegionValueBuilder): Unit = {
     if (!infoFieldMissing()) {
       rvb.setPresent()
       rvb.addInt(parseInfoInt())
@@ -956,14 +954,14 @@ final class VCFLine(
     line.substring(start, end)
   }
 
-  def parseAddInfoString(rvb: RegionValueBuilder) {
+  def parseAddInfoString(rvb: RegionValueBuilder): Unit = {
     if (!infoFieldMissing()) {
       rvb.setPresent()
       rvb.addString(parseInfoString())
     }
   }
 
-  def parseAddInfoDouble(rvb: RegionValueBuilder) {
+  def parseAddInfoDouble(rvb: RegionValueBuilder): Unit = {
     if (!infoFieldMissing()) {
       rvb.setPresent()
       rvb.addDouble(VCFUtils.parseVcfDouble(parseInfoString()))
@@ -996,7 +994,7 @@ final class VCFLine(
 
   def parseDoubleInInfoArray(): Double = VCFUtils.parseVcfDouble(parseStringInInfoArray())
 
-  def parseIntInfoArrayElement() {
+  def parseIntInfoArrayElement(): Unit = {
     if (infoArrayElementMissing()) {
       abi.addMissing()
       pos += 1 // dot
@@ -1004,7 +1002,7 @@ final class VCFLine(
       abi += parseIntInInfoArray()
   }
 
-  def parseStringInfoArrayElement() {
+  def parseStringInfoArrayElement(): Unit = {
     if (infoArrayElementMissing()) {
       abs.addMissing()
       pos += 1 // dot
@@ -1012,7 +1010,7 @@ final class VCFLine(
       abs += parseStringInInfoArray()
   }
 
-  def parseDoubleInfoArrayElement() {
+  def parseDoubleInfoArrayElement(): Unit = {
     if (infoArrayElementMissing()) {
       abd.addMissing()
       pos += 1
@@ -1021,7 +1019,7 @@ final class VCFLine(
     }
   }
 
-  def parseAddInfoArrayInt(rvb: RegionValueBuilder) {
+  def parseAddInfoArrayInt(rvb: RegionValueBuilder): Unit = {
     if (!infoFieldMissing()) {
       rvb.setPresent()
       assert(abi.length == 0)
@@ -1045,7 +1043,7 @@ final class VCFLine(
     }
   }
 
-  def parseAddInfoArrayString(rvb: RegionValueBuilder) {
+  def parseAddInfoArrayString(rvb: RegionValueBuilder): Unit = {
     if (!infoFieldMissing()) {
       rvb.setPresent()
       assert(abs.length == 0)
@@ -1069,7 +1067,7 @@ final class VCFLine(
     }
   }
 
-  def parseAddInfoArrayDouble(rvb: RegionValueBuilder) {
+  def parseAddInfoArrayDouble(rvb: RegionValueBuilder): Unit = {
     if (!infoFieldMissing()) {
       rvb.setPresent()
       assert(abd.length == 0)
@@ -1093,7 +1091,7 @@ final class VCFLine(
     }
   }
 
-  def parseAddInfoField(rvb: RegionValueBuilder, typ: Type) {
+  def parseAddInfoField(rvb: RegionValueBuilder, typ: Type): Unit = {
     val c = line(pos)
     if (c != ';' && c != '\t') {
       if (c != '=')
@@ -1132,7 +1130,7 @@ final class VCFLine(
     }
   }
 
-  def parseAddInfo(rvb: RegionValueBuilder, c: ParseLineContext) {
+  def parseAddInfo(rvb: RegionValueBuilder, c: ParseLineContext): Unit = {
     rvb.startStruct(init = true, setMissing = true)
     var i = 0
     while (i < c.infoFieldFlagIndices.length) {
@@ -1188,7 +1186,7 @@ final class FormatParser(
   missingGIndices: Array[Int],
 ) {
 
-  def parseAddField(l: VCFLine, rvb: RegionValueBuilder, i: Int) {
+  def parseAddField(l: VCFLine, rvb: RegionValueBuilder, i: Int): Unit = {
     // negative j values indicate field is pruned
     val j = formatFieldGIndex(i)
     if (j == -1)
@@ -1218,7 +1216,7 @@ final class FormatParser(
     }
   }
 
-  def setMissing(rvb: RegionValueBuilder, i: Int) {
+  def setMissing(rvb: RegionValueBuilder, i: Int): Unit = {
     val idx = formatFieldGIndex(i)
     if (idx >= 0) {
       rvb.setFieldIndex(idx)
@@ -1226,7 +1224,7 @@ final class FormatParser(
     }
   }
 
-  def parse(l: VCFLine, rvb: RegionValueBuilder) {
+  def parse(l: VCFLine, rvb: RegionValueBuilder): Unit = {
     rvb.startStruct() // g
 
     // FIXME do in bulk, add setDefinedIndex
@@ -1304,7 +1302,7 @@ class ParseLineContext(
 }
 
 object LoadVCF {
-  def warnDuplicates(ids: Array[String]) {
+  def warnDuplicates(ids: Array[String]): Unit = {
     val duplicates = ids.counter().filter(_._2 > 1)
     if (duplicates.nonEmpty) {
       warn(

@@ -13,8 +13,9 @@ import is.hail.types.physical.stypes.primitives._
 import is.hail.types.virtual._
 import is.hail.utils._
 
-import java.util.IllegalFormatConversionException
 import scala.reflect.ClassTag
+
+import java.util.IllegalFormatConversionException
 
 import org.apache.spark.sql.Row
 
@@ -200,7 +201,7 @@ object UtilFunctions extends RegistryFunctions {
         )
     }
 
-  def registerAll() {
+  def registerAll(): Unit = {
     val thisClass = getClass
 
     registerSCode4(

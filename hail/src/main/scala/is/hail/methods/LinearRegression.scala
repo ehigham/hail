@@ -163,7 +163,7 @@ case class LinearRegressionRowsSingle(
             rvb.addInt(n)
             rvb.addDouble(AC(i))
 
-            def addSlice(dm: DenseMatrix[Double]) {
+            def addSlice(dm: DenseMatrix[Double]): Unit = {
               rvb.startArray(nDependentVariables)
               var j = 0
               while (j < nDependentVariables) {
@@ -358,7 +358,7 @@ case class LinearRegressionRowsChained(
             results.foreach(r => rvb.addDouble(r.AC(i)))
             rvb.endArray()
 
-            def addSlice(dm: DenseMatrix[Double]) {
+            def addSlice(dm: DenseMatrix[Double]): Unit = {
               val size = dm.rows
               rvb.startArray(size)
               var j = 0

@@ -12,7 +12,7 @@ import is.hail.expr.ir.{
 import is.hail.expr.ir.lowering.{TableStage, TableStageDependency}
 import is.hail.expr.ir.streams.StreamProducer
 import is.hail.io._
-import is.hail.io.fs.{FileListEntry, FS, SeekableDataInputStream}
+import is.hail.io.fs.{FS, FileListEntry, SeekableDataInputStream}
 import is.hail.io.index.{IndexReader, StagedIndexReader}
 import is.hail.io.vcf.LoadVCF
 import is.hail.rvd.RVDPartitioner
@@ -23,13 +23,12 @@ import is.hail.types.physical.stypes.interfaces._
 import is.hail.types.virtual._
 import is.hail.utils._
 
-import org.json4s.{DefaultFormats, Extraction, Formats, JObject, JValue}
-import org.json4s.JsonAST.{JArray, JInt, JNull, JString}
-
 import scala.collection.mutable
 import scala.io.Source
 
 import org.apache.spark.sql.Row
+import org.json4s.{DefaultFormats, Extraction, Formats, JObject, JValue}
+import org.json4s.JsonAST.{JArray, JInt, JNull, JString}
 
 case class BgenHeader(
   compression: Int, // 0 uncompressed, 1 zlib, 2 zstd
@@ -142,7 +141,7 @@ object LoadBgen {
     )
   }
 
-  def checkVersionTwo(headers: Array[BgenHeader]) {
+  def checkVersionTwo(headers: Array[BgenHeader]): Unit = {
     val notVersionTwo = headers.filter(_.version != 2).map(x => x.path -> x.version)
     if (notVersionTwo.length > 0)
       fatal(

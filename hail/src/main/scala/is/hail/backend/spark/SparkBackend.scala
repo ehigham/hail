@@ -22,15 +22,13 @@ import is.hail.types.virtual.{TArray, TInterval, TStruct, TVoid}
 import is.hail.utils._
 import is.hail.variant.ReferenceGenome
 
-import org.json4s.DefaultFormats
-import org.json4s.jackson.{JsonMethods, Serialization}
-
-import java.io.{Closeable, PrintWriter}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
+
+import java.io.{Closeable, PrintWriter}
 
 import org.apache.hadoop
 import org.apache.hadoop.conf.Configuration
@@ -39,6 +37,8 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.json4s
+import org.json4s.DefaultFormats
+import org.json4s.jackson.{JsonMethods, Serialization}
 
 class SparkBroadcastValue[T](bc: Broadcast[T]) extends BroadcastValue[T] with Serializable {
   def value: T = bc.value
@@ -492,7 +492,7 @@ class SparkBackend(
 
   def stop(): Unit = SparkBackend.stop()
 
-  def startProgressBar() {
+  def startProgressBar(): Unit = {
     ProgressBarBuilder.build(sc)
   }
 

@@ -2,8 +2,9 @@ package is.hail.io.fs
 
 import is.hail.utils._
 
-import java.io._
 import scala.util.Try
+
+import java.io._
 
 import org.apache.hadoop
 import org.apache.hadoop.fs.{EtagSource, FSDataInputStream, FSDataOutputStream}
@@ -139,7 +140,7 @@ class HadoopFS(private[this] var conf: SerializableHadoopConfiguration) extends 
   def rmtree(dirname: String): Unit =
     getFileSystem(dirname).delete(new hadoop.fs.Path(dirname), true)
 
-  def delete(url: URL, recursive: Boolean) {
+  def delete(url: URL, recursive: Boolean): Unit = {
     url.hadoopFs.delete(url.hadoopPath, recursive)
   }
 

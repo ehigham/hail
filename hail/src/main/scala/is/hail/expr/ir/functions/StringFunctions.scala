@@ -13,16 +13,16 @@ import is.hail.types.physical.stypes.primitives.{SBoolean, SInt32, SInt64}
 import is.hail.types.virtual._
 import is.hail.utils._
 
-import org.json4s.JValue
-import org.json4s.jackson.JsonMethods
+import scala.collection.mutable
 
 import java.time.{Instant, ZoneId}
 import java.time.temporal.ChronoField
 import java.util.Locale
 import java.util.regex.{Matcher, Pattern}
-import scala.collection.mutable
 
 import org.apache.spark.sql.Row
+import org.json4s.JValue
+import org.json4s.jackson.JsonMethods
 
 object StringFunctions extends RegistryFunctions {
   def reverse(s: String): String = {

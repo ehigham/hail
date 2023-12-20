@@ -13,7 +13,7 @@ final case class Box[T](
       true
   }
 
-  def clear() {
+  def clear(): Unit = {
     b.set(None)
   }
 

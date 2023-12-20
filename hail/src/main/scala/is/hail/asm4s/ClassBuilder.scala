@@ -4,9 +4,10 @@ import is.hail.expr.ir.EmitCodeBuilder
 import is.hail.lir
 import is.hail.utils._
 
+import scala.collection.mutable
+
 import java.io._
 import java.nio.charset.StandardCharsets
-import scala.collection.mutable
 
 import org.apache.spark.TaskContext
 import org.objectweb.asm.ClassReader
@@ -550,7 +551,7 @@ class ClassBuilder[C](
 }
 
 object FunctionBuilder {
-  def bytesToBytecodeString(bytes: Array[Byte], out: OutputStream) {
+  def bytesToBytecodeString(bytes: Array[Byte], out: OutputStream): Unit = {
     val tcv = new TraceClassVisitor(null, new Textifier, new PrintWriter(out))
     new ClassReader(bytes).accept(tcv, 0)
   }

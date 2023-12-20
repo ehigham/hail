@@ -1,16 +1,11 @@
 package is.hail.io.vcf
 
-import is.hail.annotations.Region
-import is.hail.backend.ExecuteContext
-import is.hail.expr.ir.MatrixValue
 import is.hail.io.{VCFAttributes, VCFFieldAttributes, VCFMetadata}
 import is.hail.io.compress.{BGzipLineReader, BGzipOutputStream}
 import is.hail.io.fs.FS
-import is.hail.types.MatrixType
-import is.hail.types.physical._
 import is.hail.types.virtual._
 import is.hail.utils._
-import is.hail.variant.{Call, ReferenceGenome, RegionValueVariant}
+import is.hail.variant.ReferenceGenome
 
 import htsjdk.samtools.util.FileExtensions
 import htsjdk.tribble.SimpleFeature
@@ -82,7 +77,7 @@ object ExportVCF {
     }
   }
 
-  def checkInfoSignature(ti: TStruct) {
+  def checkInfoSignature(ti: TStruct): Unit = {
     val invalid = ti.fields.flatMap { fd =>
       val valid = fd.typ match {
         case it: TContainer if it.elementType != TBoolean => validInfoType(it.elementType)
@@ -115,7 +110,7 @@ object ExportVCF {
     }
   }
 
-  def checkFormatSignature(tg: TStruct) {
+  def checkFormatSignature(tg: TStruct): Unit = {
     val invalid = tg.fields.flatMap { fd =>
       val valid = fd.typ match {
         case it: TContainer => validFormatType(it.elementType)
@@ -250,7 +245,7 @@ object ExportVCF {
 }
 
 object TabixVCF {
-  def apply(fs: FS, filePath: String) {
+  def apply(fs: FS, filePath: String): Unit = {
     val idx = using(new BGzipLineReader(fs, filePath)) { lines =>
       val tabix = new TabixIndexCreator(TabixFormat.VCF)
       var fileOffset = lines.getVirtualOffset

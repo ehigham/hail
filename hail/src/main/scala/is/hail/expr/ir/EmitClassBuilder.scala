@@ -16,10 +16,11 @@ import is.hail.utils._
 import is.hail.utils.prettyPrint.ArrayOfByteArrayInputStream
 import is.hail.variant.ReferenceGenome
 
-import java.io._
-import java.lang.reflect.InvocationTargetException
 import scala.collection.mutable
 import scala.language.existentials
+
+import java.io._
+import java.lang.reflect.InvocationTargetException
 
 import org.apache.spark.TaskContext
 

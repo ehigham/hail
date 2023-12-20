@@ -16,9 +16,9 @@ import is.hail.types.virtual.{TInterval, TStruct}
 import is.hail.utils._
 import is.hail.utils.PartitionCounts.{getPCSubsetOffset, incrementalPCSubsetOffset, PCSubsetOffset}
 
-import java.util
-import scala.language.existentials
 import scala.reflect.ClassTag
+
+import java.util
 
 import org.apache.spark.{Partitioner, SparkContext, TaskContext}
 import org.apache.spark.rdd.{RDD, ShuffledRDD}

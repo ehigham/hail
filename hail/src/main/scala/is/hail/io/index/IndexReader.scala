@@ -10,14 +10,13 @@ import is.hail.types.physical.PStruct
 import is.hail.types.virtual.{TStruct, Type, TypeSerializer}
 import is.hail.utils._
 
-import org.json4s.Formats
-import org.json4s.jackson.JsonMethods
-
 import java.io.InputStream
 import java.util
 import java.util.Map.Entry
 
 import org.apache.spark.sql.Row
+import org.json4s.Formats
+import org.json4s.jackson.JsonMethods
 
 object IndexReaderBuilder {
   def fromSpec(ctx: ExecuteContext, spec: AbstractIndexSpec)
@@ -270,7 +269,7 @@ class IndexReader(
 
     def hasNext: Boolean = pos < end
 
-    def seek(key: Annotation) {
+    def seek(key: Annotation): Unit = {
       val newPos = lowerBound(key)
       assert(newPos >= pos)
       localPos += (newPos - pos).toInt
@@ -284,7 +283,7 @@ class IndexReader(
   def iterateUntil(key: Annotation): Iterator[LeafChild] =
     iterator(0, lowerBound(key))
 
-  def close() {
+  def close(): Unit = {
     leafDecoder.close()
     internalDecoder.close()
     log.info(s"Index reader cache queries: ${cacheHits + cacheMisses}")

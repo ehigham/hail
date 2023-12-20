@@ -24,19 +24,18 @@ import is.hail.types.virtual._
 import is.hail.utils._
 import is.hail.variant.ReferenceGenome
 
-import org.json4s.{DefaultFormats, Formats}
-import org.json4s.JsonAST._
-import org.json4s.jackson.JsonMethods
+import scala.annotation.switch
+import scala.collection.JavaConverters._
+import scala.reflect.ClassTag
 
 import java.io._
 import java.nio.charset.StandardCharsets
 import java.util.concurrent._
-import scala.annotation.switch
-import scala.collection.JavaConverters._
-import scala.language.higherKinds
-import scala.reflect.ClassTag
 
 import org.apache.log4j.Logger
+import org.json4s.{DefaultFormats, Formats}
+import org.json4s.JsonAST._
+import org.json4s.jackson.JsonMethods
 
 class ServiceBackendContext(
   val billingProject: String,

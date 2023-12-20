@@ -3,10 +3,11 @@ package is.hail
 import is.hail.shadedazure.com.azure.storage.common.implementation.Constants
 import is.hail.utils._
 
-import java.io._
-import java.net._
 import scala.annotation.tailrec
 import scala.util.Random
+
+import java.io._
+import java.net._
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.HttpResponseException
@@ -14,7 +15,7 @@ import com.google.cloud.storage.StorageException
 import javax.net.ssl.SSLException
 import org.apache.http.{ConnectionClosedException, NoHttpResponseException}
 import org.apache.http.conn.HttpHostConnectException
-import org.apache.log4j.{Logger, LogManager}
+import org.apache.log4j.{LogManager, Logger}
 
 package object services {
   private lazy val log: Logger = LogManager.getLogger("is.hail.services")

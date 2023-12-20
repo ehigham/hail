@@ -15,14 +15,13 @@ import is.hail.types.virtual._
 import is.hail.utils._
 import is.hail.variant.{Locus, RegionValueVariant, VariantMethods}
 
-import org.json4s.{Formats, JValue}
-import org.json4s.jackson.JsonMethods
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 import com.fasterxml.jackson.core.JsonParseException
 import org.apache.spark.sql.Row
+import org.json4s.{Formats, JValue}
+import org.json4s.jackson.JsonMethods
 
 case class VEPConfiguration(
   command: Array[String],

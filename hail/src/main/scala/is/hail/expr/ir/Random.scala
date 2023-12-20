@@ -232,7 +232,7 @@ object Threefry {
       injectKey(cb, k, t, x, rounds / 4)
   }
 
-  def debugPrint(cb: EmitCodeBuilder, x: IndexedSeq[Settable[Long]], info: String) {
+  def debugPrint(cb: EmitCodeBuilder, x: IndexedSeq[Settable[Long]], info: String): Unit = {
     cb.println(
       s"[$info]=\n\t",
       x(0).toString,

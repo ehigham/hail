@@ -23,9 +23,10 @@ import is.hail.types.virtual._
 import is.hail.utils._
 import is.hail.variant.ReferenceGenome
 
-import java.io._
 import scala.collection.mutable
-import scala.language.{existentials, postfixOps}
+import scala.language.existentials
+
+import java.io._
 
 // class for holding all information computed ahead-of-time that we need in the emitter
 object EmitContext {
@@ -389,7 +390,7 @@ object IEmitCode {
 
 object IEmitCodeGen {
 
-  implicit class IEmitCode(val iec: IEmitCodeGen[SValue]) extends AnyVal {
+  implicit class IEmitCode(private val iec: IEmitCodeGen[SValue]) extends AnyVal {
     def pc: SValue = iec.value
 
     def st: SType = pc.st

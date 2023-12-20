@@ -7,14 +7,15 @@ import is.hail.io.fs._
 import is.hail.services._
 import is.hail.utils._
 
-import java.io._
-import java.nio.charset._
-import java.util
-import java.util.{concurrent => javaConcurrent}
 import scala.collection.mutable
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration.Duration
 import scala.util.control.NonFatal
+
+import java.io._
+import java.nio.charset._
+import java.util
+import java.util.{concurrent => javaConcurrent}
 
 import org.apache.log4j.Logger
 

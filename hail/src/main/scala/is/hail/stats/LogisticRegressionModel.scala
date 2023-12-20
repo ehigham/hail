@@ -30,11 +30,11 @@ abstract class GLMTest extends Serializable {
 }
 
 abstract class GLMStats {
-  def addToRVB(rvb: RegionValueBuilder)
+  def addToRVB(rvb: RegionValueBuilder): Unit
 }
 
 class GLMTestResult[+T <: GLMStats](val stats: Option[T], private val size: Int) {
-  def addToRVB(rvb: RegionValueBuilder) {
+  def addToRVB(rvb: RegionValueBuilder): Unit = {
     stats match {
       case Some(s) => s.addToRVB(rvb)
       case None => rvb.skipFields(size)
@@ -47,7 +47,7 @@ class GLMTestResultWithFit[T <: GLMStats](
   private val size: Int,
   val fitStats: GLMFit,
 ) extends GLMTestResult[T](stats, size) {
-  override def addToRVB(rvb: RegionValueBuilder) {
+  override def addToRVB(rvb: RegionValueBuilder): Unit = {
     super.addToRVB(rvb)
     fitStats.addToRVB(rvb)
   }

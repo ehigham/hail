@@ -2,10 +2,10 @@ package is.hail.services
 
 import is.hail.utils._
 
+import java.io.{File, FileInputStream}
+
 import org.json4s._
 import org.json4s.jackson.JsonMethods
-
-import java.io.{File, FileInputStream}
 
 object DeployConfig {
 

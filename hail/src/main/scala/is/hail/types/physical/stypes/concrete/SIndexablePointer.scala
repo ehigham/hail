@@ -112,7 +112,7 @@ class SIndexablePointerValue(
     cb: EmitCodeBuilder
   )(
     f: (EmitCodeBuilder, Value[Int], SValue) => Unit
-  ) {
+  ): Unit = {
     st.pType match {
       case pca: PCanonicalArray => pca.forEachDefined(cb, a)(f)
       case _ => super.forEachDefined(cb)(f)

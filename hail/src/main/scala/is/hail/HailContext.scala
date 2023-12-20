@@ -7,17 +7,17 @@ import is.hail.io.fs.FS
 import is.hail.io.vcf._
 import is.hail.utils._
 
-import org.json4s.Extraction
-import org.json4s.jackson.JsonMethods
+import scala.reflect.ClassTag
 
 import java.io.InputStream
 import java.util.Properties
-import scala.reflect.ClassTag
 
 import org.apache.log4j.{LogManager, PropertyConfigurator}
 import org.apache.spark._
 import org.apache.spark.executor.InputMetrics
 import org.apache.spark.rdd.RDD
+import org.json4s.Extraction
+import org.json4s.jackson.JsonMethods
 
 case class FilePartition(index: Int, file: String) extends Partition
 
@@ -190,7 +190,7 @@ class HailContext private (
       .groupBy(_.source.file)
   }
 
-  def grepPrint(fs: FS, regex: String, files: Seq[String], maxLines: Int) {
+  def grepPrint(fs: FS, regex: String, files: Seq[String], maxLines: Int): Unit = {
     fileAndLineCounts(fs, regex, files, maxLines).foreach { case (file, lines) =>
       info(s"$file: ${lines.length} ${plural(lines.length, "match", "matches")}:")
       lines.map(_.value).foreach { line =>

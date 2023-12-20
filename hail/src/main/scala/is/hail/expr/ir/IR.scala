@@ -22,11 +22,10 @@ import is.hail.types.physical.stypes.interfaces._
 import is.hail.types.virtual._
 import is.hail.utils._
 
+import java.io.OutputStream
+
 import org.json4s.{DefaultFormats, Extraction, Formats, JValue, ShortTypeHints}
 import org.json4s.JsonAST.{JNothing, JString}
-
-import java.io.OutputStream
-import scala.language.existentials
 
 sealed trait IR extends BaseIR {
   private var _typ: Type = null

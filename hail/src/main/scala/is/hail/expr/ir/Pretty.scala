@@ -11,10 +11,10 @@ import is.hail.utils.{space => _, _}
 import is.hail.utils.prettyPrint._
 import is.hail.utils.richUtils.RichIterable
 
+import scala.collection.mutable
+
 import org.json4s.DefaultFormats
 import org.json4s.jackson.{JsonMethods, Serialization}
-
-import scala.collection.mutable
 
 object Pretty {
   def apply(

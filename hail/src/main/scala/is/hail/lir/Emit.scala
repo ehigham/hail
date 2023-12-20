@@ -2,9 +2,10 @@ package is.hail.lir
 
 import is.hail.utils._
 
+import scala.collection.mutable
+
 import java.io.{ByteArrayOutputStream, PrintWriter}
 import java.nio.charset.StandardCharsets
-import scala.collection.mutable
 
 import org.objectweb.asm.{ClassReader, ClassVisitor, ClassWriter, Label}
 import org.objectweb.asm.Opcodes._
