@@ -492,7 +492,8 @@ final class VCFLine(
       }
       i += 1
     }
-    return isStandardAllele || htsjdk.variant.variantcontext.Allele.acceptableAlleleBases(ref)
+
+    isStandardAllele || htsjdk.variant.variantcontext.Allele.acceptableAlleleBases(ref)
   }
 
   // return false if it should be filtered
@@ -1560,8 +1561,8 @@ object LoadVCF {
                 val prefix = if (excerptStart > 0) "... " else ""
                 val suffix = if (excerptEnd < line.length) " ..." else ""
 
-                var caretPad = prefix.length + pos - excerptStart
-                var pad = " " * caretPad
+                val caretPad = prefix.length + pos - excerptStart
+                val pad = " " * caretPad
 
                 fatal(
                   s"${source.locationString(pos)}: ${e.msg}\n$prefix$excerpt$suffix\n$pad^\noffending line: @1\nsee the Hail log for the full offending line",
@@ -1586,12 +1587,7 @@ object LoadVCF {
     }
   }
 
-  def parseHeaderMetadata(
-    fs: FS,
-    callFields: Set[String],
-    entryFloatType: TNumeric,
-    headerFile: String,
-  ): VCFMetadata = {
+  def parseHeaderMetadata(fs: FS, headerFile: String): VCFMetadata = {
     val headerLines = getHeaderLines(fs, headerFile, TextInputFilterAndReplace())
     val header = parseHeader(headerLines)
 
@@ -1778,8 +1774,6 @@ object MatrixVCFReader {
     }
     checkGzipOfGlobbedFiles(params.files, fileListEntries, params.forceGZ, params.gzAsBGZ)
 
-    val entryFloatType = LoadVCF.getEntryFloatType(params.entryFloatTypeName)
-
     val headerLines1 = getHeaderLines(
       fs,
       params.headerFile.getOrElse(fileListEntries.head.getPath),
@@ -1791,10 +1785,7 @@ object MatrixVCFReader {
       if (params.headerFile.isEmpty) {
         val header1Bc = backend.broadcast(header1)
 
-        val localCallFields = params.callFields
-        val localFloatType = entryFloatType
         val files = fileListEntries.map(_.getPath)
-        val localArrayElementsRequired = params.arrayElementsRequired
         val localFilterAndReplace = params.filterAndReplace
 
         val fsConfigBC = backend.broadcast(fs.getConfiguration())
@@ -1804,7 +1795,7 @@ object MatrixVCFReader {
           files.tail.map(_.getBytes),
           "load_vcf_parse_header",
           None,
-        ) { (bytes, htc, _, fs) =>
+        ) { (bytes, _, _, fs) =>
           val fsConfig = fsConfigBC.value
           fs.setConfiguration(fsConfig)
           val file = new String(bytes)
@@ -1916,7 +1907,7 @@ class MatrixVCFReader(
   def rowUIDType = TTuple(TInt64, TInt64)
   def colUIDType = TInt64
 
-  val (infoPType, rowValuePType, formatPType) = header.getPTypes(
+  val (_, rowValuePType, formatPType) = header.getPTypes(
     params.arrayElementsRequired,
     IRParser.parseType(params.entryFloatTypeName),
     params.callFields,
@@ -2041,7 +2032,7 @@ class MatrixVCFReader(
     val body = { (requestedType: TStruct) =>
       val requestedPType = bodyPType(requestedType)
 
-      { (region: Region, theHailClassLoader: HailClassLoader, fs: FS, context: Any) =>
+      { (region: Region, _: HailClassLoader, fs: FS, context: Any) =>
         val fileNum = context.asInstanceOf[Row].getInt(1)
         val parseLineContext = new ParseLineContext(
           requestedType,

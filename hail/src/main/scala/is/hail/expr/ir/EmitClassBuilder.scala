@@ -378,8 +378,6 @@ class EmitClassBuilder[C](
   private[this] val typMap: mutable.Map[Type, Value[_ <: Type]] =
     mutable.Map()
 
-  private[this] val pTypeMap: mutable.Map[PType, Value[_ <: PType]] = mutable.Map()
-
   private[this] type CompareMapKey = (SType, SType)
 
   private[this] val memoizedComparisons: mutable.Map[CompareMapKey, CodeOrdering] =
@@ -445,7 +443,7 @@ class EmitClassBuilder[C](
         .buildDecoder(spec.encodedVirtualType, this)
         .apply(cb, partitionRegion, ib)
         .asBaseStruct
-      literals.zipWithIndex.foreach { case ((t, _, pt, arrIdx), i) =>
+      literals.zipWithIndex.foreach { case ((_, _, pt, arrIdx), i) =>
         lits
           .loadField(cb, i)
           .consume(
@@ -487,7 +485,7 @@ class EmitClassBuilder[C](
     Array[AnyRef](baos.toByteArray) ++ preEncodedLiterals.map(_._1.value.ba)
   }
 
-  private[this] var _mods: BoxedArrayBuilder[(
+  private[this] val _mods: BoxedArrayBuilder[(
     String,
     (HailClassLoader, FS, HailTaskContext, Region) => AsmFunction3[Region, Array[Byte], Array[Byte], Array[Byte]],
   )] =
@@ -1385,7 +1383,7 @@ class EmitMethodBuilder[C](
         // invokeCode. Code with EmitParams must be invoked using the EmitCodeBuilder
         // interface to ensure that setup is run and missingness is evaluated for the
         // EmitCode
-        case EmitParam(ec) => fatal("EmitParam passed to invokeCode")
+        case EmitParam(_) => fatal("EmitParam passed to invokeCode")
       }: _*
     )
   }

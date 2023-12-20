@@ -74,7 +74,7 @@ class BGzipOutputStream(out: OutputStream) extends CompressionOutputStream(out) 
     var numBytesRemaining = length
 
     while (numBytesRemaining > 0) {
-      var bytesToWrite =
+      val bytesToWrite =
         math.min(uncompressedBuffer.length - numUncompressedBytes, numBytesRemaining)
       System.arraycopy(bytes, currentPosition, uncompressedBuffer, numUncompressedBytes,
         bytesToWrite)
@@ -109,8 +109,6 @@ class BGzipOutputStream(out: OutputStream) extends CompressionOutputStream(out) 
     // Data compressed small enough, so write it out.
     crc32.reset()
     crc32.update(uncompressedBuffer, 0, numUncompressedBytes)
-
-    val totalBlockSize: Int = writeGzipBlock(compressedSize, numUncompressedBytes, crc32.getValue)
 
     numUncompressedBytes = 0 // reset variable
   }

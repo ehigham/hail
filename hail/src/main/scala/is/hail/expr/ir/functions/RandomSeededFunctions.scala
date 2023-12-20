@@ -120,7 +120,7 @@ object RandomSeededFunctions extends RegistryFunctions {
       TFloat64,
       { case (_: Type, _: SType, _: SType, _: SType) => SFloat64 },
     ) {
-      case (_, cb, rt, rngState: SRNGStateValue, min: SFloat64Value, max: SFloat64Value, errorID) =>
+      case (_, cb, _, rngState: SRNGStateValue, min: SFloat64Value, max: SFloat64Value, _) =>
         primitive(
           cb.memoize(rand_unif(cb, rngState.rand(cb)) * (max.value - min.value) + min.value)
         )
@@ -147,7 +147,7 @@ object RandomSeededFunctions extends RegistryFunctions {
             nCols: SInt64Value,
             min,
             max,
-            errorID,
+            _,
           ) =>
         val result = rt.pType.constructUninitialized(
           FastSeq(SizeValueDyn(nRows.value), SizeValueDyn(nCols.value)),
@@ -172,7 +172,7 @@ object RandomSeededFunctions extends RegistryFunctions {
       TInt32,
       TInt32,
       { case (_: Type, _: SType, _: SType) => SInt32 },
-    ) { case (r, cb, rt, rngState: SRNGStateValue, n: SInt32Value, errorID) =>
+    ) { case (_, cb, _, rngState: SRNGStateValue, n: SInt32Value, _) =>
       val rng = cb.emb.getThreefryRNG()
       rngState.copyIntoEngine(cb, rng)
       primitive(cb.memoize(rng.invoke[Int, Int]("nextInt", n.value)))
@@ -184,14 +184,14 @@ object RandomSeededFunctions extends RegistryFunctions {
       TInt64,
       TInt64,
       { case (_: Type, _: SType, _: SType) => SInt64 },
-    ) { case (r, cb, rt, rngState: SRNGStateValue, n: SInt64Value, errorID) =>
+    ) { case (_, cb, _, rngState: SRNGStateValue, n: SInt64Value, _) =>
       val rng = cb.emb.getThreefryRNG()
       rngState.copyIntoEngine(cb, rng)
       primitive(cb.memoize(rng.invoke[Long, Long]("nextLong", n.value)))
     }
 
     registerSCode1("rand_int64", TRNGState, TInt64, { case (_: Type, _: SType) => SInt64 }) {
-      case (r, cb, rt, rngState: SRNGStateValue, errorID) =>
+      case (_, cb, _, rngState: SRNGStateValue, _) =>
         primitive(rngState.rand(cb)(0))
     }
 
@@ -216,7 +216,7 @@ object RandomSeededFunctions extends RegistryFunctions {
             nCols: SInt64Value,
             mean,
             sd,
-            errorID,
+            _,
           ) =>
         val result = rt.pType.constructUninitialized(
           FastSeq(SizeValueDyn(nRows.value), SizeValueDyn(nCols.value)),
@@ -243,7 +243,7 @@ object RandomSeededFunctions extends RegistryFunctions {
       TFloat64,
       { case (_: Type, _: SType, _: SType, _: SType) => SFloat64 },
     ) {
-      case (_, cb, rt, rngState: SRNGStateValue, mean: SFloat64Value, sd: SFloat64Value, errorID) =>
+      case (_, cb, _, rngState: SRNGStateValue, mean: SFloat64Value, sd: SFloat64Value, _) =>
         val rng = cb.emb.getThreefryRNG()
         rngState.copyIntoEngine(cb, rng)
         primitive(cb.memoize(rng.invoke[Double, Double, Double]("rnorm", mean.value, sd.value)))
@@ -255,7 +255,7 @@ object RandomSeededFunctions extends RegistryFunctions {
       TFloat64,
       TBoolean,
       { case (_: Type, _: SType, _: SType) => SBoolean },
-    ) { case (_, cb, rt, rngState: SRNGStateValue, p: SFloat64Value, errorID) =>
+    ) { case (_, cb, _, rngState: SRNGStateValue, p: SFloat64Value, _) =>
       val u = rand_unif(cb, rngState.rand(cb))
       primitive(cb.memoize(u < p.value))
     }
@@ -266,7 +266,7 @@ object RandomSeededFunctions extends RegistryFunctions {
       TFloat64,
       TFloat64,
       { case (_: Type, _: SType, _: SType) => SFloat64 },
-    ) { case (_, cb, rt, rngState: SRNGStateValue, lambda: SFloat64Value, errorID) =>
+    ) { case (_, cb, _, rngState: SRNGStateValue, lambda: SFloat64Value, _) =>
       val rng = cb.emb.getThreefryRNG()
       rngState.copyIntoEngine(cb, rng)
       primitive(cb.memoize(rng.invoke[Double, Double]("rpois", lambda.value)))
@@ -287,7 +287,7 @@ object RandomSeededFunctions extends RegistryFunctions {
             rngState: SRNGStateValue,
             n: SInt32Value,
             lambda: SFloat64Value,
-            errorID,
+            _,
           ) =>
         val rng = cb.emb.getThreefryRNG()
         rngState.copyIntoEngine(cb, rng)
@@ -306,7 +306,7 @@ object RandomSeededFunctions extends RegistryFunctions {
       TFloat64,
       TFloat64,
       { case (_: Type, _: SType, _: SType, _: SType) => SFloat64 },
-    ) { case (_, cb, rt, rngState: SRNGStateValue, a: SFloat64Value, b: SFloat64Value, errorID) =>
+    ) { case (_, cb, _, rngState: SRNGStateValue, a: SFloat64Value, b: SFloat64Value, _) =>
       val rng = cb.emb.getThreefryRNG()
       rngState.copyIntoEngine(cb, rng)
       primitive(cb.memoize(rng.invoke[Double, Double, Double]("rbeta", a.value, b.value)))
@@ -325,13 +325,13 @@ object RandomSeededFunctions extends RegistryFunctions {
       case (
             _,
             cb,
-            rt,
+            _,
             rngState: SRNGStateValue,
             a: SFloat64Value,
             b: SFloat64Value,
             min: SFloat64Value,
             max: SFloat64Value,
-            errorID,
+            _,
           ) =>
         val rng = cb.emb.getThreefryRNG()
         rngState.copyIntoEngine(cb, rng)
@@ -352,7 +352,7 @@ object RandomSeededFunctions extends RegistryFunctions {
       TFloat64,
       { case (_: Type, _: SType, _: SType, _: SType) => SFloat64 },
     ) {
-      case (_, cb, rt, rngState: SRNGStateValue, a: SFloat64Value, scale: SFloat64Value, errorID) =>
+      case (_, cb, _, rngState: SRNGStateValue, a: SFloat64Value, scale: SFloat64Value, _) =>
         val rng = cb.emb.getThreefryRNG()
         rngState.copyIntoEngine(cb, rng)
         primitive(cb.memoize(rng.invoke[Double, Double, Double]("rgamma", a.value, scale.value)))
@@ -364,7 +364,7 @@ object RandomSeededFunctions extends RegistryFunctions {
       TArray(TFloat64),
       TInt32,
       { case (_: Type, _: SType, _: SType) => SInt32 },
-    ) { case (_, cb, rt, rngState: SRNGStateValue, weights: SIndexableValue, errorID) =>
+    ) { case (_, cb, _, rngState: SRNGStateValue, weights: SIndexableValue, _) =>
       val len = weights.loadLength()
       val i = cb.newLocal[Int]("i", 0)
       val s = cb.newLocal[Double]("sum", 0.0)
@@ -419,7 +419,7 @@ object RandomSeededFunctions extends RegistryFunctions {
             rngState: SRNGStateValue,
             initalNumSamplesToSelect: SInt32Value,
             partitionCounts: SIndexableValue,
-            errorID,
+            _,
           ) =>
         val rng = cb.emb.getThreefryRNG()
         rngState.copyIntoEngine(cb, rng)

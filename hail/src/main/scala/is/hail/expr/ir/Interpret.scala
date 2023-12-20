@@ -260,7 +260,7 @@ object Interpret {
 
       case MakeArray(elements, _) => elements.map(interpret(_, env, args)).toFastSeq
       case MakeStream(elements, _, _) => elements.map(interpret(_, env, args)).toFastSeq
-      case x @ ArrayRef(a, i, errorId) =>
+      case ArrayRef(a, i, errorId) =>
         val aValue = interpret(a, env, args)
         val iValue = interpret(i, env, args)
         if (aValue == null || iValue == null)
@@ -324,7 +324,7 @@ object Interpret {
           null
         else
           aValue.asInstanceOf[IndexedSeq[Any]].length
-      case StreamIota(start, step, requiresMemoryManagementPerElement) =>
+      case _: StreamIota =>
         throw new UnsupportedOperationException
       case StreamRange(start, stop, step, _, errorID) =>
         val startValue = interpret(start, env, args)
@@ -750,8 +750,8 @@ object Interpret {
             case "inner" =>
               outerResult.iterator.filter { case (l, r) => l.isDefined && r.isDefined }
             case "outer" => outerResult.iterator
-            case "left" => outerResult.iterator.filter { case (l, r) => l.isDefined }
-            case "right" => outerResult.iterator.filter { case (l, r) => r.isDefined }
+            case "left" => outerResult.iterator.filter { case (l, _) => l.isDefined }
+            case "right" => outerResult.iterator.filter { case (_, r) => r.isDefined }
           }
           elts.map { case (lIdx, rIdx) =>
             joinF(lIdx.map(lValue.apply).orNull, rIdx.map(rValue.apply).orNull)
@@ -769,7 +769,7 @@ object Interpret {
       case Begin(xs) =>
         xs.foreach(x => interpret(x))
       case MakeStruct(fields) =>
-        Row.fromSeq(fields.map { case (name, fieldIR) => interpret(fieldIR, env, args) })
+        Row.fromSeq(fields.map { case (_, fieldIR) => interpret(fieldIR, env, args) })
       case SelectFields(old, fields) =>
         val oldt = tcoerce[TStruct](old.typ)
         val oldRow = interpret(old, env, args).asInstanceOf[Row]
@@ -777,7 +777,7 @@ object Interpret {
           null
         else
           Row.fromSeq(fields.map(id => oldRow.get(oldt.fieldIdx(id))))
-      case x @ InsertFields(old, fields, fieldOrder) =>
+      case InsertFields(old, fields, fieldOrder) =>
         var struct = interpret(old, env, args)
         if (struct != null)
           fieldOrder match {
@@ -794,7 +794,7 @@ object Interpret {
               var t = old.typ.asInstanceOf[TStruct]
               fields.foreach { case (name, body) =>
                 val (newT, ins) = t.insert(body.typ, FastSeq(name))
-                t = newT.asInstanceOf[TStruct]
+                t = newT
                 struct = ins(struct, interpret(body, env, args))
               }
               struct
@@ -822,7 +822,7 @@ object Interpret {
       case In(i, _) =>
         val (a, _) = args(i)
         a
-      case Die(message, typ, errorId) =>
+      case Die(message, _, errorId) =>
         val message_ = interpret(message).asInstanceOf[String]
         fatal(if (message_ != null) message_ else "<exception message missing>", errorId)
       case Trap(child) =>
@@ -835,7 +835,7 @@ object Interpret {
         val message_ = interpret(message).asInstanceOf[String]
         info(message_)
         interpret(result)
-      case ir @ ApplyIR(function, _, _, functionArgs, _) =>
+      case ir: ApplyIR =>
         interpret(ir.explicitNode, env, args)
       case ApplySpecial("lor", _, Seq(left_, right_), _, _) =>
         val left = interpret(left_)
@@ -867,11 +867,11 @@ object Interpret {
         ctx.r.pool.scopedRegion { region =>
           val (rt, f) = functionMemo.getOrElseUpdate(
             ir, {
-              val wrappedArgs: IndexedSeq[BaseIR] = ir.args.zipWithIndex.map { case (x, i) =>
+              val wrappedArgs: IndexedSeq[BaseIR] = ir.args.zipWithIndex.map { case (_, i) =>
                 GetTupleElement(Ref("in", argTuple.virtualType), i)
               }.toFastSeq
               val newChildren = ir match {
-                case ir: ApplySeeded => wrappedArgs :+ NA(TRNGState)
+                case _: ApplySeeded => wrappedArgs :+ NA(TRNGState)
                 case _ => wrappedArgs
               }
               val wrappedIR = Copy(ir, newChildren)
@@ -1041,7 +1041,7 @@ object Interpret {
 
           // takes ownership of both inputs, returns ownership of result
           val combOpF: (HailClassLoader, HailTaskContext, RegionValue, RegionValue) => RegionValue =
-            extracted.combOpF(ctx, spec)
+            extracted.combOpF(ctx)
 
           // returns ownership of a new region holding the partition aggregation
           // result

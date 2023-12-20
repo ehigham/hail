@@ -169,7 +169,7 @@ class SInsertFieldsStructValue(
     val filteredNewFields = st.insertedFields
       .map(_._1)
       .zipWithIndex
-      .filter { case (name, idx) => !newFieldSet.contains(name) }
+      .filter { case (name, _) => !newFieldSet.contains(name) }
       .map { case (name, idx) => (name, newFields(idx)) }
     parent._insert(newType, filteredNewFields ++ fields: _*)
   }

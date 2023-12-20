@@ -87,8 +87,9 @@ object WaldTest extends GLMTest {
 
         Some(WaldStats(fit.b, se, z, p))
       } catch {
-        case e: breeze.linalg.MatrixSingularException => None
-        case e: breeze.linalg.NotConvergedException => None
+        case _: breeze.linalg.MatrixSingularException |
+            _: breeze.linalg.NotConvergedException =>
+          None
       }
     } else
       None
@@ -252,8 +253,9 @@ object LogisticScoreTest extends GLMTest {
 
         Some(ScoreStats(chi2, p))
       } catch {
-        case e: breeze.linalg.MatrixSingularException => None
-        case e: breeze.linalg.NotConvergedException => None
+        case _: breeze.linalg.MatrixSingularException |
+            _: breeze.linalg.NotConvergedException =>
+          None
       }
     }
 
@@ -343,8 +345,9 @@ class LogisticRegressionModel(X: DenseMatrix[Double], y: DenseVector[Double])
           fisher := X.t * (X(::, *) *:* (mu *:* (1d - mu)))
         }
       } catch {
-        case e: breeze.linalg.MatrixSingularException => exploded = true
-        case e: breeze.linalg.NotConvergedException => exploded = true
+        case _: breeze.linalg.MatrixSingularException |
+            _: breeze.linalg.NotConvergedException =>
+          exploded = true
       }
     }
 
@@ -386,8 +389,9 @@ class LogisticRegressionModel(X: DenseMatrix[Double], y: DenseVector[Double])
           b += deltaB
         }
       } catch {
-        case e: breeze.linalg.MatrixSingularException => exploded = true
-        case e: breeze.linalg.NotConvergedException => exploded = true
+        case _: breeze.linalg.MatrixSingularException |
+            _: breeze.linalg.NotConvergedException =>
+          exploded = true
       }
     }
 

@@ -155,13 +155,11 @@ class StagedArrayBuilder(
     EmitCode(Code._empty, m, eltType.loadCheapSCode(cb, eltArray.loadElement(data, capacity, idx)))
   }
 
-  private def resize(cb: EmitCodeBuilder): Unit = {
-    val newDataOffset = kb.genFieldThisRef[Long]("new_data_offset")
+  private def resize(cb: EmitCodeBuilder): Unit =
     cb.if_(
       size.ceq(capacity), {
         cb.assign(capacity, capacity * 2)
         cb.assign(data, eltArray.padWithMissing(cb, region, size, capacity, data))
       },
     )
-  }
 }

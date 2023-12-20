@@ -104,7 +104,7 @@ object UtilFunctions extends RegistryFunctions {
   }
 
   def isValidBoolean(s: String): Boolean =
-    (s.equalsCaseInsensitive("true") || s.equalsCaseInsensitive("false"))
+    s.equalsCaseInsensitive("true") || s.equalsCaseInsensitive("false")
 
   def isValidInt32(s: String): Boolean =
     try {
@@ -211,7 +211,7 @@ object UtilFunctions extends RegistryFunctions {
       TBoolean,
       TBoolean,
       { case (_: Type, _: SType, _: SType, _: SType, _: SType) => SBoolean },
-    ) { case (er, cb, rt, l, r, tol, abs, _) =>
+    ) { case (er, cb, _, l, r, tol, abs, _) =>
       assert(
         l.st.virtualType == r.st.virtualType,
         s"\n  lt=${l.st.virtualType}\n  rt=${r.st.virtualType}",
@@ -233,7 +233,7 @@ object UtilFunctions extends RegistryFunctions {
     }
 
     registerCode1("triangle", TInt32, TInt32, (_: Type, _: SType) => SInt32) {
-      case (cb, _, rt, nn) =>
+      case (cb, _, _, nn) =>
         val n = nn.asInt.value
         cb.memoize((n * (n + 1)) / 2)
     }
@@ -266,7 +266,7 @@ object UtilFunctions extends RegistryFunctions {
     ) {
       val ctString: ClassTag[String] = implicitly[ClassTag[String]]
       registerSCode1(s"to$name", TString, t, (_: Type, _: SType) => rpt) {
-        case (r, cb, rt, x: SStringValue, err) =>
+        case (_, cb, rt, x: SStringValue, err) =>
           val s = x.loadString(cb)
           primitive(
             rt.virtualType,
@@ -285,7 +285,7 @@ object UtilFunctions extends RegistryFunctions {
         TString,
         t,
         (_: Type, _: EmitType) => EmitType(rpt, false),
-      ) { case (cb, r, rt, err, x) =>
+      ) { case (cb, _, rt, err, x) =>
         x.toI(cb).flatMap(cb) { case sc: SStringValue =>
           val sv = cb.newLocal[String]("s", sc.loadString(cb))
           IEmitCode(
@@ -314,14 +314,14 @@ object UtilFunctions extends RegistryFunctions {
 
     Array("min", "max").foreach { name =>
       registerCode2(name, TFloat32, TFloat32, TFloat32, (_: Type, _: SType, _: SType) => SFloat32) {
-        case (cb, r, rt, v1, v2) =>
+        case (cb, _, _, v1, v2) =>
           cb.memoize(
             Code.invokeStatic2[Math, Float, Float, Float](name, v1.asFloat.value, v2.asFloat.value)
           )
       }
 
       registerCode2(name, TFloat64, TFloat64, TFloat64, (_: Type, _: SType, _: SType) => SFloat64) {
-        case (cb, r, rt, v1, v2) =>
+        case (cb, _, _, v1, v2) =>
           cb.memoize(
             Code.invokeStatic2[Math, Double, Double, Double](
               name,
@@ -341,7 +341,7 @@ object UtilFunctions extends RegistryFunctions {
         TFloat32,
         TFloat32,
         (_: Type, _: SType, _: SType) => SFloat32,
-      ) { case (cb, r, rt, v1, v2) =>
+      ) { case (cb, _, _, v1, v2) =>
         cb.memoize(
           Code.invokeScalaObject2[Float, Float, Float](
             thisClass,
@@ -358,7 +358,7 @@ object UtilFunctions extends RegistryFunctions {
         TFloat64,
         TFloat64,
         (_: Type, _: SType, _: SType) => SFloat64,
-      ) { case (cb, r, rt, v1, v2) =>
+      ) { case (cb, _, _, v1, v2) =>
         cb.memoize(
           Code.invokeScalaObject2[Double, Double, Double](
             thisClass,
@@ -369,16 +369,14 @@ object UtilFunctions extends RegistryFunctions {
         )
       }
 
-      def ignoreMissingTriplet[T](
+      def ignoreMissingTriplet[T: ClassTag](
         cb: EmitCodeBuilder,
         rt: SType,
         v1: EmitCode,
         v2: EmitCode,
         name: String,
         f: (Code[T], Code[T]) => Code[T],
-      )(implicit
-        ct: ClassTag[T],
-        ti: TypeInfo[T],
+      )(implicit ti: TypeInfo[T]
       ): IEmitCode = {
         val value = cb.newLocal[T](s"ignore_missing_${name}_value")
         val v1Value = v1.toI(cb).memoize(cb, "ignore_missing_v1")
@@ -417,7 +415,7 @@ object UtilFunctions extends RegistryFunctions {
         TInt32,
         TInt32,
         (_: Type, t1: EmitType, t2: EmitType) => EmitType(SInt32, t1.required || t2.required),
-      ) { case (cb, r, rt, _, v1, v2) =>
+      ) { case (cb, _, rt, _, v1, v2) =>
         ignoreMissingTriplet[Int](
           cb,
           rt,
@@ -434,7 +432,7 @@ object UtilFunctions extends RegistryFunctions {
         TInt64,
         TInt64,
         (_: Type, t1: EmitType, t2: EmitType) => EmitType(SInt64, t1.required || t2.required),
-      ) { case (cb, r, rt, _, v1, v2) =>
+      ) { case (cb, _, rt, _, v1, v2) =>
         ignoreMissingTriplet[Long](
           cb,
           rt,
@@ -451,7 +449,7 @@ object UtilFunctions extends RegistryFunctions {
         TFloat32,
         TFloat32,
         (_: Type, t1: EmitType, t2: EmitType) => EmitType(SFloat32, t1.required || t2.required),
-      ) { case (cb, r, rt, _, v1, v2) =>
+      ) { case (cb, _, rt, _, v1, v2) =>
         ignoreMissingTriplet[Float](
           cb,
           rt,
@@ -468,7 +466,7 @@ object UtilFunctions extends RegistryFunctions {
         TFloat64,
         TFloat64,
         (_: Type, t1: EmitType, t2: EmitType) => EmitType(SFloat64, t1.required || t2.required),
-      ) { case (cb, r, rt, _, v1, v2) =>
+      ) { case (cb, _, rt, _, v1, v2) =>
         ignoreMissingTriplet[Double](
           cb,
           rt,
@@ -485,7 +483,7 @@ object UtilFunctions extends RegistryFunctions {
         TFloat32,
         TFloat32,
         (_: Type, t1: EmitType, t2: EmitType) => EmitType(SFloat32, t1.required || t2.required),
-      ) { case (cb, r, rt, _, v1, v2) =>
+      ) { case (cb, _, rt, _, v1, v2) =>
         ignoreMissingTriplet[Float](
           cb,
           rt,
@@ -502,7 +500,7 @@ object UtilFunctions extends RegistryFunctions {
         TFloat64,
         TFloat64,
         (_: Type, t1: EmitType, t2: EmitType) => EmitType(SFloat64, t1.required || t2.required),
-      ) { case (cb, r, rt, _, v1, v2) =>
+      ) { case (cb, _, rt, _, v1, v2) =>
         ignoreMissingTriplet[Double](
           cb,
           rt,
@@ -537,7 +535,7 @@ object UtilFunctions extends RegistryFunctions {
       TBoolean,
       TBoolean,
       (_: Type, tl: EmitType, tr: EmitType) => EmitType(SBoolean, tl.required && tr.required),
-    ) { case (cb, _, rt, _, l, r) =>
+    ) { case (cb, _, _, _, l, r) =>
       if (l.required && r.required) {
         val result = cb.newLocal[Boolean]("land_result")
         cb.if_(
@@ -580,7 +578,7 @@ object UtilFunctions extends RegistryFunctions {
       TBoolean,
       TBoolean,
       (_: Type, tl: EmitType, tr: EmitType) => EmitType(SBoolean, tl.required && tr.required),
-    ) { case (cb, _, rt, _, l, r) =>
+    ) { case (cb, _, _, _, l, r) =>
       if (l.required && r.required) {
         val result = cb.newLocal[Boolean]("land_result")
         cb.if_(
@@ -625,7 +623,7 @@ object UtilFunctions extends RegistryFunctions {
       TString,
       VCFHeaderInfo.headerType,
       (_, fileET, _, _, _) => EmitType(VCFHeaderInfo.headerTypePType.sType, fileET.required),
-    ) { case (cb, r, rt, errID, file, filter, find, replace) =>
+    ) { case (cb, r, _, _, file, filter, find, replace) =>
       file.toI(cb).map(cb) { case filePath: SStringValue =>
         val filterVar = cb.newLocal[String]("filterVar")
         val findVar = cb.newLocal[String]("findVar")

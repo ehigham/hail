@@ -101,8 +101,8 @@ object LocusFunctions extends RegistryFunctions {
   }
 
   def registerLocusCodePredicate(methodName: String): Unit =
-    registerSCode1(methodName, tlocus("T"), TBoolean, (_: Type, x: SType) => SBoolean) {
-      case (r, cb, rt, locus: SLocusValue, _) =>
+    registerSCode1(methodName, tlocus("T"), TBoolean, (_: Type, _: SType) => SBoolean) {
+      case (_, cb, _, locus: SLocusValue, _) =>
         primitive(
           cb.memoize(
             cb.emb
@@ -115,8 +115,8 @@ object LocusFunctions extends RegistryFunctions {
     }
 
   def registerLocusCodeContigPredicate(methodName: String): Unit =
-    registerSCode1(methodName, tlocus("T"), TBoolean, (_: Type, x: SType) => SBoolean) {
-      case (r, cb, rt, locus: SLocusValue, _) =>
+    registerSCode1(methodName, tlocus("T"), TBoolean, (_: Type, _: SType) => SBoolean) {
+      case (_, cb, _, locus: SLocusValue, _) =>
         primitive(
           cb.memoize(
             cb.emb
@@ -136,12 +136,12 @@ object LocusFunctions extends RegistryFunctions {
       tlocus("T"),
       TString,
       (_: Type, x: SType) => x.asInstanceOf[SLocus].contigType,
-    ) { case (r, cb, rt, locus: SLocusValue, _) =>
+    ) { case (_, cb, _, locus: SLocusValue, _) =>
       locus.contig(cb)
     }
 
-    registerSCode1("contig_idx", tlocus("T"), TInt32, (_: Type, x: SType) => SInt32) {
-      case (r, cb, rt, locus: SLocusValue, _) =>
+    registerSCode1("contig_idx", tlocus("T"), TInt32, (_: Type, _: SType) => SInt32) {
+      case (_, cb, _, locus: SLocusValue, _) =>
         primitive(
           cb.memoize(
             cb.emb
@@ -153,8 +153,8 @@ object LocusFunctions extends RegistryFunctions {
         )
     }
 
-    registerSCode1("position", tlocus("T"), TInt32, (_: Type, x: SType) => SInt32) {
-      case (r, cb, rt, locus: SLocusValue, _) =>
+    registerSCode1("position", tlocus("T"), TInt32, (_: Type, _: SType) => SInt32) {
+      case (_, cb, _, locus: SLocusValue, _) =>
         primitive(locus.position(cb))
     }
     registerLocusCodePredicate("isAutosomalOrPseudoAutosomal")
@@ -179,7 +179,7 @@ object LocusFunctions extends RegistryFunctions {
             rt: SCanonicalLocusPointer,
             inputLocus: SLocusValue,
             basePairsToAdd: SInt32Value,
-            errorID,
+            _,
           ) =>
         val contig = inputLocus.contig(cb).loadString(cb)
         val basePos = inputLocus.position(cb)
@@ -290,7 +290,7 @@ object LocusFunctions extends RegistryFunctions {
 
           val lastCoord = cb.newLocal[Double]("locuswindows_coord")
 
-          forAllContigs(cb) { case (cb, contigIdx, coords) =>
+          forAllContigs(cb) { case (cb, _, coords) =>
             val i = cb.newLocal[Int]("locuswindows_i", 0)
             val idx = cb.newLocal[Int]("locuswindows_idx", 0)
             val len = coords.loadLength()
@@ -463,7 +463,7 @@ object LocusFunctions extends RegistryFunctions {
       tinterval("T"),
       { (returnType: Type, _: EmitType, _: EmitType) =>
         val lPTyp = returnType.asInstanceOf[TInterval].pointType.asInstanceOf[TLocus]
-        EmitType(PCanonicalInterval(PCanonicalLocus(lPTyp.asInstanceOf[TLocus].rg)).sType, false)
+        EmitType(PCanonicalInterval(PCanonicalLocus(lPTyp.rg)).sType, false)
       },
     ) {
       case (
@@ -528,7 +528,7 @@ object LocusFunctions extends RegistryFunctions {
             cb: EmitCodeBuilder,
             r: Value[Region],
             SIntervalPointer(rt: PCanonicalInterval),
-            errorID: Value[Int],
+            _: Value[Int],
             locusString: EmitCode,
             pos1: EmitCode,
             pos2: EmitCode,
@@ -603,7 +603,7 @@ object LocusFunctions extends RegistryFunctions {
     }
 
     registerSCode1("locusToGlobalPos", tlocus("T"), TInt64, (_: Type, _: SType) => SInt64) {
-      case (r, cb, rt, locus: SLocusValue, _) =>
+      case (r, cb, _, locus: SLocusValue, _) =>
         val locusObject = locus.getLocusObj(cb)
         val globalPos =
           cb.memoize(rgCode(r.mb, locus.st.rg).invoke[Locus, Long]("locusToGlobalPos", locusObject))
@@ -707,7 +707,6 @@ object LocusFunctions extends RegistryFunctions {
           val iT = interval.st.asInstanceOf[SInterval]
           val srcRG = iT.pointType.asInstanceOf[SLocus].rg
           val destRG = rt.types(0).asInstanceOf[PInterval].pointType.asInstanceOf[PLocus].rg
-          val er = EmitRegion(cb.emb, r)
           val intervalObj = Code.checkcast[Interval](svalueToJavaValue(cb, r, interval))
           val lifted = cb.newLocal[(Interval, Boolean)](
             "liftover_locus_interval_lifted",

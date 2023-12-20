@@ -11,7 +11,6 @@ import is.hail.expr.ir.analyses.SemanticHash
 import is.hail.expr.ir.lowering._
 import is.hail.io.{BufferSpec, TypedCodecSpec}
 import is.hail.io.fs._
-import is.hail.io.plink.LoadPlink
 import is.hail.linalg.{BlockMatrix, RowMatrix}
 import is.hail.rvd.RVD
 import is.hail.stats.LinearMixedModel
@@ -23,17 +22,16 @@ import is.hail.types.virtual.{TArray, TInterval, TStruct, TVoid}
 import is.hail.utils._
 import is.hail.variant.ReferenceGenome
 
-import org.json4s.{DefaultFormats, Formats}
+import org.json4s.DefaultFormats
 import org.json4s.jackson.{JsonMethods, Serialization}
 
-import java.io.{Closeable, OutputStream, PrintWriter}
+import java.io.{Closeable, PrintWriter}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
-import com.sun.net.httpserver.HttpExchange
 import org.apache.hadoop
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark._
@@ -610,7 +608,7 @@ class SparkBackend(
         log.info(s"starting execution of query $queryID} of initial size ${IRSize(ir)}")
         val retVal = _execute(ctx, ir, true)
         val literalIR = retVal match {
-          case Left(x) => throw new HailException("Can't create literal")
+          case Left(_) => throw new HailException("Can't create literal")
           case Right((pt, addr)) =>
             GetFieldByIdx(EncodedLiteral.fromPTypeAndAddress(pt, addr, ctx), 0)
         }
