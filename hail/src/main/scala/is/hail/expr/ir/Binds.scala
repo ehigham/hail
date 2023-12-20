@@ -55,7 +55,7 @@ object Bindings {
     case StreamFold(a, zero, accumName, valueName, _) =>
       if (i == 2) Array(accumName -> zero.typ, valueName -> tcoerce[TStream](a.typ).elementType)
       else empty
-    case StreamFold2(a, accum, valueName, seq, result) =>
+    case StreamFold2(a, accum, valueName, _, _) =>
       if (i <= accum.length)
         empty
       else if (i < 2 * accum.length + 1)
@@ -92,9 +92,9 @@ object Bindings {
       } else {
         empty
       }
-    case AggArrayPerElement(a, _, indexName, _, _, _) =>
+    case AggArrayPerElement(_, _, indexName, _, _, _) =>
       if (i == 1) FastSeq(indexName -> TInt32) else empty
-    case AggFold(zero, seqOp, combOp, accumName, otherAccumName, _) =>
+    case AggFold(zero, _, _, accumName, otherAccumName, _) =>
       if (i == 1) FastSeq(accumName -> zero.typ)
       else if (i == 2) FastSeq(accumName -> zero.typ, otherAccumName -> zero.typ)
       else empty
@@ -172,7 +172,7 @@ object AggBindings {
       case TableAggregate(child, _) => if (i == 1) Some(child.typ.rowEnv.m) else None
       case MatrixAggregate(child, _) => if (i == 1) Some(child.typ.entryEnv.m) else None
       case RelationalLet(_, _, _) => None
-      case CollectDistributedArray(_, _, _, _, _, _, _, _) if (i == 2) => None
+      case CollectDistributedArray(_, _, _, _, _, _, _, _) if i == 2 => None
       case _: ApplyAggOp => None
       case AggFold(_, _, _, _, _, false) => None
       case _: IR => base
@@ -225,7 +225,7 @@ object ScanBindings {
       case TableAggregate(_, _) => None
       case MatrixAggregate(_, _) => None
       case RelationalLet(_, _, _) => None
-      case CollectDistributedArray(_, _, _, _, _, _, _, _) if (i == 2) => None
+      case CollectDistributedArray(_, _, _, _, _, _, _, _) if i == 2 => None
       case _: ApplyScanOp => None
       case _: IR => base
 
@@ -270,13 +270,13 @@ object NewBindings {
 object ChildEnvWithoutBindings {
   def apply[T](ir: BaseIR, i: Int, env: BindingEnv[T]): BindingEnv[T] = {
     ir match {
-      case ArrayMaximalIndependentSet(_, Some(_)) if (i == 1) => env.copy(eval = Env.empty)
+      case ArrayMaximalIndependentSet(_, Some(_)) if i == 1 => env.copy(eval = Env.empty)
       case StreamAgg(_, _, _) => if (i == 1) env.createAgg else env
       case StreamAggScan(_, _, _) => if (i == 1) env.createScan else env
       case ApplyAggOp(init, _, _) => if (i < init.length) env.copy(agg = None) else env.promoteAgg
       case ApplyScanOp(init, _, _) =>
         if (i < init.length) env.copy(scan = None) else env.promoteScan
-      case AggFold(zero, seqOp, combOp, elementName, accumName, isScan) =>
+      case AggFold(_, _, _, _, _, isScan) =>
         (isScan, i) match {
           case (true, 0) => env.noScan
           case (false, 0) => env.noAgg

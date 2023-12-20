@@ -4,13 +4,14 @@ import is.hail.io.fs.FSUtil.dropTrailingSlash
 import is.hail.services.{isTransientError, retryTransientErrors}
 import is.hail.utils._
 
+import scala.jdk.CollectionConverters.{
+  asJavaIterableConverter, asScalaIteratorConverter, iterableAsScalaIterableConverter,
+}
+
 import java.io.{ByteArrayInputStream, FileNotFoundException, IOException}
 import java.net.URI
 import java.nio.ByteBuffer
 import java.nio.file.Paths
-import scala.jdk.CollectionConverters.{
-  asJavaIterableConverter, asScalaIteratorConverter, iterableAsScalaIterableConverter,
-}
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.auth.oauth2.ServiceAccountCredentials
@@ -170,7 +171,7 @@ class GoogleStorageFS(
       exc.getMessage != null && (exc.getMessage.equals(
         "userProjectMissing"
       ) || (exc.getStatusCode == 400 && exc.getMessage.contains("requester pays")))
-    case exc: Throwable =>
+    case _: Throwable =>
       false
   }
 

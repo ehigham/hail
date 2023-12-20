@@ -14,10 +14,9 @@ import is.hail.types.physical.stypes.interfaces._
 import is.hail.types.physical.stypes.primitives._
 import is.hail.types.tcoerce
 import is.hail.types.virtual._
-import is.hail.utils._
 
 object NDArrayFunctions extends RegistryFunctions {
-  override def registerAll() {
+  override def registerAll(): Unit = {
     for ((stringOp, argType, retType, irOp) <- ArrayFunctions.arrayOps) {
       val nDimVar = NatVariable()
       registerIR2(stringOp, TNDArray(argType, nDimVar), argType, TNDArray(retType, nDimVar)) {
@@ -168,7 +167,7 @@ object NDArrayFunctions extends RegistryFunctions {
       TNDArray(TFloat64, Nat(2)),
       TNDArray(TFloat64, Nat(2)),
       TStruct(("solution", TNDArray(TFloat64, Nat(2))), ("failed", TBoolean)),
-      (t, p1, p2) =>
+      (_, _, _) =>
         EmitType(
           PCanonicalStruct(
             false,
@@ -210,7 +209,7 @@ object NDArrayFunctions extends RegistryFunctions {
       TNDArray(TFloat64, Nat(2)),
       TNDArray(TFloat64, Nat(2)),
       TNDArray(TFloat64, Nat(2)),
-      (t, p1, p2) => PCanonicalNDArray(PFloat64Required, 2, true).sType,
+      (_, _, _) => PCanonicalNDArray(PFloat64Required, 2, true).sType,
     ) { case (er, cb, SNDArrayPointer(pt), apc, bpc, errorID) =>
       val (resPCode, info) = linear_solve(apc.asNDArray, bpc.asNDArray, pt, cb, er.region, errorID)
       cb.if_(
@@ -230,7 +229,7 @@ object NDArrayFunctions extends RegistryFunctions {
       TNDArray(TFloat64, Nat(2)),
       TBoolean,
       TStruct(("solution", TNDArray(TFloat64, Nat(2))), ("failed", TBoolean)),
-      (t, p1, p2, p3) =>
+      (_, _, _, _) =>
         EmitType(
           PCanonicalStruct(
             false,
@@ -283,7 +282,7 @@ object NDArrayFunctions extends RegistryFunctions {
       TNDArray(TFloat64, Nat(2)),
       TBoolean,
       TNDArray(TFloat64, Nat(2)),
-      (t, p1, p2, p3) => PCanonicalNDArray(PFloat64Required, 2, true).sType,
+      (_, _, _, _) => PCanonicalNDArray(PFloat64Required, 2, true).sType,
     ) { case (er, cb, SNDArrayPointer(pt), apc, bpc, lower, errorID) =>
       val (resPCode, info) = linear_triangular_solve(
         apc.asNDArray,
@@ -320,7 +319,7 @@ object NDArrayFunctions extends RegistryFunctions {
             block: SNDArrayValue,
             lower: SInt64Value,
             upper: SInt64Value,
-            errorID,
+            _,
           ) =>
         val newBlock = rst
           .coerceOrCopy(cb, er.region, block, deepCopy = false).asInstanceOf[SNDArrayPointerValue]
@@ -404,12 +403,12 @@ object NDArrayFunctions extends RegistryFunctions {
             block: SNDArrayValue,
             starts: SIndexableValue,
             stops: SIndexableValue,
-            errorID,
+            _,
           ) =>
         val newBlock = rst
           .coerceOrCopy(cb, er.region, block, deepCopy = false).asInstanceOf[SNDArrayPointerValue]
         val row = cb.newLocal[Long]("rowIdx")
-        val IndexedSeq(nRows, nCols) = newBlock.shapes
+        val IndexedSeq(nRows, _) = newBlock.shapes
         cb.for_(
           cb.assign(row, 0L),
           row < nRows.get,

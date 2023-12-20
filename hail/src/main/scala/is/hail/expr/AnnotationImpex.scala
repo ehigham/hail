@@ -1,23 +1,18 @@
 package is.hail.expr
 
-import is.hail.annotations.{Annotation, NDArray, SafeNDArray, UnsafeNDArray}
-import is.hail.expr.ir.functions.UtilFunctions
-import is.hail.types.physical.{
-  PBoolean, PCanonicalArray, PCanonicalBinary, PCanonicalString, PCanonicalStruct, PFloat32,
-  PFloat64, PInt32, PInt64, PType,
-}
+import is.hail.annotations.{Annotation, NDArray, SafeNDArray}
+import is.hail.types.physical._
 import is.hail.types.virtual._
 import is.hail.utils.{Interval, _}
 import is.hail.variant._
-
-import org.json4s._
-import org.json4s.jackson.{JsonMethods, Serialization}
 
 import scala.collection.mutable
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types._
 import org.json4s
+import org.json4s._
+import org.json4s.jackson.{JsonMethods, Serialization}
 
 object SparkAnnotationImpex {
   val invalidCharacters: Set[Char] = " ,;{}()\n\t=".toSet
@@ -267,7 +262,7 @@ object JSONAnnotationImpex {
           val annotationSize =
             if (padNulls) t.size
             else
-              jfields.map { case (name, jv2) =>
+              jfields.map { case (name, _) =>
                 t.selfField(name).map(_.index).getOrElse(-1)
               }.max + 1
           val a = Array.fill[Any](annotationSize)(null)

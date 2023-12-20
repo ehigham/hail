@@ -2,9 +2,9 @@ package is.hail.expr.ir
 
 import is.hail.backend.spark.SparkBackend
 import is.hail.io.compress.BGzipInputStream
-import is.hail.io.fs.{BGZipCompressionCodec, FileListEntry, FS, Positioned, PositionedInputStream}
+import is.hail.io.fs._
 import is.hail.io.tabix.{TabixLineIterator, TabixReader}
-import is.hail.types.virtual.{TBoolean, TInt32, TInt64, TString, TStruct, Type}
+import is.hail.types.virtual._
 import is.hail.utils._
 import is.hail.variant.Locus
 
@@ -67,7 +67,7 @@ object GenericLines {
         private var eof = false
         private var closed = false
 
-        private var buf = new Array[Byte](64 * 1024)
+        private val buf = new Array[Byte](64 * 1024)
         private var bufOffset = 0L
         private var bufMark = 0
         private var bufPos = 0
@@ -329,7 +329,7 @@ object GenericLines {
                 s"\n  Duplicate mappings: ${mappings.map(_._1).mkString(",")} all map to $target"
             )
           (target, mappings.head._1)
-        }.toMap
+        }
     val contexts = partitions.zipWithIndex.map { case (interval, i) =>
       val start = interval.start.asInstanceOf[Row].getAs[Locus](0)
       val end = interval.end.asInstanceOf[Row].getAs[Locus](0)
@@ -338,7 +338,6 @@ object GenericLines {
     }
     val body: (FS, Any) => CloseableIterator[GenericLine] = { (fs: FS, context: Any) =>
       val contextRow = context.asInstanceOf[Row]
-      val index = contextRow.getAs[Int](0)
       val file = contextRow.getAs[String](1)
       val chrom = contextRow.getAs[String](2)
       val start = contextRow.getAs[Int](3)

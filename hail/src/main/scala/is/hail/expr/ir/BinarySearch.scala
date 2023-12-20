@@ -6,8 +6,6 @@ import is.hail.types.physical.stypes._
 import is.hail.types.physical.stypes.interfaces._
 import is.hail.utils.FastSeq
 
-import scala.language.existentials
-
 object BinarySearch {
   object Comparator {
     def fromLtGt(
@@ -288,15 +286,6 @@ object BinarySearch {
     }
   }
 
-  private def runSearchUnit(
-    cb: EmitCodeBuilder,
-    haystack: SIndexableValue,
-    compare: Comparator,
-    found: (Value[Int], Value[Int], Value[Int]) => Unit,
-    notFound: Value[Int] => Unit,
-  ): Unit =
-    runSearchBoundedUnit(cb, haystack, compare, 0, haystack.loadLength(), found, notFound)
-
   private def runSearchBounded[T: TypeInfo](
     cb: EmitCodeBuilder,
     haystack: SIndexableValue,
@@ -336,8 +325,6 @@ class BinarySearch[C](
   getKey: (EmitCodeBuilder, EmitValue) => EmitValue,
   bound: String = "lower",
 ) {
-  val containerElementType: EmitType = containerType.elementEmitType
-
   val findElt = mb.genEmitMethod(
     "findElt",
     FastSeq[ParamType](containerType.paramType, eltType.paramType),

@@ -6,7 +6,7 @@ import is.hail.backend.ExecuteContext
 import is.hail.expr.ir.functions.StringFunctions
 import is.hail.expr.ir.lowering.{LowererUnsupportedOperation, TableStage, TableStageDependency}
 import is.hail.expr.ir.streams.StreamProducer
-import is.hail.io.fs.{FileListEntry, FS}
+import is.hail.io.fs.{FS, FileListEntry}
 import is.hail.rvd.RVDPartitioner
 import is.hail.types.{BaseTypeWithRequiredness, RStruct, TableType, VirtualTypeWithReq}
 import is.hail.types.physical._
@@ -15,7 +15,7 @@ import is.hail.types.physical.stypes.concrete.{SJavaString, SStackStruct, SStack
 import is.hail.types.physical.stypes.interfaces.{SBaseStructValue, SStreamValue}
 import is.hail.types.physical.stypes.primitives.{SInt64, SInt64Value}
 import is.hail.types.virtual._
-import is.hail.utils.{checkGzipOfGlobbedFiles, fatal, FastSeq}
+import is.hail.utils.{checkGzipOfGlobbedFiles, FastSeq}
 
 import org.json4s.{Extraction, Formats, JValue}
 

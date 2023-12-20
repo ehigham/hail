@@ -12,18 +12,18 @@ import is.hail.variant._
 import scala.reflect.classTag
 
 object CallFunctions extends RegistryFunctions {
-  def registerAll() {
-    registerWrappedScalaFunction1("Call", TString, TCall, (rt: Type, st: SType) => SCanonicalCall)(
+  def registerAll(): Unit = {
+    registerWrappedScalaFunction1("Call", TString, TCall, (_: Type, _: SType) => SCanonicalCall)(
       Call.getClass,
       "parse",
     )
 
-    registerSCode1("callFromRepr", TInt32, TCall, (rt: Type, _: SType) => SCanonicalCall) {
-      case (er, cb, rt, repr, _) => SCanonicalCall.constructFromIntRepr(cb, repr.asInt.value)
+    registerSCode1("callFromRepr", TInt32, TCall, (_: Type, _: SType) => SCanonicalCall) {
+      case (_, cb, _, repr, _) => SCanonicalCall.constructFromIntRepr(cb, repr.asInt.value)
     }
 
-    registerSCode1("Call", TBoolean, TCall, (rt: Type, _: SType) => SCanonicalCall) {
-      case (er, cb, rt, phased, _) =>
+    registerSCode1("Call", TBoolean, TCall, (_: Type, _: SType) => SCanonicalCall) {
+      case (_, cb, _, phased, _) =>
         SCanonicalCall.constructFromIntRepr(
           cb,
           Code.invokeScalaObject[Int](
@@ -40,8 +40,8 @@ object CallFunctions extends RegistryFunctions {
       TInt32,
       TBoolean,
       TCall,
-      (rt: Type, _: SType, _: SType) => SCanonicalCall,
-    ) { case (er, cb, rt, a1, phased, _) =>
+      (_: Type, _: SType, _: SType) => SCanonicalCall,
+    ) { case (_, cb, _, a1, phased, _) =>
       SCanonicalCall.constructFromIntRepr(
         cb,
         Code.invokeScalaObject[Int](
@@ -59,8 +59,8 @@ object CallFunctions extends RegistryFunctions {
       TInt32,
       TBoolean,
       TCall,
-      (rt: Type, _: SType, _: SType, _: SType) => SCanonicalCall,
-    ) { case (er, cb, rt, a1, a2, phased, _) =>
+      (_: Type, _: SType, _: SType, _: SType) => SCanonicalCall,
+    ) { case (_, cb, _, a1, a2, phased, _) =>
       SCanonicalCall.constructFromIntRepr(
         cb,
         Code.invokeScalaObject[Int](
@@ -80,8 +80,8 @@ object CallFunctions extends RegistryFunctions {
       "UnphasedDiploidGtIndexCall",
       TInt32,
       TCall,
-      (rt: Type, _: SType) => SCanonicalCall,
-    ) { case (er, cb, rt, x, _) =>
+      (_: Type, _: SType) => SCanonicalCall,
+    ) { case (_, cb, _, x, _) =>
       SCanonicalCall.constructFromIntRepr(
         cb,
         Code.invokeScalaObject[Int](
@@ -98,14 +98,14 @@ object CallFunctions extends RegistryFunctions {
       TArray(TInt32),
       TBoolean,
       TCall,
-      { case (rt: Type, _: SType, _: SType) => SCanonicalCall },
+      { case (_: Type, _: SType, _: SType) => SCanonicalCall },
     )(CallN.getClass, "apply")
 
     val qualities =
       Array("isPhased", "isHomRef", "isHet", "isHomVar", "isNonRef", "isHetNonRef", "isHetRef")
     for (q <- qualities)
-      registerSCode1(q, TCall, TBoolean, (rt: Type, _: SType) => SBoolean) {
-        case (er, cb, rt, call, _) =>
+      registerSCode1(q, TCall, TBoolean, (_: Type, _: SType) => SBoolean) {
+        case (_, cb, _, call, _) =>
           primitive(
             cb.memoize(
               Code.invokeScalaObject[Boolean](
@@ -118,8 +118,8 @@ object CallFunctions extends RegistryFunctions {
           )
       }
 
-    registerSCode1("ploidy", TCall, TInt32, (rt: Type, _: SType) => SInt32) {
-      case (er, cb, rt, call, _) =>
+    registerSCode1("ploidy", TCall, TInt32, (_: Type, _: SType) => SInt32) {
+      case (_, cb, _, call, _) =>
         primitive(
           cb.memoize(
             Code.invokeScalaObject[Int](
@@ -132,8 +132,8 @@ object CallFunctions extends RegistryFunctions {
         )
     }
 
-    registerSCode1("unphase", TCall, TCall, (rt: Type, a1: SType) => a1) {
-      case (er, cb, rt, call, _) =>
+    registerSCode1("unphase", TCall, TCall, (_: Type, a1: SType) => a1) {
+      case (_, cb, _, call, _) =>
         call.asCall.unphase(cb)
     }
 
@@ -142,13 +142,13 @@ object CallFunctions extends RegistryFunctions {
       TCall,
       TInt32,
       TBoolean,
-      (rt: Type, _: SType, _: SType) => SBoolean,
-    ) { case (er, cb, rt, call, allele, _) =>
+      (_: Type, _: SType, _: SType) => SBoolean,
+    ) { case (_, cb, _, call, allele, _) =>
       primitive(call.asCall.containsAllele(cb, allele.asInt.value))
     }
 
-    registerSCode1("nNonRefAlleles", TCall, TInt32, (rt: Type, _: SType) => SInt32) {
-      case (er, cb, rt, call, _) =>
+    registerSCode1("nNonRefAlleles", TCall, TInt32, (_: Type, _: SType) => SInt32) {
+      case (_, cb, _, call, _) =>
         primitive(
           cb.memoize(
             Code.invokeScalaObject[Int](
@@ -161,8 +161,8 @@ object CallFunctions extends RegistryFunctions {
         )
     }
 
-    registerSCode1("unphasedDiploidGtIndex", TCall, TInt32, (rt: Type, _: SType) => SInt32) {
-      case (er, cb, rt, call, _) =>
+    registerSCode1("unphasedDiploidGtIndex", TCall, TInt32, (_: Type, _: SType) => SInt32) {
+      case (_, cb, _, call, _) =>
         primitive(
           cb.memoize(
             Code.invokeScalaObject[Int](
@@ -175,8 +175,8 @@ object CallFunctions extends RegistryFunctions {
         )
     }
 
-    registerSCode2("index", TCall, TInt32, TInt32, (rt: Type, _: SType, _: SType) => SInt32) {
-      case (er, cb, rt, call, idx, _) =>
+    registerSCode2("index", TCall, TInt32, TInt32, (_: Type, _: SType, _: SType) => SInt32) {
+      case (_, cb, _, call, idx, _) =>
         primitive(
           cb.memoize(
             Code.invokeScalaObject[Int](
@@ -194,8 +194,8 @@ object CallFunctions extends RegistryFunctions {
       TCall,
       TInt32,
       TCall,
-      (rt: Type, _: SType, _: SType) => SCanonicalCall,
-    ) { case (er, cb, rt, call, downcodedAllele, _) =>
+      (_: Type, _: SType, _: SType) => SCanonicalCall,
+    ) { case (_, cb, _, call, downcodedAllele, _) =>
       SCanonicalCall.constructFromIntRepr(
         cb,
         Code.invokeScalaObject[Int](
@@ -212,8 +212,8 @@ object CallFunctions extends RegistryFunctions {
       TCall,
       TArray(TInt32),
       TCall,
-      { case (rt: Type, sc: SCall, _: SType) => sc },
-    ) { case (er, cb, rt, call, localAlleles, errorID) =>
+      { case (_: Type, sc: SCall, _: SType) => sc },
+    ) { case (_, cb, _, call, localAlleles, errorID) =>
       call.asCall.lgtToGT(cb, localAlleles.asIndexable, errorID)
     }
 
@@ -222,7 +222,7 @@ object CallFunctions extends RegistryFunctions {
       TCall,
       TInt32,
       TArray(TInt32),
-      { case (rt: Type, _: SType, _: SType) => SIndexablePointer(PCanonicalArray(PInt32(true))) },
+      { case (_: Type, _: SType, _: SType) => SIndexablePointer(PCanonicalArray(PInt32(true))) },
     )(Call.getClass, "oneHotAlleles")
   }
 }

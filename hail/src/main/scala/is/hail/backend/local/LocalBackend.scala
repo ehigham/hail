@@ -1,34 +1,32 @@
 package is.hail.backend.local
 
 import is.hail.{HailContext, HailFeatureFlags}
-import is.hail.annotations.{Region, SafeRow, UnsafeRow}
+import is.hail.annotations.{Region, SafeRow}
 import is.hail.asm4s._
 import is.hail.backend._
-import is.hail.expr.{JSONAnnotationImpex, Validate}
+import is.hail.expr.Validate
 import is.hail.expr.ir.{IRParser, _}
 import is.hail.expr.ir.analyses.SemanticHash
 import is.hail.expr.ir.lowering._
 import is.hail.io.{BufferSpec, TypedCodecSpec}
 import is.hail.io.fs._
-import is.hail.io.plink.LoadPlink
 import is.hail.linalg.BlockMatrix
 import is.hail.types._
 import is.hail.types.encoded.EType
 import is.hail.types.physical.PTuple
-import is.hail.types.physical.stypes.{PTypeReferenceSingleCodeType, SingleCodeType}
+import is.hail.types.physical.stypes.PTypeReferenceSingleCodeType
 import is.hail.types.virtual.TVoid
 import is.hail.utils._
 import is.hail.variant.ReferenceGenome
 
-import org.json4s._
-import org.json4s.jackson.{JsonMethods, Serialization}
-
-import java.io.PrintWriter
-import java.nio.charset.StandardCharsets
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
+import java.io.PrintWriter
+
 import org.apache.hadoop
+import org.json4s._
+import org.json4s.jackson.Serialization
 import org.sparkproject.guava.util.concurrent.MoreExecutors
 
 class LocalBroadcastValue[T](val value: T) extends BroadcastValue[T] with Serializable
@@ -213,7 +211,7 @@ class LocalBackend(
       throw new LowererUnsupportedOperation(s"lowered to uncompilable IR: ${Pretty(ctx, ir)}")
 
     if (ir.typ == TVoid) {
-      val (pt, f) = ctx.timer.time("Compile") {
+      val (_, f) = ctx.timer.time("Compile") {
         Compile[AsmFunction1RegionUnit](
           ctx,
           FastSeq(),
@@ -294,7 +292,7 @@ class LocalBackend(
         log.info(s"starting execution of query $queryID} of initial size ${IRSize(ir)}")
         val retVal = _execute(ctx, ir)
         val literalIR = retVal match {
-          case Left(x) => throw new HailException("Can't create literal")
+          case Left(_) => throw new HailException("Can't create literal")
           case Right((pt, addr)) =>
             GetFieldByIdx(EncodedLiteral.fromPTypeAndAddress(pt, addr, ctx), 0)
         }

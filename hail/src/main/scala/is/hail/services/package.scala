@@ -1,23 +1,21 @@
 package is.hail
 
 import is.hail.shadedazure.com.azure.storage.common.implementation.Constants
-import is.hail.shadedazure.reactor.core.Exceptions.ReactiveException
 import is.hail.utils._
 
-import java.io._
-import java.io.EOFException
-import java.net._
-import java.util.concurrent.TimeoutException
+import scala.annotation.tailrec
 import scala.util.Random
+
+import java.io._
+import java.net._
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.HttpResponseException
 import com.google.cloud.storage.StorageException
 import javax.net.ssl.SSLException
-import org.apache.http.ConnectionClosedException
-import org.apache.http.NoHttpResponseException
+import org.apache.http.{ConnectionClosedException, NoHttpResponseException}
 import org.apache.http.conn.HttpHostConnectException
-import org.apache.log4j.{Logger, LogManager}
+import org.apache.log4j.{LogManager, Logger}
 
 package object services {
   private lazy val log: Logger = LogManager.getLogger("is.hail.services")
@@ -46,18 +44,10 @@ package object services {
      * https://github.com/aws/aws-sdk-java/blob/master/aws-java-sdk-core/src/main/java/com/amazonaws/retry/PredefinedBackoffStrategies.java */
     val multiplier = 1L << math.min(tries, LOG_2_MAX_MULTIPLIER)
     val ceilingForDelayMs = math.min(baseDelayMs * multiplier, maxDelayMs).toInt
-    val proposedDelayMs = ceilingForDelayMs / 2 + Random.nextInt(ceilingForDelayMs / 2 + 1)
-    return proposedDelayMs
+    ceilingForDelayMs / 2 + Random.nextInt(ceilingForDelayMs / 2 + 1)
   }
 
-  def sleepBeforTry(
-    tries: Int,
-    baseDelayMs: Int = DEFAULT_BASE_DELAY_MS,
-    maxDelayMs: Int = DEFAULT_MAX_DELAY_MS,
-  ) =
-    Thread.sleep(delayMsForTry(tries, baseDelayMs, maxDelayMs))
-
-  def isLimitedRetriesError(_e: Throwable): Boolean = {
+  @tailrec private def isLimitedRetriesError(_e: Throwable): Boolean = {
     // An exception is a "retry once error" if a rare, known bug in a dependency or in a cloud
     // provider can manifest as this exception *and* that manifestation is indistinguishable from a
     // true error.
@@ -69,7 +59,7 @@ package object services {
           if e.getMessage != null && e.getMessage.contains("Connection reset") =>
         true
       case e: HttpResponseException
-          if e.getStatusCode() == 400 && e.getMessage != null && (
+          if e.getStatusCode == 400 && e.getMessage != null && (
             e.getMessage.contains("Invalid grant: account not found") ||
               e.getMessage.contains("{\"error\":\"unhandled_canonical_code_14\"}")
           ) =>
@@ -101,12 +91,12 @@ package object services {
     // ReactiveException it returns the exception unmodified.
     val e = is.hail.shadedazure.reactor.core.Exceptions.unwrap(_e)
     e match {
-      case e: NoHttpResponseException =>
+      case _: NoHttpResponseException =>
         true
-      case e: HttpResponseException if RETRYABLE_HTTP_STATUS_CODES.contains(e.getStatusCode()) =>
+      case e: HttpResponseException if RETRYABLE_HTTP_STATUS_CODES.contains(e.getStatusCode) =>
         true
       case e: HttpResponseException
-          if (e.getStatusCode() == 410 &&
+          if (e.getStatusCode == 410 &&
             e.getMessage != null &&
             e.getMessage.contains("\"code\": 503,") &&
             e.getMessage.contains("\"message\": \"Backend Error\",")) =>
@@ -130,19 +120,14 @@ package object services {
       case e: ClientResponseException if RETRYABLE_HTTP_STATUS_CODES.contains(e.status) =>
         true
       case e: GoogleJsonResponseException
-          if RETRYABLE_HTTP_STATUS_CODES.contains(e.getStatusCode()) =>
+          if RETRYABLE_HTTP_STATUS_CODES.contains(e.getStatusCode) =>
         true
-      case e: HttpHostConnectException =>
-        true
-      case e: NoRouteToHostException =>
-        true
-      case e: SocketTimeoutException =>
-        true
-      case e: java.util.concurrent.TimeoutException =>
-        true
-      case e: UnknownHostException =>
-        true
-      case e: ConnectionClosedException =>
+      case _: HttpHostConnectException |
+          _: NoRouteToHostException |
+          _: SocketTimeoutException |
+          _: java.util.concurrent.TimeoutException |
+          _: UnknownHostException |
+          _: ConnectionClosedException =>
         true
       case e: SocketException
           if e.getMessage != null && (e.getMessage.contains("Connection timed out (Read failed)") ||

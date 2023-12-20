@@ -58,7 +58,7 @@ class BGzipOutputStream(out: OutputStream) extends CompressionOutputStream(out) 
   val noCompressionDeflater = new Deflater(Deflater.NO_COMPRESSION, true)
   val crc32 = new CRC32
 
-  def write(b: Int) {
+  def write(b: Int): Unit = {
     require(numUncompressedBytes < uncompressedBuffer.length)
     uncompressedBuffer(numUncompressedBytes) = b.toByte
     numUncompressedBytes += 1
@@ -67,14 +67,14 @@ class BGzipOutputStream(out: OutputStream) extends CompressionOutputStream(out) 
       deflateBlock()
   }
 
-  override def write(bytes: Array[Byte], offset: Int, length: Int) {
+  override def write(bytes: Array[Byte], offset: Int, length: Int): Unit = {
     require(numUncompressedBytes < uncompressedBuffer.length)
 
     var currentPosition = offset
     var numBytesRemaining = length
 
     while (numBytesRemaining > 0) {
-      var bytesToWrite =
+      val bytesToWrite =
         math.min(uncompressedBuffer.length - numUncompressedBytes, numBytesRemaining)
       System.arraycopy(bytes, currentPosition, uncompressedBuffer, numUncompressedBytes,
         bytesToWrite)
@@ -109,8 +109,6 @@ class BGzipOutputStream(out: OutputStream) extends CompressionOutputStream(out) 
     // Data compressed small enough, so write it out.
     crc32.reset()
     crc32.update(uncompressedBuffer, 0, numUncompressedBytes)
-
-    val totalBlockSize: Int = writeGzipBlock(compressedSize, numUncompressedBytes, crc32.getValue)
 
     numUncompressedBytes = 0 // reset variable
   }

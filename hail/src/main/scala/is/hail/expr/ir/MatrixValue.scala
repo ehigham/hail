@@ -81,7 +81,7 @@ case class MatrixValue(
     colValues.javaValue.map(querier(_).asInstanceOf[String])
   }
 
-  def requireUniqueSamples(method: String) {
+  def requireUniqueSamples(method: String): Unit = {
     val dups = stringSampleIds.counter().filter(_._2 > 1).toArray
     if (dups.nonEmpty)
       fatal(
