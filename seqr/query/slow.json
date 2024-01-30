@@ -1,0 +1,189 @@
+{
+    "genome_version": "GRCh38",
+    "num_results": 100,
+    "annotations": {
+      "other": [
+        "non_coding_exon_variant"
+      ],
+      "in_frame": [
+        "inframe_insertion",
+        "inframe_deletion"
+      ],
+      "missense": [
+        "stop_lost",
+        "initiator_codon_variant",
+        "start_lost",
+        "protein_altering_variant",
+        "missense_variant"
+      ],
+      "nonsense": [
+        "stop_gained"
+      ],
+      "splice_ai": "0.1",
+      "frameshift": [
+        "frameshift_variant"
+      ],
+      "structural": [
+        "gCNV_DUP",
+        "gCNV_DEL"
+      ],
+      "synonymous": [],
+      "extended_splice_site": [],
+      "essential_splice_site": [
+        "splice_donor_variant",
+        "splice_acceptor_variant"
+      ],
+      "structural_consequence": [
+        "LOF",
+        "DUP_LOF",
+        "MSV_EXON_OVR",
+        "INTRAGENIC_EXON_DUP",
+        "PARTIAL_EXON_DUP"
+      ]
+    },
+    "pathogenicity": {
+      "hgmd": [
+        "disease_causing"
+      ],
+      "clinvar": [
+        "pathogenic",
+        "likely_pathogenic",
+        "vus_or_conflicting"
+      ]
+    },
+    "annotations_secondary": {
+      "other": [
+        "transcript_ablation",
+        "transcript_amplification",
+        "5_prime_UTR_variant",
+        "3_prime_UTR_variant",
+        "TFBS_ablation",
+        "TFBS_amplification",
+        "TF_binding_site_variant",
+        "regulatory_region_variant",
+        "regulatory_region_ablation",
+        "regulatory_region_amplification",
+        "non_coding_transcript_exon_variant__canonical"
+      ],
+      "in_frame": [
+        "inframe_insertion",
+        "inframe_deletion"
+      ],
+      "missense": [
+        "stop_lost",
+        "initiator_codon_variant",
+        "start_lost",
+        "protein_altering_variant",
+        "missense_variant"
+      ],
+      "nonsense": [
+        "stop_gained"
+      ],
+      "frameshift": [
+        "frameshift_variant"
+      ],
+      "structural": [
+        "gCNV_DEL",
+        "gCNV_DUP"
+      ],
+      "synonymous": [
+        "synonymous_variant",
+        "stop_retained_variant"
+      ],
+      "extended_splice_site": [
+        "splice_region_variant"
+      ],
+      "essential_splice_site": [
+        "splice_donor_variant",
+        "splice_acceptor_variant"
+      ],
+      "structural_consequence": [
+        "LOF",
+        "DUP_LOF",
+        "INTRONIC",
+        "UTR",
+        "PROMOTER",
+        "INTRAGENIC_EXON_DUP",
+        "PARTIAL_EXON_DUP"
+      ]
+    },
+    "dataset_type": "ALL",
+    "secondary_dataset_type": "ALL",
+    "inheritance_mode": "recessive",
+    "inheritance_filter": {
+      "A": null,
+      "N": null
+    },
+    "sample_data": {
+      "SNV_INDEL": [
+        {
+          "sample_id": "RGP_2436_2_D1",
+          "individual_guid": "I0097169_rgp_2436_2",
+          "family_guid": "F041731_rgp_2436",
+          "project_guid": "R0594_rare_genomes_project_gen",
+          "affected": "N"
+        },
+        {
+          "sample_id": "RGP_2436_3_D1",
+          "individual_guid": "I0097170_rgp_2436_3",
+          "family_guid": "F041731_rgp_2436",
+          "project_guid": "R0594_rare_genomes_project_gen",
+          "affected": "A"
+        },
+        {
+          "sample_id": "RGP_2436_1_D1",
+          "individual_guid": "I0097168_rgp_2436_1",
+          "family_guid": "F041731_rgp_2436",
+          "project_guid": "R0594_rare_genomes_project_gen",
+          "affected": "N"
+        }
+      ]
+    },
+    "sort": "xpos",
+    "sort_metadata": null,
+    "frequencies": {
+      "g1k": {
+        "ac": null,
+        "af": 1
+      },
+      "exac": {
+        "ac": null,
+        "af": 1
+      },
+      "topmed": {
+        "ac": null,
+        "af": 1
+      },
+      "gnomad_svs": {
+        "ac": null,
+        "af": 0.01
+      },
+      "sv_callset": {
+        "ac": null,
+        "af": 0.01
+      },
+      "gnomad_exomes": {
+        "ac": null,
+        "af": 0.01
+      },
+      "gnomad_genomes": {
+        "ac": null,
+        "af": 0.01
+      },
+      "seqr": {
+        "ac": null,
+        "af": 0.03
+      }
+    },
+    "quality_filter": {
+      "min_ab": 10,
+      "min_gq": 40,
+      "min_qs": 50
+    },
+    "custom_query": null,
+    "intervals": null,
+    "exclude_intervals": null,
+    "gene_ids": null,
+    "variant_ids": null,
+    "rs_ids": null
+  }

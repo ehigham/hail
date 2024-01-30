@@ -1,0 +1,50 @@
+# SEQR
+
+For testing hail performance with seqr.
+
+
+## Installing SEQR
+
+    $ git clone git@github.com:broadinstitute/seqr.git
+    $ ln -s seqr/hail_search .
+
+
+## Getting the Data
+
+Need access to the following buckets:
+- seqr-reference-data
+- seqr-hail-search-data
+
+Then
+
+    $ mkdir -p data/GRCh38/SNV_INDEL/families
+    $ pushd data/GRCh38/SNV_INDEL/
+
+    $ export PREFIX="seqr-hail-search-data/v03/GRCh38/SNV_INDEL" && \
+      gsutil -m cp -r "gs://$PREFIX/annotations.ht" . && \
+      gsutil -m cp -r "gs://$PREFIX/families/F041731_rgp_2436.ht" familes/
+
+    $ export PREFIX="seqr-reference-data/v03/GRCh38/SNV_INDEL/cached_reference_dataset_queries" && \
+      gsutil -m cp -r "gs://$PREFIX/clinvar_path_variants.ht" . && \
+      gsutil -m cp -r "gs://$PREFIX/high_af_variants.ht" .
+
+    $ popd
+
+For now, we can use the dummy data from seqr/hail_search/fixtures as they're
+not used:
+
+    $ ln -s hail_search/fixtures/GRCh38/MITO data/GRCh38/MITO
+    $ ln -s hail_search/fixtures/GRCh38/SV_WES data/GRCh38/SV_WES
+    $ ln -s hail_search/fixtures/GRCh38/SV_WGS data/GRCh38/SV_WGS
+
+
+## Usage
+See help output for usage:
+
+    $ DATASETS_DIR=$PWD/data ./run.py --help
+
+
+## Query payloads
+`run.py` discovers query payload `.json` files in the `query/` folder.
+You can add your favourite payloads there.
+Hidden files (ie those whose name starts with '.') are excluded.
