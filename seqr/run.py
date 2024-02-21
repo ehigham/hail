@@ -27,7 +27,7 @@ def discover() -> Dict[str, Path]:
     return queries
 
 
-def run_benchmark(name, queries, repeats=5):
+def run_benchmark(name, queries, repeats=3):
     with queries[name].open() as f:
         query = json.load(f)
 
@@ -46,9 +46,10 @@ def benchmark(_args, queries) -> int:
     random.shuffle(names)
 
     separator()
-    for n in names:
-        run_benchmark(n, queries)
-        separator()
+    run_benchmark('slow', queries)
+    # for n in names:
+    #     run_benchmark(n, queries)
+    #     separator()
 
 
 def profile(args, queries) -> int:
@@ -77,6 +78,7 @@ def main() -> int:
 
     args = parser.parse_args()
 
+    hl._set_flags(use_new_shuffle='1', lower='1')
     hl.init(backend='spark', idempotent=True)
     seqr_init()
 
