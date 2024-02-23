@@ -33,9 +33,10 @@ Then
 For now, we can use the dummy data from seqr/hail_search/fixtures as they're
 not used:
 
-    $ ln -s hail_search/fixtures/GRCh38/MITO data/GRCh38/MITO
-    $ ln -s hail_search/fixtures/GRCh38/SV_WES data/GRCh38/SV_WES
-    $ ln -s hail_search/fixtures/GRCh38/SV_WGS data/GRCh38/SV_WGS
+    $ ln -s $PWD/hail_search/fixtures/GRCh38/MITO data/GRCh38/MITO
+    $ ln -s $PWD/hail_search/fixtures/GRCh38/SV_WES data/GRCh38/SV_WES
+    $ ln -s $PWD/hail_search/fixtures/GRCh38/SV_WGS data/GRCh38/SV_WGS
+    $ ln -s $PWD/hail_search/fixtures/GRCh37 data/GRCh37
 
 
 ## Usage
