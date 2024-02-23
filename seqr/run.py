@@ -27,14 +27,15 @@ def discover() -> Dict[str, Path]:
     return queries
 
 
-def run_benchmark(name, queries, repeats=3):
+def run_benchmark(name, queries, repeats=5):
     with queries[name].open() as f:
         query = json.load(f)
 
     print(f'Timing query \'{name}\' with {repeats} repeats.')
     res = timeit.repeat(lambda: seqr_run({ **query }), repeat=repeats, number=1)
     print(f'Initial:\t{res[0]}s')
-    print(f'Mean:\t{statistics.fmean(res[1:])}s')
+    print(f'   Mean:\t{statistics.fmean(res[1:])}s')
+    print(f'  Stdev:\t{statistics.stdev(res[1:])}')
 
 
 def separator():
