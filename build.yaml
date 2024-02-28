@@ -1196,10 +1196,10 @@ steps:
       python3 -m pip install --no-dependencies /io/debug-wheel/hail-*-py3-none-any.whl
       mkdir -p /io/tmp
 
-      # The test should use the test credentials, not CI's credentials
-      sed -i 's/gsa-key/test-gsa-key/g' $(find_spark_home.py)/conf/core-site.xml
-      export GOOGLE_APPLICATION_CREDENTIALS=/test-gsa-key/key.json
-      export AZURE_APPLICATION_CREDENTIALS=/test-gsa-key/key.json
+      # pyspark/conf/core-site.xml already points at /gsa-key/key.json
+      mv /test-gsa-key/key.json /gsa-key/key.json
+      export GOOGLE_APPLICATION_CREDENTIALS=/gsa-key/key.json
+      export AZURE_APPLICATION_CREDENTIALS=/gsa-key/key.json
 
       export HAIL_QUERY_N_CORES=2
       export OMP_NUM_THREADS=2
