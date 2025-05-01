@@ -2353,6 +2353,8 @@ steps:
       - name: jobs-add-n-max-attempts
         script: /io/sql/jobs-add-n-max-attempts.sql
         online: true
+      - name: 11689-update-mark-job-started
+        script: /io/sql/11689-update-mark-job-started.sql
     inputs:
       - from: /repo/batch/sql
         to: /io/sql
