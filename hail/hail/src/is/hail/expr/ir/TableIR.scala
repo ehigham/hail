@@ -55,8 +55,6 @@ sealed abstract class TableIR extends BaseIR {
 
   def partitionCounts: Option[IndexedSeq[Long]] = None
 
-  val rowCountUpperBound: Option[Long]
-
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): TableIR
 
   def unpersist(): TableIR =
@@ -86,8 +84,6 @@ case class TableLiteral(
   encodedGlobals: Array[Array[Byte]],
 ) extends TableIR {
   val childrenSeq: IndexedSeq[BaseIR] = Array.empty[BaseIR]
-
-  lazy val rowCountUpperBound: Option[Long] = None
 
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): TableLiteral = {
     assert(newChildren.isEmpty)
@@ -2105,7 +2101,6 @@ case class TableRead(typ: TableType, dropRows: Boolean, tr: TableReader) extends
 }
 
 case class TableParallelize(rowsAndGlobal: IR, nPartitions: Option[Int] = None) extends TableIR {
-  lazy val rowCountUpperBound: Option[Long] = None
 
   val childrenSeq: IndexedSeq[BaseIR] = FastSeq(rowsAndGlobal)
 
@@ -2139,8 +2134,6 @@ case class TableParallelize(rowsAndGlobal: IR, nPartitions: Option[Int] = None) 
   */
 case class TableKeyBy(child: TableIR, keys: IndexedSeq[String], isSorted: Boolean = false)
     extends TableIR {
-  lazy val rowCountUpperBound: Option[Long] = child.rowCountUpperBound
-
   val childrenSeq: IndexedSeq[BaseIR] = Array(child)
 
   lazy val typ: TableType = child.typ.copy(key = keys)
@@ -2190,9 +2183,6 @@ case class TableGen(
   override lazy val typ: TableType =
     TableType(rowType, partitioner.kType.fieldNames, globalType)
 
-  override val rowCountUpperBound: Option[Long] =
-    None
-
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): TableIR = {
     val IndexedSeq(contexts: IR, globals: IR, body: IR) = newChildren
     TableGen(contexts, globals, cname, gname, body, partitioner, errorId)
@@ -2232,8 +2222,6 @@ case class TableFilter(child: TableIR, pred: IR) extends TableIR {
 
   def typ: TableType = child.typ
 
-  lazy val rowCountUpperBound: Option[Long] = child.rowCountUpperBound
-
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): TableFilter = {
     assert(newChildren.length == 2)
     TableFilter(newChildren(0).asInstanceOf[TableIR], newChildren(1).asInstanceOf[IR])
@@ -2259,11 +2247,6 @@ trait TableSubset extends TableIR {
       case TableSubset.HEAD => PartitionCounts.getHeadPCs(_, n)
       case TableSubset.TAIL => PartitionCounts.getTailPCs(_, n)
     })
-
-  lazy val rowCountUpperBound: Option[Long] = child.rowCountUpperBound match {
-    case Some(c) => Some(c.min(n))
-    case None => Some(n)
-  }
 }
 
 case class TableHead(child: TableIR, n: Long) extends TableSubset {
@@ -2294,8 +2277,6 @@ object RepartitionStrategy {
 
 case class TableRepartition(child: TableIR, n: Int, strategy: Int) extends TableIR {
   def typ: TableType = child.typ
-
-  lazy val rowCountUpperBound: Option[Long] = child.rowCountUpperBound
 
   lazy val childrenSeq: IndexedSeq[BaseIR] = FastSeq(child)
 
@@ -2332,8 +2313,6 @@ case class TableJoin(left: TableIR, right: TableIR, joinType: String, joinKey: I
     joinType == "outer")
 
   val childrenSeq: IndexedSeq[BaseIR] = Array(left, right)
-
-  lazy val rowCountUpperBound: Option[Long] = None
 
   lazy val typ: TableType = {
     val leftRowType = left.typ.rowType
@@ -2379,8 +2358,6 @@ case class TableIntervalJoin(
 ) extends TableIR {
   lazy val childrenSeq: IndexedSeq[BaseIR] = Array(left, right)
 
-  lazy val rowCountUpperBound: Option[Long] = left.rowCountUpperBound
-
   lazy val typ: TableType = {
     val rightType: Type = if (product) TArray(right.typ.valueType) else right.typ.valueType
     left.typ.copy(rowType = left.typ.rowType.appendKey(root, rightType))
@@ -2409,8 +2386,6 @@ case class TableMultiWayZipJoin(
 
   private def first = childrenSeq.head
 
-  lazy val rowCountUpperBound: Option[Long] = None
-
   lazy val typ: TableType = {
     def newGlobalType = TStruct(globalName -> TArray(first.typ.globalType))
     def newValueType = TStruct(fieldName -> TArray(first.typ.valueType))
@@ -2427,7 +2402,6 @@ case class TableMultiWayZipJoin(
 }
 
 case class TableLeftJoinRightDistinct(left: TableIR, right: TableIR, root: String) extends TableIR {
-  lazy val rowCountUpperBound: Option[Long] = left.rowCountUpperBound
 
   lazy val childrenSeq: IndexedSeq[BaseIR] = Array(left, right)
 
@@ -2484,8 +2458,6 @@ case class TableMapPartitions(
 case class TableMapRows(child: TableIR, newRow: IR) extends TableIR {
   val childrenSeq: IndexedSeq[BaseIR] = Array(child, newRow)
 
-  lazy val rowCountUpperBound: Option[Long] = child.rowCountUpperBound
-
   lazy val typ: TableType = child.typ.copy(rowType = newRow.typ.asInstanceOf[TStruct])
 
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): TableMapRows = {
@@ -2498,8 +2470,6 @@ case class TableMapRows(child: TableIR, newRow: IR) extends TableIR {
 
 case class TableMapGlobals(child: TableIR, newGlobals: IR) extends TableIR {
   val childrenSeq: IndexedSeq[BaseIR] = Array(child, newGlobals)
-
-  lazy val rowCountUpperBound: Option[Long] = child.rowCountUpperBound
 
   lazy val typ: TableType =
     child.typ.copy(globalType = newGlobals.typ.asInstanceOf[TStruct])
@@ -2514,8 +2484,6 @@ case class TableMapGlobals(child: TableIR, newGlobals: IR) extends TableIR {
 
 case class TableExplode(child: TableIR, path: IndexedSeq[String]) extends TableIR {
   assert(path.nonEmpty)
-
-  lazy val rowCountUpperBound: Option[Long] = None
 
   lazy val childrenSeq: IndexedSeq[BaseIR] = Array(child)
 
@@ -2537,14 +2505,6 @@ case class TableExplode(child: TableIR, path: IndexedSeq[String]) extends TableI
 case class TableUnion(childrenSeq: IndexedSeq[TableIR]) extends TableIR {
   assert(childrenSeq.nonEmpty)
 
-  lazy val rowCountUpperBound: Option[Long] = {
-    val definedChildren = childrenSeq.flatMap(_.rowCountUpperBound)
-    if (definedChildren.length == childrenSeq.length)
-      Some(definedChildren.sum)
-    else
-      None
-  }
-
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): TableUnion =
     TableUnion(newChildren.map(_.asInstanceOf[TableIR]))
 
@@ -2555,8 +2515,6 @@ case class MatrixRowsTable(child: MatrixIR) extends TableIR {
   val childrenSeq: IndexedSeq[BaseIR] = Array(child)
 
   override def partitionCounts: Option[IndexedSeq[Long]] = child.partitionCounts
-
-  lazy val rowCountUpperBound: Option[Long] = child.rowCountUpperBound
 
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): MatrixRowsTable = {
     assert(newChildren.length == 1)
@@ -2569,8 +2527,6 @@ case class MatrixRowsTable(child: MatrixIR) extends TableIR {
 case class MatrixColsTable(child: MatrixIR) extends TableIR {
   val childrenSeq: IndexedSeq[BaseIR] = Array(child)
 
-  lazy val rowCountUpperBound: Option[Long] = child.rowCountUpperBound
-
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): MatrixColsTable = {
     assert(newChildren.length == 1)
     MatrixColsTable(newChildren(0).asInstanceOf[MatrixIR])
@@ -2581,8 +2537,6 @@ case class MatrixColsTable(child: MatrixIR) extends TableIR {
 
 case class MatrixEntriesTable(child: MatrixIR) extends TableIR {
   val childrenSeq: IndexedSeq[BaseIR] = Array(child)
-
-  lazy val rowCountUpperBound: Option[Long] = None
 
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR])
     : MatrixEntriesTable = {
@@ -2595,8 +2549,6 @@ case class MatrixEntriesTable(child: MatrixIR) extends TableIR {
 
 case class TableDistinct(child: TableIR) extends TableIR {
   lazy val childrenSeq: IndexedSeq[BaseIR] = Array(child)
-
-  lazy val rowCountUpperBound: Option[Long] = child.rowCountUpperBound
 
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): TableDistinct = {
     val IndexedSeq(newChild) = newChildren
@@ -2617,8 +2569,6 @@ case class TableKeyByAndAggregate(
 
   lazy val childrenSeq: IndexedSeq[BaseIR] = Array(child, expr, newKey)
 
-  lazy val rowCountUpperBound: Option[Long] = child.rowCountUpperBound
-
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR])
     : TableKeyByAndAggregate = {
     val IndexedSeq(newChild: TableIR, newExpr: IR, newNewKey: IR) = newChildren
@@ -2636,8 +2586,6 @@ case class TableKeyByAndAggregate(
 
 // follows key_by non-empty key
 case class TableAggregateByKey(child: TableIR, expr: IR) extends TableIR {
-  lazy val rowCountUpperBound: Option[Long] = child.rowCountUpperBound
-
   lazy val childrenSeq: IndexedSeq[BaseIR] = Array(child, expr)
 
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR])
@@ -2665,8 +2613,6 @@ case class TableOrderBy(child: TableIR, sortFields: IndexedSeq[SortField]) exten
   // TableOrderBy expects an unkeyed child, so that we can better optimize by
   // pushing these two steps around as needed
 
-  lazy val rowCountUpperBound: Option[Long] = child.rowCountUpperBound
-
   val childrenSeq: IndexedSeq[BaseIR] = FastSeq(child)
 
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): TableOrderBy = {
@@ -2686,8 +2632,6 @@ case class CastMatrixToTable(
   colsFieldName: String,
 ) extends TableIR {
 
-  lazy val rowCountUpperBound: Option[Long] = child.rowCountUpperBound
-
   lazy val typ: TableType = child.typ.toTableType(entriesFieldName, colsFieldName)
 
   lazy val childrenSeq: IndexedSeq[BaseIR] = FastSeq(child)
@@ -2702,7 +2646,6 @@ case class CastMatrixToTable(
 
 case class TableRename(child: TableIR, rowMap: Map[String, String], globalMap: Map[String, String])
     extends TableIR {
-  lazy val rowCountUpperBound: Option[Long] = child.rowCountUpperBound
 
   def rowF(old: String): String = rowMap.getOrElse(old, old)
 
@@ -2726,8 +2669,6 @@ case class TableFilterIntervals(child: TableIR, intervals: IndexedSeq[Interval],
     extends TableIR {
   lazy val childrenSeq: IndexedSeq[BaseIR] = Array(child)
 
-  lazy val rowCountUpperBound: Option[Long] = child.rowCountUpperBound
-
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): TableIR = {
     val IndexedSeq(newChild: TableIR) = newChildren
     TableFilterIntervals(newChild, intervals, keep)
@@ -2738,9 +2679,6 @@ case class TableFilterIntervals(child: TableIR, intervals: IndexedSeq[Interval],
 
 case class MatrixToTableApply(child: MatrixIR, function: MatrixToTableFunction) extends TableIR {
   lazy val childrenSeq: IndexedSeq[BaseIR] = Array(child)
-
-  lazy val rowCountUpperBound: Option[Long] =
-    if (function.preservesPartitionCounts) child.rowCountUpperBound else None
 
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): TableIR = {
     val IndexedSeq(newChild: MatrixIR) = newChildren
@@ -2766,8 +2704,6 @@ case class TableToTableApply(child: TableIR, function: TableToTableFunction) ext
   override def partitionCounts: Option[IndexedSeq[Long]] =
     if (function.preservesPartitionCounts) child.partitionCounts else None
 
-  lazy val rowCountUpperBound: Option[Long] =
-    if (function.preservesPartitionCounts) child.rowCountUpperBound else None
 }
 
 case class BlockMatrixToTableApply(
@@ -2777,8 +2713,6 @@ case class BlockMatrixToTableApply(
 ) extends TableIR {
 
   override lazy val childrenSeq: IndexedSeq[BaseIR] = Array(bm, aux)
-
-  lazy val rowCountUpperBound: Option[Long] = None
 
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): TableIR =
     BlockMatrixToTableApply(
@@ -2793,8 +2727,6 @@ case class BlockMatrixToTableApply(
 case class BlockMatrixToTable(child: BlockMatrixIR) extends TableIR {
   lazy val childrenSeq: IndexedSeq[BaseIR] = Array(child)
 
-  lazy val rowCountUpperBound: Option[Long] = None
-
   override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): TableIR = {
     val IndexedSeq(newChild: BlockMatrixIR) = newChildren
     BlockMatrixToTable(newChild)
@@ -2808,8 +2740,6 @@ case class BlockMatrixToTable(child: BlockMatrixIR) extends TableIR {
 
 case class RelationalLetTable(name: Name, value: IR, body: TableIR) extends TableIR {
   def typ: TableType = body.typ
-
-  lazy val rowCountUpperBound: Option[Long] = body.rowCountUpperBound
 
   def childrenSeq: IndexedSeq[BaseIR] = Array(value, body)
 
