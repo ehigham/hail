@@ -4,7 +4,7 @@ import is.hail.expr.ir.defs._
 import is.hail.types.tcoerce
 import is.hail.types.virtual._
 import is.hail.types.virtual.TIterable.elementType
-import is.hail.utils.FastSeq
+import is.hail.utils.{FastSeq, toRichIterable}
 
 import scala.collection.mutable
 
@@ -178,11 +178,21 @@ object Bindings {
     ir match {
       case TableFilter(child, _) if i == 1 =>
         Bindings.inFreshScope(child.typ.rowBindings)
-      case TableGen(contexts, globals, cname, gname, _, _, _) if i == 2 =>
-        Bindings.inFreshScope(FastSeq(
-          cname -> elementType(contexts.typ),
-          gname -> globals.typ,
-        ))
+      case TableGen(s) =>
+        Bindings.inFreshScope(
+          bindings =
+            Stream(
+              s.letBindings.view.map { case (name, ir) => name -> ir.typ },
+              s.broadcastVals.view.map { case (name, ir) => name -> ir.typ },
+              Stream(
+                s.globals.name -> s.globals.typ,
+                s.ctxRefName -> elementType(s.contexts.typ),
+              )
+            )
+              .flatten
+              .take(i)
+              .toFastSeq
+        )
       case TableMapGlobals(child, _) if i == 1 =>
         Bindings.inFreshScope(child.typ.globalBindings)
       case TableMapRows(child, _) if i == 1 =>

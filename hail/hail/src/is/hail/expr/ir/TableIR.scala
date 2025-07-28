@@ -5,10 +5,9 @@ import is.hail.annotations._
 import is.hail.asm4s._
 import is.hail.backend.{ExecuteContext, HailStateManager, HailTaskContext, TaskFinalizer}
 import is.hail.expr.ir.compile.Compile
+import is.hail.expr.ir.defs.ArrayZipBehavior.AssertSameLength
 import is.hail.expr.ir.defs._
-import is.hail.expr.ir.functions.{
-  BlockMatrixToTableFunction, IntervalFunctions, MatrixToTableFunction, TableToTableFunction,
-}
+import is.hail.expr.ir.functions.{BlockMatrixToTableFunction, IntervalFunctions, MatrixToTableFunction, TableToTableFunction}
 import is.hail.expr.ir.lowering._
 import is.hail.expr.ir.streams.StreamProducer
 import is.hail.io._
@@ -28,7 +27,6 @@ import is.hail.types.virtual._
 import is.hail.utils._
 
 import java.io.{Closeable, InputStream}
-
 import org.apache.spark.sql.Row
 import org.json4s.{DefaultFormats, Extraction, Formats, JValue, ShortTypeHints}
 import org.json4s.JsonAST.JString
@@ -2146,50 +2144,150 @@ case class TableKeyBy(child: TableIR, keys: IndexedSeq[String], isSorted: Boolea
   }
 }
 
-/** Generate a table from the elementwise application of a body IR to a stream of `contexts`.
-  *
-  * @param contexts
-  *   IR of type TStream[Any] whose elements are downwardly exposed to `body` as `cname`.
-  * @param globals
-  *   IR of type TStruct, downwardly exposed to `body` as `gname`.
-  * @param cname
-  *   Name of free variable in `body` referencing elements of `contexts`.
-  * @param gname
-  *   Name of free variable in `body` referencing `globals`.
-  * @param body
-  *   IR of type TStream[TStruct] that generates the rows of the table for each element in
-  *   `contexts`, optionally referencing free variables Ref(cname) and Ref(gname).
-  * @param partitioner
-  * @param errorId
-  *   Identifier tracing location in Python source that created this node
-  */
-case class TableGen(
-  contexts: IR,
-  globals: IR,
-  cname: Name,
-  gname: Name,
-  body: IR,
-  partitioner: RVDPartitioner,
-  errorId: Int = ErrorIDs.NO_ERROR,
-) extends TableIR {
-  private def globalType =
-    TypeCheck.coerce[TStruct]("globals", globals.typ)
+case class TableGen(s: TableStage) extends TableIR {
 
-  private def rowType = {
-    val bodyType = TypeCheck.coerce[TStream]("body", body.typ)
-    TypeCheck.coerce[TStruct]("body.elementType", bodyType.elementType)
+  override def typ: TableType =
+    s.tableType
+
+  override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): TableIR =
+    TableGen {
+      val bcOffset =
+        s.letBindings.length
+
+      val cOffset =
+        bcOffset + s.broadcastVals.length
+
+      s.copy(
+        letBindings =
+          s.letBindings.zipWithIndex.map { case ((name, _), idx) =>
+            name -> newChildren(idx).asInstanceOf[IR]
+          },
+        broadcastVals =
+          s.broadcastVals.zipWithIndex.map { case ((name, _), idx) =>
+            name -> newChildren(idx + bcOffset).asInstanceOf[IR]
+          },
+        contexts =
+          newChildren(cOffset + 1).asInstanceOf[IR],
+        partitionIR =
+          newChildren(cOffset + 2).asInstanceOf[IR],
+      )
   }
 
-  override lazy val typ: TableType =
-    TableType(rowType, partitioner.kType.fieldNames, globalType)
+  override lazy val childrenSeq: IndexedSeq[BaseIR] =
+    s.letBindings.map(_._2) ++
+      s.broadcastVals.map(_._2) ++
+      FastSeq(s.contexts, s.partitionIR)
+}
 
-  override protected def copyWithNewChildren(newChildren: IndexedSeq[BaseIR]): TableIR = {
-    val IndexedSeq(contexts: IR, globals: IR, body: IR) = newChildren
-    TableGen(contexts, globals, cname, gname, body, partitioner, errorId)
-  }
+object TableGen {
+  /** Generate a table from the elementwise application of a body IR to a stream of `contexts`.
+   *
+   * @param contexts
+   * IR of type TStream[Any] whose elements are downwardly exposed to `body` as `cname`.
+   * @param globals
+   * IR of type TStruct, downwardly exposed to `body` as `gname`.
+   * @param cname
+   * Name of free variable in `body` referencing elements of `contexts`.
+   * @param gname
+   * Name of free variable in `body` referencing `globals`.
+   * @param body
+   * IR of type TStream[TStruct] that generates the rows of the table for each element in
+   * `contexts`, optionally referencing free variables Ref(cname) and Ref(gname).
+   * @param errorId
+   * Identifier tracing location in Python source that created this node
+   */
+  def apply(
+             contexts: IR,
+             globals: IR,
+             cname: Name,
+             gname: Name,
+             body: IR,
+             partitioner: RVDPartitioner,
+             errorId: Int = ErrorIDs.NO_ERROR,
+           ): TableIR =
+    TableGen {
+      val globalRef =
+        Ref(freshName(), globals.typ)
 
-  override def childrenSeq: IndexedSeq[BaseIR] =
-    FastSeq(contexts, globals, body)
+      TableStage(
+        letBindings = FastSeq(gname -> globals),
+        broadcastVals = FastSeq(gname -> globalRef),
+        globals = globalRef,
+        partitioner = partitioner,
+        dependency = TableStageDependency.none,
+        contexts =
+          IRBuilder.scoped { ib =>
+            val cref =
+              ib.memoize(ToArray(contexts))
+
+            val len =
+              ib.memoize(ArrayLen(cref))
+
+            val contexts_ =
+              ToStream(If(
+                len ceq partitioner.numPartitions,
+                cref, {
+                  val msg =
+                    strConcat(
+                      s"TableGen: partitioner contains ${partitioner.numPartitions} partitions,",
+                      " got ",
+                      len,
+                      " contexts.",
+                    )
+
+                  Die(msg, cref.typ, errorId)
+                }
+              ))
+
+            // [FOR KEYED TABLES ONLY]
+            // AFAIK, there's no way to guarantee that the rows generated in the
+            // body conform to their partition's range bounds at compile time so
+            // assert this at runtime in the body before it wreaks havoc upon the world.
+            val partitionIdx =
+              StreamRange(I32(0), I32(partitioner.numPartitions), I32(1))
+
+            val bounds =
+              Literal(
+                TArray(TInterval(partitioner.kType)),
+                partitioner.rangeBounds.toIndexedSeq,
+              )
+
+            zipIR(FastSeq(partitionIdx, ToStream(bounds), contexts_), AssertSameLength, errorId)(MakeTuple.ordered)
+          },
+        partition = in =>
+          IRBuilder.scoped { ib =>
+            ib.bind(gname, globalRef)
+            ib.bind(cname, GetTupleElement(in, 2))
+            if (partitioner.kType.fields.isEmpty) body
+            else {
+              val interval =
+                ib.memoize(GetTupleElement(in, 1))
+
+              mapIR(body) { row =>
+                val key =
+                  SelectFields(row, partitioner.kType.fieldNames)
+
+                If(
+                  invoke("contains", TBoolean, interval, key),
+                  row, {
+                    val idx =
+                      ib.memoize(GetTupleElement(in, 0))
+
+                    val msg =
+                      strConcat(
+                        "TableGen: Unexpected key in partition ", idx,
+                        "\n\tRange bounds for partition ", idx, ": ", interval,
+                        "\n\tInvalid key: ", key,
+                      )
+
+                    Die(msg, row.typ, errorId)
+                  },
+                )
+              }
+            }
+          }
+      )
+    }
 }
 
 case class TableRange(n: Int, nPartitions: Int) extends TableIR {

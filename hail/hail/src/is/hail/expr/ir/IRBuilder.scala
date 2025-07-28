@@ -22,9 +22,14 @@ class IRBuilder {
     case _ => strictMemoize(ir)
   }
 
-  def strictMemoize(ir: IR): Ref = {
-    val name = freshName()
-    bindings += name -> ir
-    Ref(name, ir.typ)
+  def strictMemoize(ir: IR): Ref =
+    bind(freshName(), ir)
+
+  def bind(name: Name, value: IR): Ref = {
+    bindings += name -> value
+    Ref(name, value.typ)
   }
+
+  def bind(name: String, value: IR): Ref =
+    bind(Name(name), value)
 }

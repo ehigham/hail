@@ -1102,67 +1102,16 @@ object LowerTableIR {
           ctxRef => ToStream(ctxRef, true),
         )
 
-      case TableGen(contexts, globals, cname, gname, body, partitioner, errorId) =>
-        val loweredGlobals = lowerIR(globals)
-        TableStage(
-          loweredGlobals,
-          partitioner = partitioner,
-          dependency = TableStageDependency.none,
-          contexts = lowerIR {
-            bindIR(ToArray(contexts)) { ref =>
-              bindIR(ArrayLen(ref)) { len =>
-                // Assert at runtime that the number of contexts matches the number of partitions
-                val ctxs = ToStream(If(
-                  len ceq partitioner.numPartitions,
-                  ref, {
-                    val dieMsg = strConcat(
-                      s"TableGen: partitioner contains ${partitioner.numPartitions} partitions,",
-                      " got ",
-                      len,
-                      " contexts.",
-                    )
-                    Die(dieMsg, ref.typ, errorId)
-                  },
-                ))
-
-                // [FOR KEYED TABLES ONLY]
-                // AFAIK, there's no way to guarantee that the rows generated in the
-                // body conform to their partition's range bounds at compile time so
-                // assert this at runtime in the body before it wreaks havoc upon the world.
-                val partitionIdx = StreamRange(I32(0), I32(partitioner.numPartitions), I32(1))
-                val bounds = Literal(
-                  TArray(TInterval(partitioner.kType)),
-                  partitioner.rangeBounds.toIndexedSeq,
-                )
-                zipIR(FastSeq(partitionIdx, ToStream(bounds), ctxs), AssertSameLength, errorId)(
-                  MakeTuple.ordered
-                )
-              }
-            }
-          },
-          body = in =>
-            lowerIR {
-              val rows =
-                Let(FastSeq(cname -> GetTupleElement(in, 2), gname -> loweredGlobals), body)
-              if (partitioner.kType.fields.isEmpty) rows
-              else bindIR(GetTupleElement(in, 1)) { interval =>
-                mapIR(rows) { row =>
-                  val key = SelectFields(row, partitioner.kType.fieldNames)
-                  If(
-                    invoke("contains", TBoolean, interval, key),
-                    row, {
-                      val idx = GetTupleElement(in, 0)
-                      val msg = strConcat(
-                        "TableGen: Unexpected key in partition ", idx,
-                        "\n\tRange bounds for partition ", idx, ": ", interval,
-                        "\n\tInvalid key: ", key,
-                      )
-                      Die(msg, row.typ, errorId)
-                    },
-                  )
-                }
-              }
-            },
+      case TableGen(stage) =>
+        new TableStage(
+          letBindings = stage.letBindings.map { case (name, ir) => name -> lowerIR(ir) },
+          broadcastVals = stage.broadcastVals.map { case (name, ir) => name -> lowerIR(ir) },
+          globals = stage.globals,
+          partitioner = stage.partitioner,
+          dependency = stage.dependency,
+          contexts = lowerIR(stage.contexts),
+          ctxRefName = stage.ctxRefName,
+          partitionIR = lowerIR(stage.partitionIR),
         )
 
       case TableRange(n, nPartitions) =>

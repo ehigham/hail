@@ -610,10 +610,10 @@ object TypeCheck {
         assert(child.typ.key.nonEmpty)
       case TableExplode(child, path) =>
         assert(!child.typ.key.contains(path.head))
-      case TableGen(contexts, globals, _, _, body, partitioner, _) =>
-        TypeCheck.coerce[TStream]("contexts", contexts.typ)
-        TypeCheck.coerce[TStruct]("globals", globals.typ)
-        val bodyType = TypeCheck.coerce[TStream]("body", body.typ)
+      case TableGen(s) =>
+        TypeCheck.coerce[TStream]("contexts", s.contexts.typ)
+        TypeCheck.coerce[TStruct]("globals", s.globals.typ)
+        val bodyType = TypeCheck.coerce[TStream]("body", s.partitionIR.typ)
         val rowType = TypeCheck.coerce[TStruct]("body.elementType", bodyType.elementType)
 
         if (!partitioner.kType.isSubsetOf(rowType))

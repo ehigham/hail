@@ -155,7 +155,8 @@ class NormalizeNames(freeVariables: Set[Name]) {
           globalName = rename(x.globalName),
           partitionStreamName = rename(x.partitionStreamName),
         )
-      case x: TableGen => x.copy(cname = rename(x.cname), gname = rename(x.gname))
+      case x: TableGen =>
+        x.copy(cname = rename(x.cname), gname = rename(x.gname))
       case x: BlockMatrixMap => x.copy(eltName = rename(x.eltName))
       case x: BlockMatrixMap2 =>
         x.copy(leftName = rename(x.leftName), rightName = rename(x.rightName))
